@@ -1,0 +1,152 @@
+{
+  "Día 1": [
+    {
+      "nombre": "Press Banca Inclinado con Mancuernas",
+      "fila": 4
+    },
+    {
+      "nombre": "Contracción con poleas",
+      "fila": 5
+    },
+    {
+      "nombre": "Máquina de pecho",
+      "fila": 6
+    },
+    {
+      "nombre": "Contracción mancuerna",
+      "fila": 7
+    },
+    {
+      "nombre": "Press Francés",
+      "fila": 9
+    },
+    {
+      "nombre": "Extensión unilateral con polea",
+      "fila": 10
+    },
+    {
+      "nombre": "Extensión por atrás",
+      "fila": 11
+    }
+  ],
+  "Día 2": [
+    {
+      "nombre": "Peso muerto",
+      "fila": 16
+    },
+    {
+      "nombre": "Jalones al pecho",
+      "fila": 17
+    },
+    {
+      "nombre": "Remo con mancuerna",
+      "fila": 18
+    },
+    {
+      "nombre": "Curl Araña",
+      "fila": 20
+    },
+    {
+      "nombre": "Curl martillo unilateral con mancuerna",
+      "fila": 21
+    },
+    {
+      "nombre": "Curl arrastre en polea",
+      "fila": 22
+    }
+  ],
+  "Día 3": [
+    {
+      "nombre": "Sentadilla",
+      "fila": 25
+    },
+    {
+      "nombre": "Prensa",
+      "fila": 26
+    },
+    {
+      "nombre": "Peso rumano",
+      "fila": 27
+    },
+    {
+      "nombre": "Extensiones",
+      "fila": 28
+    },
+    {
+      "nombre": "Elevaciones laterales",
+      "fila": 30
+    },
+    {
+      "nombre": "Press militar con mancuernas",
+      "fila": 31
+    },
+    {
+      "nombre": "Press militar máquina",
+      "fila": 32
+    },
+    {
+      "nombre": "Elevaciones frontal polea",
+      "fila": 33
+    },
+    {
+      "nombre": "Face pulls",
+      "fila": 34
+    }
+  ],
+  "Día 4": [
+    {
+      "nombre": "Press Banca Inclinado con Mancuernas",
+      "fila": 37
+    },
+    {
+      "nombre": "Contracción con poleas",
+      "fila": 38
+    },
+    {
+      "nombre": "Máquina de pecho",
+      "fila": 39
+    },
+    {
+      "nombre": "Contracción mancuerna",
+      "fila": 40
+    },
+    {
+      "nombre": "Press Francés",
+      "fila": 42
+    },
+    {
+      "nombre": "Extensión unilateral con polea",
+      "fila": 43
+    },
+    {
+      "nombre": "Extensión por atrás",
+      "fila": 44
+    }
+  ],
+  "Día 5": [
+    {
+      "nombre": "Peso muerto",
+      "fila": 47
+    },
+    {
+      "nombre": "Jalones al pecho",
+      "fila": 48
+    },
+    {
+      "nombre": "Remo en barra",
+      "fila": 49
+    },
+    {
+      "nombre": "Remo con mancuerna",
+      "fila": 50
+    },
+    {
+      "nombre": "Curl martillo unilateral con mancuerna",
+      "fila": 52
+    },
+    {
+      "nombre": "Curl arrastre en polea",
+      "fila": 53
+    }
+  ]
+}

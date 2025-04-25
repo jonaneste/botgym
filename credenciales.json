@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "botgym-457817",
+  "private_key_id": "9907cdbf7a100d8f58245dfe6839718e83ed9481",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCt5sriQyDOJ3AP\nhIlf6sFNIUfG8sYvu6S7fR0Gttd1fXdm8b9S2tF1EXM8LtEaxq7r+g5+URKcDwbg\n4OiZUtqrYUlRqcy1pPU0sLuGN8oeDNyuanchDqDazH6oSuPAjqnXN3pXXl8D4FCt\nRa3sLBryCg4Xv1FP18O+k6IHi80C18GWNtLaPTtPp7BWrPEsJC1GsHtncNyeAj9W\nPVI9hbJazhPuB0HhNJGULomkU5+qT7uXRqxBZYoAOZ2ECTOHzYHwIRHX5TcbQi/n\n/dsa0SXI52SomEymo2N5JWDm2tAYPKWeyuPJU0/92CVn3r2KHVrWjQ/yjU2Ybt3a\nW60YOMfrAgMBAAECgf9GBX8caMxwnFHpSdC/Fg8l1nPnYAK++CE9w38VfLLJ7gLU\nCkXWaMBABvnu0RQFQ2umZaMJ8gFtjWw3myTFeRxBareqXWKprMItxxBKTNBS4tru\nvAQxkwQ8H8lGdTMWiOqSlQGE+T1dZq1S7pzmH5SQ/4/0zLgPoVaB60IA0hal+T0u\nuELywh8gTknQ6ODCaS/K01k+a0uVc8BzltK+CAOftwpCFXMgAYLg3nFs8dlFPE2Y\nTvDoATYLoxfVvfwpIzCRPpD3FUTm3NuGLJNTuMppRFPC7G366NRDFlYoUUEnt9oy\n3NzpwqtfeeHwYMJdolcZSJfOodhThdwtmOiYwvECgYEA7RXeEULOimws1z6dMId1\n6R7kEty7FpOmfPC5K2lR5OqwlzM8MLAL3zOcXGrKIZolyqNh2ZuQ1D8N9wBbIBnt\nbsWyTX4XlvSG+2m+JVX02OYk1sHr4CDFPZEk/mpQXd83B7xFO4NCcnO5r8rYCwh/\nmX88/Rh8IHfGWICBfcUDb0MCgYEAu8Z76afGPCcQBWUnjzLqARfGMobqedbVA+cB\nCRkCVvyPRZAqqahUHiabA6oetz7X2joyw+i45rQ8ZJJ+V9FofjFmr8N6ZHw72jm5\njUjwq7kxLHoqzpzEmDfhS22BecqGJP7YpvFesTNU2/7suWa2IN/YvJkJMuSjF1Q+\n/6gR1jkCgYEAhvqsM6eVb7mmzeUYGUkGGHM95n9FBNWLNBbZVZ3gwjPb1jmVSyLv\nn2QC4Zrq+baJTZU3YGzxR+WeTcImH2CjjS2BFh1z0L3nG7xYRWlqvRJKZvqBEFmX\n8jVwmmhs2QT8j6rgv8E7U24PicYyuhVckEegsXf/M3z9r+V50+EW04ECgYEAuqHS\nsy/QNiVVJSefJBMkxiVNFxdFogfG/PPy8Ynr621nMWrTHIFz6evREtlZYiSSAhLq\nNhHvBU6K4CNCdCJsy1BqkbOmyI06J/JL3INswiF1IJHkTis+s1SHFqMml1iV79tk\nlrk8tr8gTvCXdMcDqrUSBJHOtMjO2PchDpWL9PECgYEA4Svyv7MDuiMqDD+G7LXC\n5HAUJ0MEuvQDq6GYwAfedQmuX/NmIxyMeMw9nIX/gJBQLq5f+0UqoQx2nVfmY3Yq\nyO8Slg+xqnqgCommDcaSYSPoTmTair8ZO0U+BHvacK2TGNKhHOrHWtRn5GYummJ1\nkibkOi6smb0RFSp3Jw07mxY=\n-----END PRIVATE KEY-----\n",
+  "client_email": "bot-gym@botgym-457817.iam.gserviceaccount.com",
+  "client_id": "116707637201083458621",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bot-gym%40botgym-457817.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
