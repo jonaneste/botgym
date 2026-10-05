@@ -14,6 +14,9 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     public var ejercicios: [EjercicioExportado]
     public var carpetas: [CarpetaExportada]
     public var entrenos: [EntrenoExportado]
+    /// Carreras importadas de Apple Salud. Van en el mismo archivo para que un
+    /// solo JSON contenga todo el entrenamiento, gimnasio y carrera.
+    public var carreras: [CarreraExportada]
 
     public init(
         version: Int = ExportacionCompleta.versionActual,
@@ -21,7 +24,8 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         app: String = "Entrenos",
         ejercicios: [EjercicioExportado],
         carpetas: [CarpetaExportada],
-        entrenos: [EntrenoExportado]
+        entrenos: [EntrenoExportado],
+        carreras: [CarreraExportada] = []
     ) {
         self.version = version
         self.generado = generado
@@ -29,9 +33,50 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         self.ejercicios = ejercicios
         self.carpetas = carpetas
         self.entrenos = entrenos
+        self.carreras = carreras
     }
 
     public static let versionActual = 1
+
+    /// Las carreras se añadieron después, así que un archivo de la versión 1
+    /// sin ellas sigue siendo válido.
+    enum CodingKeys: String, CodingKey {
+        case version, generado, app, ejercicios, carpetas, entrenos, carreras
+    }
+
+    public init(from decodificador: Decoder) throws {
+        let contenedor = try decodificador.container(keyedBy: CodingKeys.self)
+        version = try contenedor.decode(Int.self, forKey: .version)
+        generado = try contenedor.decode(Date.self, forKey: .generado)
+        app = try contenedor.decode(String.self, forKey: .app)
+        ejercicios = try contenedor.decode([EjercicioExportado].self, forKey: .ejercicios)
+        carpetas = try contenedor.decode([CarpetaExportada].self, forKey: .carpetas)
+        entrenos = try contenedor.decode([EntrenoExportado].self, forKey: .entrenos)
+        carreras = try contenedor.decodeIfPresent([CarreraExportada].self, forKey: .carreras) ?? []
+    }
+}
+
+/// Una carrera en el archivo de exportación.
+public struct CarreraExportada: Codable, Equatable, Sendable {
+    public var id: String
+    public var fecha: Date
+    public var duracionSegundos: Double
+    public var distanciaKm: Double
+    public var ritmoSegundosPorKm: Double?
+    public var pulsoMedio: Double?
+    public var calorias: Double?
+    public var origen: String?
+
+    public init(de carrera: Carrera) {
+        self.id = carrera.id
+        self.fecha = carrera.fechaInicio
+        self.duracionSegundos = carrera.duracion
+        self.distanciaKm = carrera.distanciaKm
+        self.ritmoSegundosPorKm = carrera.ritmoSegundosPorKm
+        self.pulsoMedio = carrera.pulsoMedio
+        self.calorias = carrera.calorias
+        self.origen = carrera.origen
+    }
 }
 
 public struct EjercicioExportado: Codable, Equatable, Sendable {
@@ -136,21 +181,40 @@ public struct EntrenoExportado: Codable, Equatable, Sendable {
 public struct EjercicioEntrenoExportado: Codable, Equatable, Sendable {
     public var nombre: String
     public var grupoPrincipal: String?
+    /// Se incluyen aquí, y no solo en la biblioteca, para que quien lea el
+    /// archivo pueda contar series por grupo sin cruzar dos listas.
+    public var gruposSecundarios: [String]
     public var tipoRegistro: String
     public var notas: String
     public var superserie: String?
     public var series: [SerieExportada]
 
     public init(
-        nombre: String, grupoPrincipal: String?, tipoRegistro: String,
-        notas: String, superserie: String?, series: [SerieExportada]
+        nombre: String, grupoPrincipal: String?, gruposSecundarios: [String] = [],
+        tipoRegistro: String, notas: String, superserie: String?, series: [SerieExportada]
     ) {
         self.nombre = nombre
         self.grupoPrincipal = grupoPrincipal
+        self.gruposSecundarios = gruposSecundarios
         self.tipoRegistro = tipoRegistro
         self.notas = notas
         self.superserie = superserie
         self.series = series
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case nombre, grupoPrincipal, gruposSecundarios, tipoRegistro, notas, superserie, series
+    }
+
+    public init(from decodificador: Decoder) throws {
+        let c = try decodificador.container(keyedBy: CodingKeys.self)
+        nombre = try c.decode(String.self, forKey: .nombre)
+        grupoPrincipal = try c.decodeIfPresent(String.self, forKey: .grupoPrincipal)
+        gruposSecundarios = try c.decodeIfPresent([String].self, forKey: .gruposSecundarios) ?? []
+        tipoRegistro = try c.decode(String.self, forKey: .tipoRegistro)
+        notas = try c.decode(String.self, forKey: .notas)
+        superserie = try c.decodeIfPresent(String.self, forKey: .superserie)
+        series = try c.decode([SerieExportada].self, forKey: .series)
     }
 }
 

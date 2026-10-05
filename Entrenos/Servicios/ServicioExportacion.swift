@@ -44,10 +44,16 @@ struct ServicioExportacion {
 
         let entrenos = repositorio.entrenosFinalizados().map(exportar(entreno:))
 
+        // Las carreras salen del caché, que es lo que haya llegado de Salud
+        // o del archivo importado.
+        CacheCarreras.compartida.cargarSiHaceFalta()
+        let carreras = CacheCarreras.compartida.carreras.map(CarreraExportada.init(de:))
+
         return ExportacionCompleta(
             ejercicios: ejercicios,
             carpetas: todasLasCarpetas,
-            entrenos: entrenos
+            entrenos: entrenos,
+            carreras: carreras
         )
     }
 
@@ -104,6 +110,7 @@ struct ServicioExportacion {
                 EjercicioEntrenoExportado(
                     nombre: ejercicio.nombreEjercicio,
                     grupoPrincipal: ejercicio.ejercicio?.grupoPrincipal.rawValue,
+                    gruposSecundarios: ejercicio.ejercicio?.gruposSecundarios.map(\.rawValue) ?? [],
                     tipoRegistro: ejercicio.tipoRegistro.rawValue,
                     notas: ejercicio.notas,
                     superserie: ejercicio.idSuperserie.flatMap { etiquetas[$0] },

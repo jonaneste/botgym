@@ -16,6 +16,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # El servidor MCP es JavaScript, así que se prueba en Linux: más rápido y no
+  # consume minutos de macOS.
+  mcp:
+    name: Servidor MCP
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sintaxis
+        run: node --check mcp/servidor-entrenos.mjs
+
+      - name: Prueba del protocolo y de los agregados
+        run: node mcp/prueba.mjs
+
   nucleo:
     name: Tests del núcleo
     runs-on: macos-15

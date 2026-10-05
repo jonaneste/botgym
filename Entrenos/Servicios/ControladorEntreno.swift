@@ -400,6 +400,10 @@ final class ControladorEntreno {
             escribirEnSalud(entreno, ajustes: ajustes)
         }
 
+        // Y se vuelca el JSON a la carpeta elegida, si hay alguna. Es lo que
+        // deja los datos donde Claude puede leerlos desde el Mac.
+        ExportadorAutomatico.compartido.exportarSiProcede(contexto: contexto)
+
         self.entreno = nil
         avisoRecord = nil
         recordsDelEntreno = []

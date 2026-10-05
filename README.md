@@ -14,7 +14,8 @@ automatizada.
 | 1 | Biblioteca de ejercicios, rutinas, entreno en curso, historial | lista, CI en verde |
 | 2 | Doble progresión, récords, gráficas, series semanales | lista, CI en verde |
 | 3 | HealthKit, exportación JSON/CSV, importación de rutinas | lista, CI en verde |
-| 4 | Apple Salud como centro de datos | **lista, a validar en dispositivo** |
+| 4 | Apple Salud como centro de datos | lista, CI en verde |
+| 5 | Servidor MCP: Claude lee tus datos y te aconseja | **lista, a validar en dispositivo** |
 
 ## Stack
 
@@ -43,6 +44,7 @@ Entrenos/
   Servicios/             HealthKit, notificaciones, exportación
   DatosIniciales/        Semilla: ejercicios y la rutina de 5 días
 Tests/                   Tests unitarios del núcleo
+mcp/                     Servidor MCP para que Claude lea tus datos
 Herramientas/            Scripts de verificación
 docs/                    Instalación y esquema JSON
 ```
@@ -77,6 +79,21 @@ real del proyecto: el desarrollo se hace desde un contenedor Linux, donde no
 existe el SDK de iOS, así que un error de compilación aparece aquí antes de
 llegar al iPhone. Los runners de macOS son gratuitos en repositorios
 públicos.
+
+## Consejos de Claude sobre tus datos
+
+La app puede volcar un `entrenos.json` en una carpeta de iCloud Drive cada vez
+que terminas un entreno. En el Mac, el servidor de [`mcp/`](mcp/README.md) se
+lo sirve a Claude por MCP, que puede entonces mirar tu progresión, tus récords
+y tu volumen por grupo muscular y darte consejos concretos.
+
+No necesita la capability de iCloud, ni backend, ni credenciales de nada: el
+permiso de la carpeta llega por el selector de archivos del sistema, y el
+servidor solo lee un archivo local.
+
+```sh
+node mcp/prueba.mjs    # 55 comprobaciones, sin instalar nada
+```
 
 ## Instalación en el iPhone
 

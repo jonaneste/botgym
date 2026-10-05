@@ -14,9 +14,14 @@ struct VistaDatos: View {
     @State private var trabajando = false
     @State private var progresoSync: (hechos: Int, total: Int)?
     @State private var pendientesDeSync = 0
+    @State private var mostrarSelectorCarpeta = false
+    @State private var carpetaClaude: String?
+    @State private var ultimaAuto: Date?
 
     var body: some View {
         List {
+            seccionCarpetaClaude
+
             seccionExportar
 
             seccionImportarRutinas
@@ -34,19 +39,11 @@ struct VistaDatos: View {
         .onAppear {
             if ajustes == nil { ajustes = Ajustes.cargar(en: contexto) }
             recontarPendientes()
+            carpetaClaude = ExportadorAutomatico.compartido.nombreCarpeta
+            ultimaAuto = ExportadorAutomatico.compartido.ultimaExportacion
         }
         .sheet(item: $archivoACompartir) { archivo in
             HojaCompartir(elementos: [archivo.url])
-        }
-        .sheet(isPresented: $mostrarImportarRutinas) {
-            VistaImportarRutinas()
-        }
-        .fileImporter(
-            isPresented: $mostrarSelectorHealth,
-            allowedContentTypes: [.xml],
-            allowsMultipleSelection: false
-        ) { resultado in
-            importarExportDeSalud(resultado)
         }
         .alert(
             mensaje?.titulo ?? "",
@@ -70,6 +67,66 @@ struct VistaDatos: View {
     }
 
     // MARK: - Exportar
+
+    /// Carpeta donde la app vuelca el JSON para que Claude lo lea por MCP.
+    private var seccionCarpetaClaude: some View {
+        Section {
+            if let carpetaClaude {
+                HStack {
+                    Label(carpetaClaude, systemImage: "folder.badge.gearshape")
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+
+                if let ultimaAuto {
+                    HStack {
+                        Text("Última escritura")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(Formato.fechaRelativa(ultimaAuto)) \(Formato.hora(ultimaAuto))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button {
+                    volcarAhora()
+                } label: {
+                    Label("Volcar ahora", systemImage: "arrow.down.doc")
+                }
+
+                Button(role: .destructive) {
+                    ExportadorAutomatico.compartido.olvidarCarpeta()
+                    carpetaClaude = nil
+                    ultimaAuto = nil
+                } label: {
+                    Label("Olvidar la carpeta", systemImage: "folder.badge.minus")
+                }
+            } else {
+                Button {
+                    mostrarSelectorCarpeta = true
+                } label: {
+                    Label("Elegir carpeta para Claude", systemImage: "folder.badge.plus")
+                }
+            }
+        } header: {
+            Text("Carpeta para Claude")
+        } footer: {
+            Text(carpetaClaude == nil
+                 ? "Elige una carpeta de iCloud Drive. La app escribirá ahí un entrenos.json cada vez que termines un entreno, tu Mac lo sincroniza, y el servidor MCP de mcp/ se lo da a Claude para que te aconseje. No hace falta la capability de iCloud: el permiso llega por el selector del sistema."
+                 : "La app escribe aquí al terminar cada entreno. En el Mac, apunta el servidor MCP a este mismo archivo; las instrucciones están en mcp/README.md del repositorio.")
+        }
+        // Cada presentación va colgada de su sección y no de la List: varios
+        // modificadores de presentación en la misma vista pueden anularse.
+        .fileImporter(
+            isPresented: $mostrarSelectorCarpeta,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { salida in
+            configurarCarpetaClaude(salida)
+        }
+    }
 
     private var seccionExportar: some View {
         Section {
@@ -123,6 +180,9 @@ struct VistaDatos: View {
         } footer: {
             Text("Pega el JSON o elige un archivo. El formato está documentado en docs/ESQUEMA-RUTINA-JSON.md del repositorio: pásaselo entero a una IA y te devolverá algo que la app lee.")
         }
+        .sheet(isPresented: $mostrarImportarRutinas) {
+            VistaImportarRutinas()
+        }
     }
 
     // MARK: - Salud
@@ -154,6 +214,13 @@ struct VistaDatos: View {
 
             Sin él, el camino es el archivo: en Salud, foto de perfil → Exportar todos los datos de salud. Sale un exportar.zip; descomprímelo e importa el exportar.xml de dentro.
             """)
+        }
+        .fileImporter(
+            isPresented: $mostrarSelectorHealth,
+            allowedContentTypes: [.xml],
+            allowsMultipleSelection: false
+        ) { resultado in
+            importarExportDeSalud(resultado)
         }
     }
 
@@ -287,6 +354,42 @@ struct VistaDatos: View {
                     detalle: "\(error.localizedDescription)\n\nSi la app se instaló con un Apple ID gratuito, esto no puede funcionar: usa la importación por archivo."
                 )
             }
+        }
+    }
+
+    private func configurarCarpetaClaude(_ salida: Result<[URL], Error>) {
+        switch salida {
+        case .failure(let fallo):
+            mensaje = MensajeDatos(titulo: "No se pudo elegir la carpeta", detalle: fallo.localizedDescription)
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            do {
+                try ExportadorAutomatico.compartido.configurar(carpeta: url)
+                carpetaClaude = ExportadorAutomatico.compartido.nombreCarpeta
+                // Se vuelca ya, para que no haya que esperar al siguiente
+                // entreno para comprobar que funciona.
+                volcarAhora()
+            } catch {
+                mensaje = MensajeDatos(
+                    titulo: "No se pudo guardar el permiso",
+                    detalle: "\(error.localizedDescription)\n\nPrueba con otra carpeta: algunas ubicaciones no admiten acceso permanente."
+                )
+            }
+        }
+    }
+
+    private func volcarAhora() {
+        switch ExportadorAutomatico.compartido.exportar(contexto: contexto) {
+        case .escrito(let url):
+            ultimaAuto = ExportadorAutomatico.compartido.ultimaExportacion
+            mensaje = MensajeDatos(
+                titulo: "Escrito",
+                detalle: "\(url.lastPathComponent) en «\(url.deletingLastPathComponent().lastPathComponent)».\n\nEn el Mac, apunta el servidor MCP a este archivo."
+            )
+        case .sinCarpeta:
+            mensaje = MensajeDatos(titulo: "Sin carpeta", detalle: "Elige primero una carpeta.")
+        case .fallo(let detalle):
+            mensaje = MensajeDatos(titulo: "No se pudo escribir", detalle: detalle)
         }
     }
 
