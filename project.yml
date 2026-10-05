@@ -1,0 +1,37 @@
+# Alternativa a Entrenos.xcodeproj por si el .xcodeproj escrito a mano diese
+# problemas al abrirlo. Con XcodeGen instalado (brew install xcodegen):
+#
+#     rm -rf Entrenos.xcodeproj && xcodegen generate
+#
+# Genera un proyecto equivalente al que viene en el repositorio.
+name: Entrenos
+options:
+  bundleIdPrefix: com.jonaneste
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: es
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Entrenos:
+    type: application
+    platform: iOS
+    sources:
+      - path: Entrenos
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jonaneste.entrenos
+        PRODUCT_NAME: Entrenos
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Entrenos
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: YES
+        CODE_SIGN_STYLE: Automatic

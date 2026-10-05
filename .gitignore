@@ -1,0 +1,33 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Python (del proyecto anterior, por si alguien reutiliza el entorno)
+__pycache__/
+*.py[cod]
+env/
+venv/
+.venv/
+
+# Secretos. Nunca commitear credenciales.
+credenciales.json
+*.pem
+*.p12
+*.mobileprovision
+.env
