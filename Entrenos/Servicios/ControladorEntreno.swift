@@ -397,7 +397,7 @@ final class ControladorEntreno {
         Task { await GestorNotificaciones.shared.cancelarFinDescanso() }
 
         if ajustes.healthKitActivado {
-            escribirEnSalud(entreno)
+            escribirEnSalud(entreno, ajustes: ajustes)
         }
 
         self.entreno = nil
@@ -409,22 +409,35 @@ final class ControladorEntreno {
 
     /// Guarda el entreno en Apple Health como entrenamiento de fuerza.
     ///
-    /// No se escriben calorías: sin pulsómetro habría que inventárselas, y un
-    /// número inventado en los datos de salud del usuario es peor que no tener
-    /// el dato. Se guarda la duración y el nombre, que sí son reales.
-    private func escribirEnSalud(_ entreno: Entreno) {
+    /// Las calorías solo se escriben si están activadas en Ajustes y hay peso
+    /// corporal: por defecto no se estiman, porque si entrenas con el reloj
+    /// puesto el dato real lo escribe Zepp.
+    ///
+    /// Y antes de escribir se comprueba que no haya ya un entrenamiento de
+    /// fuerza de otra app solapado. Sin esa comprobación, entrenar con el
+    /// reloj daría dos entrenos el mismo día y contaría doble en los anillos.
+    private func escribirEnSalud(_ entreno: Entreno, ajustes: Ajustes) {
         guard entreno.idHealthKit == nil else { return }
         guard let fin = entreno.fechaFin else { return }
         let inicio = entreno.fechaInicio
         let nombre = entreno.nombre
+        let calorias = SincronizadorSalud.calorias(de: entreno, ajustes: ajustes)
+        let resumen = SincronizadorSalud.resumen(de: entreno)
+        let evitarDuplicados = ajustes.evitarDuplicadosEnSalud
 
         Task { [weak self] in
+            if evitarDuplicados,
+               await GestorHealthKit.shared.existeEntrenoDeFuerzaDeOtraApp(inicio: inicio, fin: fin) {
+                // El reloj ya lo registró, con pulso real. El suyo es mejor.
+                return
+            }
             do {
                 let uuid = try await GestorHealthKit.shared.guardarEntrenoDeFuerza(
                     inicio: inicio,
                     fin: fin,
                     nombre: nombre,
-                    caloriasEstimadas: nil
+                    caloriasEstimadas: calorias,
+                    resumen: resumen
                 )
                 entreno.idHealthKit = uuid
                 self?.guardar()

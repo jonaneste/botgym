@@ -43,6 +43,22 @@ final class Ajustes {
     /// la capability no se puede activar, y la app tiene que funcionar igual.
     var healthKitActivado: Bool = false
 
+    /// Escribir una estimación de calorías en los entrenos que van a Salud.
+    ///
+    /// Apagado por defecto. Si entrenas con el reloj puesto, el dato real lo
+    /// escribe Zepp y no hace falta estimar nada.
+    var estimarCalorias: Bool = false
+    /// Peso corporal en kg, para la fórmula MET. 0 = sin dato, y entonces no
+    /// se estima.
+    var pesoCorporal: Double = 0
+    /// MET del entrenamiento de fuerza. 4,5 es una sesión de hipertrofia
+    /// normal con descansos.
+    var metFuerza: Double = EstimadorEnergia.metPorDefecto
+
+    /// No escribir en Salud si ya hay un entrenamiento de fuerza de otra app
+    /// solapado, típicamente el que registra el reloj.
+    var evitarDuplicadosEnSalud: Bool = true
+
     init() {
         self.idPublico = UUID()
     }

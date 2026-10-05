@@ -84,6 +84,27 @@ Sin eso, el interruptor de la app te dará un error al tocarlo, que es lo
 esperado. Las carreras entran igual por el archivo de exportación de Salud,
 explicado en la propia pantalla.
 
+### Salud como centro de todos tus datos
+
+Zepp solo escribe hacia Salud: no se le pueden meter datos desde fuera, ni por
+API ni a través de Salud, porque de terceros únicamente lee el peso corporal.
+Así que el sitio donde pueden convivir las carreras y el gimnasio es **Apple
+Salud**, no Zepp.
+
+Una vez conectado, en **Ajustes → Exportar, importar y Salud**:
+
+- **Subir el historial a Salud** lleva allí los entrenos que ya tenías.
+  Activar Salud no reescribe el pasado, así que sin esto solo subirían los
+  nuevos. Es idempotente: cada entreno recuerda que ya subió.
+- **Evitar duplicados del reloj** (activado por defecto) comprueba antes de
+  escribir que no haya un entrenamiento de fuerza de otra app a la misma hora.
+  Si entrenas con el Amazfit puesto, Zepp registra el suyo con pulso real y ese
+  es mejor; la app se aparta.
+- **Estimar calorías** está apagado por defecto. Sin ello el entreno aparece en
+  Salud con duración pero sin energía, y no suma al anillo de movimiento. Si lo
+  activas, la fórmula es MET × peso × horas, con el peso que le pongas; sin
+  peso corporal no estima nada.
+
 ## Importar carreras sin cuenta de pago
 
 1. En el iPhone, app **Salud** → tu foto de perfil arriba a la derecha.

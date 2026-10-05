@@ -111,6 +111,54 @@ final class GestorHealthKit {
         )
     }
 
+    // MARK: - Duplicados
+
+    /// `true` si en Salud ya hay un entrenamiento de fuerza de **otra** app
+    /// solapado con este intervalo.
+    ///
+    /// Importa porque el usuario lleva un Amazfit: si entrena con el reloj
+    /// puesto, Zepp escribe su propio entrenamiento de fuerza en Salud, con
+    /// pulso real. Escribir otro encima daría dos entrenos el mismo día y
+    /// contaría dos veces en los anillos.
+    ///
+    /// Se ignoran las muestras de esta propia app, porque esas ya se controlan
+    /// con `Entreno.idHealthKit`.
+    func existeEntrenoDeFuerzaDeOtraApp(inicio: Date, fin: Date) async -> Bool {
+        guard disponible else { return false }
+
+        // Un margen de 10 minutos por cada lado: el reloj y el móvil no
+        // arrancan el entreno en el mismo segundo.
+        let margen: TimeInterval = 600
+        let predicadoFecha = HKQuery.predicateForSamples(
+            withStart: inicio.addingTimeInterval(-margen),
+            end: fin.addingTimeInterval(margen),
+            options: []
+        )
+        let predicadoTipo = HKQuery.predicateForWorkouts(with: .traditionalStrengthTraining)
+        let predicado = NSCompoundPredicate(andPredicateWithSubpredicates: [predicadoFecha, predicadoTipo])
+
+        let muestras: [HKSample] = (try? await withCheckedThrowingContinuation { continuacion in
+            let consulta = HKSampleQuery(
+                sampleType: HKObjectType.workoutType(),
+                predicate: predicado,
+                limit: 20,
+                sortDescriptors: nil
+            ) { _, resultado, error in
+                if let error {
+                    continuacion.resume(throwing: error)
+                } else {
+                    continuacion.resume(returning: resultado ?? [])
+                }
+            }
+            almacen.execute(consulta)
+        }) ?? []
+
+        let propio = Bundle.main.bundleIdentifier
+        return muestras.contains { muestra in
+            muestra.sourceRevision.source.bundleIdentifier != propio
+        }
+    }
+
     // MARK: - Escribir entrenos de fuerza
 
     /// Guarda un entreno de gimnasio en Salud como entrenamiento de fuerza.
@@ -121,7 +169,8 @@ final class GestorHealthKit {
         inicio: Date,
         fin: Date,
         nombre: String,
-        caloriasEstimadas: Double?
+        caloriasEstimadas: Double?,
+        resumen: String? = nil
     ) async throws -> String {
         guard disponible else { throw ErrorHealthKit.noDisponible }
         guard fin > inicio else { throw ErrorHealthKit.fechasInvalidas }
@@ -145,7 +194,14 @@ final class GestorHealthKit {
             try await constructor.addSamples([muestra])
         }
 
-        try await constructor.addMetadata([HKMetadataKeyWorkoutBrandName: nombre])
+        var metadatos: [String: Any] = [HKMetadataKeyWorkoutBrandName: nombre]
+        metadatos[HKMetadataKeyIndoorWorkout] = true
+        // Clave propia: Salud muestra los metadatos personalizados en el
+        // detalle del entrenamiento, así que aquí va qué se hizo.
+        if let resumen, !resumen.isEmpty {
+            metadatos["EntrenosResumen"] = resumen
+        }
+        try await constructor.addMetadata(metadatos)
         try await constructor.endCollection(at: fin)
 
         guard let guardado = try await constructor.finishWorkout() else {
