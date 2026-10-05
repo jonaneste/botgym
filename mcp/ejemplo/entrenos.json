@@ -71,9 +71,9 @@
           "superserie": null,
           "series": [
             {
-              "orden": 40,
-              "peso": 15,
-              "repeticiones": null,
+              "orden": 0,
+              "peso": 40.0,
+              "repeticiones": 15,
               "segundos": null,
               "rir": 2,
               "calentamiento": true
@@ -178,9 +178,9 @@
           "superserie": null,
           "series": [
             {
-              "orden": 40,
-              "peso": 15,
-              "repeticiones": null,
+              "orden": 0,
+              "peso": 40.0,
+              "repeticiones": 15,
               "segundos": null,
               "rir": 2,
               "calentamiento": true
@@ -285,9 +285,9 @@
           "superserie": null,
           "series": [
             {
-              "orden": 40,
-              "peso": 15,
-              "repeticiones": null,
+              "orden": 0,
+              "peso": 40.0,
+              "repeticiones": 15,
               "segundos": null,
               "rir": 2,
               "calentamiento": true

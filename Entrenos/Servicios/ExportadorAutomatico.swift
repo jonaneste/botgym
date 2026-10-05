@@ -41,6 +41,14 @@ final class ExportadorAutomatico {
 
     /// Guarda la carpeta que el usuario acaba de elegir en el selector.
     func configurar(carpeta url: URL) throws {
+        // `bookmarkData()` sobre una URL del selector tiene que ejecutarse
+        // DENTRO del ámbito de seguridad, o falla con el error 257 (sin
+        // permiso de lectura) y la carpeta no se puede configurar nunca.
+        guard url.startAccessingSecurityScopedResource() else {
+            throw ErrorExportadorAutomatico.sinPermiso
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+
         // El bookmark es lo que permite volver a escribir más adelante sin
         // pasar otra vez por el selector.
         let datos = try url.bookmarkData()
@@ -66,9 +74,21 @@ final class ExportadorAutomatico {
             bookmarkDataIsStale: &caducado
         ) else { return nil }
 
-        // Un bookmark caducado se refresca en el sitio, para no perder el
-        // permiso porque el archivo se moviera dentro de iCloud.
-        if caducado, let nuevos = try? url.bookmarkData() {
+        // Un bookmark caducado se refresca, para no perder el permiso porque
+        // la carpeta se moviera dentro de iCloud. El refresco también tiene
+        // que ir dentro del ámbito de seguridad, y si falla hay que olvidar la
+        // carpeta: dejarla puesta haría que la interfaz dijera que está
+        // configurada mientras ninguna escritura funciona.
+        if caducado {
+            guard url.startAccessingSecurityScopedResource() else {
+                olvidarCarpeta()
+                return nil
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+            guard let nuevos = try? url.bookmarkData() else {
+                olvidarCarpeta()
+                return nil
+            }
             UserDefaults.standard.set(nuevos, forKey: claveBookmark)
         }
         return url
@@ -88,46 +108,78 @@ final class ExportadorAutomatico {
     func exportar(contexto: ModelContext) -> Resultado {
         guard let carpeta = resolverCarpeta() else { return .sinCarpeta }
 
-        let concedido = carpeta.startAccessingSecurityScopedResource()
-        defer { if concedido { carpeta.stopAccessingSecurityScopedResource() } }
+        // El JSON se construye aquí porque ModelContext está atado al hilo
+        // principal. Si no hay permiso de acceso se para: sin esta
+        // comprobación la escritura fallaría más abajo con un error opaco.
+        guard carpeta.startAccessingSecurityScopedResource() else {
+            return .fallo("La carpeta elegida ya no concede permiso. Vuelve a elegirla.")
+        }
+        defer { carpeta.stopAccessingSecurityScopedResource() }
 
+        let datos: Data
         do {
-            let exportacion = ServicioExportacion(contexto: contexto).construir()
-            let datos = try SerializadorExportacion.json(exportacion)
-            let destino = carpeta.appendingPathComponent(nombreArchivo)
-
-            // Coordinada, porque el archivo puede estar en iCloud y haber otro
-            // proceso sincronizándolo.
-            var errorCoordinacion: NSError?
-            var errorEscritura: Error?
-            NSFileCoordinator().coordinate(
-                writingItemAt: destino,
-                options: .forReplacing,
-                error: &errorCoordinacion
-            ) { url in
-                do {
-                    try datos.write(to: url, options: .atomic)
-                } catch {
-                    errorEscritura = error
-                }
-            }
-
-            if let errorCoordinacion { throw errorCoordinacion }
-            if let errorEscritura { throw errorEscritura }
-
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: claveUltima)
-            return .escrito(destino)
+            datos = try SerializadorExportacion.json(
+                ServicioExportacion(contexto: contexto).construir()
+            )
         } catch {
             return .fallo(error.localizedDescription)
         }
+
+        let destino = carpeta.appendingPathComponent(nombreArchivo)
+        if let fallo = Self.escribirCoordinado(datos, en: destino) {
+            return .fallo(fallo)
+        }
+
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: claveUltima)
+        return .escrito(destino)
+    }
+
+    /// Escritura coordinada, porque el archivo puede estar en iCloud y haber
+    /// otro proceso sincronizándolo. Devuelve el mensaje de error, o `nil`.
+    private static func escribirCoordinado(_ datos: Data, en destino: URL) -> String? {
+        var errorCoordinacion: NSError?
+        var errorEscritura: Error?
+        NSFileCoordinator().coordinate(
+            writingItemAt: destino,
+            options: .forReplacing,
+            error: &errorCoordinacion
+        ) { url in
+            do {
+                try datos.write(to: url, options: .atomic)
+            } catch {
+                errorEscritura = error
+            }
+        }
+        if let errorCoordinacion { return errorCoordinacion.localizedDescription }
+        if let errorEscritura { return errorEscritura.localizedDescription }
+        return nil
     }
 
     /// Exporta solo si hay carpeta configurada. Es lo que se llama al terminar
     /// un entreno: si no está configurado, no hace nada y no molesta.
+    ///
+    /// Va en un `Task` para no bloquear el cierre del entreno: la escritura
+    /// coordinada en iCloud puede tardar, y el usuario no tiene que esperarla
+    /// para ver su resumen.
     func exportarSiProcede(contexto: ModelContext) {
         guard estaConfigurado else { return }
-        if case .fallo(let detalle) = exportar(contexto: contexto) {
-            print("Exportación automática fallida: \(detalle)")
+        Task { [weak self] in
+            guard let self else { return }
+            if case .fallo(let detalle) = self.exportar(contexto: contexto) {
+                print("Exportación automática fallida: \(detalle)")
+            }
+        }
+    }
+}
+
+
+enum ErrorExportadorAutomatico: LocalizedError {
+    case sinPermiso
+
+    var errorDescription: String? {
+        switch self {
+        case .sinPermiso:
+            return "El sistema no concedió acceso a esa carpeta. Prueba con otra."
         }
     }
 }

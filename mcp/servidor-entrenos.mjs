@@ -72,8 +72,19 @@ function inicioSemana(fecha) {
   return d
 }
 
+/** YYYY-MM-DD de una fecha en hora LOCAL. */
+function fechaLocalISO(d) {
+  // No se usa toISOString(): convierte a UTC, y en zonas al este de Greenwich
+  // el lunes 00:00 local es el domingo en UTC, con lo que todas las semanas
+  // saldrían empezando en domingo.
+  const año = d.getFullYear()
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  const dia = String(d.getDate()).padStart(2, '0')
+  return `${año}-${mes}-${dia}`
+}
+
 function claveSemana(fecha) {
-  return inicioSemana(fecha).toISOString().slice(0, 10)
+  return fechaLocalISO(inicioSemana(fecha))
 }
 
 /** 1RM estimado por Epley. */
@@ -141,6 +152,14 @@ function duracionMin(entreno) {
   if (!entreno.fechaFin) return null
   const ms = new Date(entreno.fechaFin) - new Date(entreno.fechaInicio)
   return redondear(ms / 60000, 0)
+}
+
+/** Ritmo como "5:00 /km". Se redondea el total ANTES de dividir, o 359,6
+ *  s/km saldría como "5:60". */
+function textoRitmo(segundosPorKm) {
+  if (!(segundosPorKm > 0) || !isFinite(segundosPorKm)) return null
+  const total = Math.round(segundosPorKm)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')} /km`
 }
 
 function textoSerie(serie, tipo) {
@@ -303,7 +322,7 @@ const EJECUTORES = {
     for (let i = semanas - 1; i >= 0; i--) {
       const d = new Date(hoy)
       d.setDate(d.getDate() - i * 7)
-      porSemana.set(d.toISOString().slice(0, 10), { entrenos: [], carreras: [] })
+      porSemana.set(fechaLocalISO(d), { entrenos: [], carreras: [] })
     }
 
     for (const entreno of datos.entrenos || []) {
@@ -407,7 +426,9 @@ const EJECUTORES = {
           if (estimaciones.length) {
             const mejor = Math.max(...estimaciones)
             if (r.mejorUnRM === null || mejor > r.mejorUnRM) {
-              r.mejorUnRM = redondear(mejor)
+              // Se guarda el valor crudo y se redondea al final: comparar
+              // contra el redondeado deja que una sesión peor robe la fecha.
+              r.mejorUnRM = mejor
               r.fechaMejorUnRM = fecha
             }
           }
@@ -421,13 +442,19 @@ const EJECUTORES = {
 
         const volumen = volumenDeEjercicio(ejercicio)
         if (volumen > 0 && (r.mejorVolumenSesionKg === null || volumen > r.mejorVolumenSesionKg)) {
-          r.mejorVolumenSesionKg = redondear(volumen, 0)
+          r.mejorVolumenSesionKg = volumen
           r.fechaMejorVolumen = fecha
         }
       }
     }
 
-    const lista = [...porEjercicio.values()].sort((a, b) => a.ejercicio.localeCompare(b.ejercicio, 'es'))
+    const lista = [...porEjercicio.values()]
+      .map((r) => ({
+        ...r,
+        mejorUnRM: redondear(r.mejorUnRM),
+        mejorVolumenSesionKg: redondear(r.mejorVolumenSesionKg, 0),
+      }))
+      .sort((a, b) => a.ejercicio.localeCompare(b.ejercicio, 'es'))
     return lista.length ? lista : { error: `Sin récords para «${nombre ?? ''}».` }
   },
 
@@ -498,11 +525,7 @@ const EJECUTORES = {
         fecha: c.fecha,
         distanciaKm: redondear(c.distanciaKm, 2),
         duracionMinutos: redondear(c.duracionSegundos / 60, 0),
-        ritmo: c.ritmoSegundosPorKm
-          ? `${Math.floor(c.ritmoSegundosPorKm / 60)}:${String(
-              Math.round(c.ritmoSegundosPorKm % 60)
-            ).padStart(2, '0')} /km`
-          : null,
+        ritmo: textoRitmo(c.ritmoSegundosPorKm),
         pulsoMedio: c.pulsoMedio ? redondear(c.pulsoMedio, 0) : null,
         origen: c.origen ?? null,
       })),
@@ -512,11 +535,7 @@ const EJECUTORES = {
           semanaDesde: semana,
           carreras: s.carreras,
           kilometros: redondear(s.km),
-          ritmoMedio: s.km
-            ? `${Math.floor(s.segundos / s.km / 60)}:${String(
-                Math.round((s.segundos / s.km) % 60)
-              ).padStart(2, '0')} /km`
-            : null,
+          ritmoMedio: s.km ? textoRitmo(s.segundos / s.km) : null,
         })),
     }
   },
@@ -542,6 +561,13 @@ function manejar(mensaje) {
   // Las notificaciones no llevan id y no se responden.
   const esNotificacion = id === undefined || id === null
 
+  // Una notificación (sin id) nunca se responde. Sin esto, un `tools/list`
+  // sin id recibía una respuesta sin id y el cliente perdía el hilo.
+  if (esNotificacion && method !== 'notifications/initialized' && method !== 'initialized') {
+    process.stderr.write(`Notificación ignorada: ${method}\n`)
+    return
+  }
+
   switch (method) {
     case 'initialize':
       // Se devuelve la versión que pide el cliente, si la manda: así el
@@ -558,7 +584,7 @@ function manejar(mensaje) {
       return
 
     case 'ping':
-      if (!esNotificacion) responder(id, {})
+      responder(id, {})
       return
 
     case 'tools/list':
@@ -589,7 +615,7 @@ function manejar(mensaje) {
     }
 
     default:
-      if (!esNotificacion) responderError(id, -32601, `Método no soportado: ${method}`)
+      responderError(id, -32601, `Método no soportado: ${method}`)
   }
 }
 

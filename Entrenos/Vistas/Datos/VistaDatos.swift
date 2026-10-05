@@ -9,12 +9,15 @@ struct VistaDatos: View {
     @State private var ajustes: Ajustes?
     @State private var archivoACompartir: ArchivoCompartible?
     @State private var mostrarImportarRutinas = false
-    @State private var mostrarSelectorHealth = false
+    /// Qué se está eligiendo en el selector de archivos. Vive aparte del
+    /// booleano de presentación porque el callback lo necesita después de que
+    /// la hoja se cierre.
+    @State private var modoSelector: ModoSelector = .carpetaClaude
+    @State private var mostrarSelector = false
     @State private var mensaje: MensajeDatos?
     @State private var trabajando = false
     @State private var progresoSync: (hechos: Int, total: Int)?
     @State private var pendientesDeSync = 0
-    @State private var mostrarSelectorCarpeta = false
     @State private var carpetaClaude: String?
     @State private var ultimaAuto: Date?
 
@@ -45,6 +48,19 @@ struct VistaDatos: View {
         .sheet(item: $archivoACompartir) { archivo in
             HojaCompartir(elementos: [archivo.url])
         }
+        .sheet(isPresented: $mostrarImportarRutinas) {
+            VistaImportarRutinas()
+        }
+        .fileImporter(
+            isPresented: $mostrarSelector,
+            allowedContentTypes: modoSelector.tiposAdmitidos,
+            allowsMultipleSelection: false
+        ) { salida in
+            switch modoSelector {
+            case .carpetaClaude: configurarCarpetaClaude(salida)
+            case .exportDeSalud: importarExportDeSalud(salida)
+            }
+        }
         .alert(
             mensaje?.titulo ?? "",
             isPresented: Binding(
@@ -71,9 +87,9 @@ struct VistaDatos: View {
     /// Carpeta donde la app vuelca el JSON para que Claude lo lea por MCP.
     private var seccionCarpetaClaude: some View {
         Section {
-            if let carpetaClaude {
+            if let nombreCarpeta = carpetaClaude {
                 HStack {
-                    Label(carpetaClaude, systemImage: "folder.badge.gearshape")
+                    Label(nombreCarpeta, systemImage: "folder.badge.gearshape")
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -105,7 +121,8 @@ struct VistaDatos: View {
                 }
             } else {
                 Button {
-                    mostrarSelectorCarpeta = true
+                    modoSelector = .carpetaClaude
+                    mostrarSelector = true
                 } label: {
                     Label("Elegir carpeta para Claude", systemImage: "folder.badge.plus")
                 }
@@ -116,15 +133,6 @@ struct VistaDatos: View {
             Text(carpetaClaude == nil
                  ? "Elige una carpeta de iCloud Drive. La app escribirá ahí un entrenos.json cada vez que termines un entreno, tu Mac lo sincroniza, y el servidor MCP de mcp/ se lo da a Claude para que te aconseje. No hace falta la capability de iCloud: el permiso llega por el selector del sistema."
                  : "La app escribe aquí al terminar cada entreno. En el Mac, apunta el servidor MCP a este mismo archivo; las instrucciones están en mcp/README.md del repositorio.")
-        }
-        // Cada presentación va colgada de su sección y no de la List: varios
-        // modificadores de presentación en la misma vista pueden anularse.
-        .fileImporter(
-            isPresented: $mostrarSelectorCarpeta,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { salida in
-            configurarCarpetaClaude(salida)
         }
     }
 
@@ -180,9 +188,6 @@ struct VistaDatos: View {
         } footer: {
             Text("Pega el JSON o elige un archivo. El formato está documentado en docs/ESQUEMA-RUTINA-JSON.md del repositorio: pásaselo entero a una IA y te devolverá algo que la app lee.")
         }
-        .sheet(isPresented: $mostrarImportarRutinas) {
-            VistaImportarRutinas()
-        }
     }
 
     // MARK: - Salud
@@ -202,7 +207,8 @@ struct VistaDatos: View {
             ))
 
             Button {
-                mostrarSelectorHealth = true
+                modoSelector = .exportDeSalud
+                mostrarSelector = true
             } label: {
                 Label("Importar carreras desde un archivo", systemImage: "figure.run")
             }
@@ -214,13 +220,6 @@ struct VistaDatos: View {
 
             Sin él, el camino es el archivo: en Salud, foto de perfil → Exportar todos los datos de salud. Sale un exportar.zip; descomprímelo e importa el exportar.xml de dentro.
             """)
-        }
-        .fileImporter(
-            isPresented: $mostrarSelectorHealth,
-            allowedContentTypes: [.xml],
-            allowsMultipleSelection: false
-        ) { resultado in
-            importarExportDeSalud(resultado)
         }
     }
 
@@ -461,6 +460,23 @@ struct VistaDatos: View {
                     )
                 }
             }
+        }
+    }
+}
+
+/// Qué se va a elegir en el selector de archivos.
+///
+/// Hace falta porque la pantalla tiene dos selectores distintos y SwiftUI no
+/// admite dos `.fileImporter` en la misma vista: se usa uno y el modo decide
+/// qué tipos admite y a dónde va el resultado.
+enum ModoSelector {
+    case carpetaClaude
+    case exportDeSalud
+
+    var tiposAdmitidos: [UTType] {
+        switch self {
+        case .carpetaClaude: return [.folder]
+        case .exportDeSalud: return [.xml]
         }
     }
 }

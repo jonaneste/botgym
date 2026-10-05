@@ -400,15 +400,17 @@ final class ControladorEntreno {
             escribirEnSalud(entreno, ajustes: ajustes)
         }
 
-        // Y se vuelca el JSON a la carpeta elegida, si hay alguna. Es lo que
-        // deja los datos donde Claude puede leerlos desde el Mac.
-        ExportadorAutomatico.compartido.exportarSiProcede(contexto: contexto)
-
         self.entreno = nil
         avisoRecord = nil
         recordsDelEntreno = []
         recordsPrevios = [:]
         guardar()
+
+        // El volcado del JSON va DESPUÉS de guardar, no antes: la consulta que
+        // construye la exportación filtra por estado finalizado, y hasta que
+        // no se guarda el entreno que acaba de cerrarse sigue en curso y se
+        // quedaría fuera del archivo.
+        ExportadorAutomatico.compartido.exportarSiProcede(contexto: contexto)
     }
 
     /// Guarda el entreno en Apple Health como entrenamiento de fuerza.
