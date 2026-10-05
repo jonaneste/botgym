@@ -73,12 +73,22 @@ swift test                             # tests de la lógica
 
 ### Integración continua
 
-`.github/workflows/compilar.yml` compila la app con `xcodebuild` y ejecuta los
-tests en un runner de macOS en cada push y cada pull request. Es el compilador
-real del proyecto: el desarrollo se hace desde un contenedor Linux, donde no
-existe el SDK de iOS, así que un error de compilación aparece aquí antes de
-llegar al iPhone. Los runners de macOS son gratuitos en repositorios
-públicos.
+`.github/workflows/compilar.yml` es el compilador real del proyecto: el
+desarrollo se hace desde un contenedor Linux, donde no existe el SDK de iOS,
+así que un error de compilación aparece ahí antes de llegar al iPhone. Cuatro
+jobs en cada push:
+
+| Job | Dónde | Qué |
+|---|---|---|
+| Servidor MCP | Linux | `node mcp/prueba.mjs`, 87 comprobaciones del protocolo |
+| Tests del núcleo (Linux) | Linux | `swift test`, los 189 tests |
+| Tests del núcleo (macOS) | macOS | los mismos, más los lints del núcleo |
+| Compilar la app para iOS | macOS | `xcodebuild` del target de iOS |
+
+Los tests van **también en Linux** porque el núcleo solo importa Foundation y
+los runners de macOS se agotan: una noche de cola dejaría la lógica sin
+verificar aunque el código esté bien. Lo único que depende de macOS es la
+compilación de iOS.
 
 ## Consejos de Claude sobre tus datos
 

@@ -35,8 +35,26 @@ jobs:
       - name: Prueba del protocolo y de los agregados
         run: node mcp/prueba.mjs
 
+  # Los mismos tests, en Linux. El núcleo solo importa Foundation, así que no
+  # necesita macOS para nada, y los runners de macOS se agotan: una noche de
+  # cola deja la lógica sin verificar aunque el código esté bien. Con esto, lo
+  # único que depende de macOS es la compilación de iOS.
+  nucleo-linux:
+    name: Tests del núcleo (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Entorno
+        run: swift --version
+
+      - name: Tests
+        run: swift test
+
   nucleo:
-    name: Tests del núcleo
+    name: Tests del núcleo (macOS)
     runs-on: macos-15
     timeout-minutes: 20
     steps:
