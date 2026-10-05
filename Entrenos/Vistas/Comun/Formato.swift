@@ -6,7 +6,7 @@ import Foundation
 /// independientemente del idioma que tenga puesto el iPhone.
 enum Formato {
 
-    static let localeES = Locale(identifier: "es_ES")
+    static let localeES = CalendarioEntrenos.locale
 
     // MARK: - Pesos
 
@@ -115,6 +115,14 @@ enum Formato {
         return fechaCorta(fecha)
     }
 
+    /// "5 oct", para los ejes de las gráficas.
+    static func diaYMes(_ fecha: Date) -> String {
+        let formateador = DateFormatter()
+        formateador.locale = localeES
+        formateador.setLocalizedDateFormatFromTemplate("d MMM")
+        return formateador.string(from: fecha)
+    }
+
     static func nombreDiaSemana(_ fecha: Date) -> String {
         let formateador = DateFormatter()
         formateador.locale = localeES
@@ -123,12 +131,10 @@ enum Formato {
     }
 
     /// Calendario español: la semana empieza en lunes.
-    static var calendarioES: Calendar {
-        var calendario = Calendar(identifier: .iso8601)
-        calendario.locale = localeES
-        calendario.firstWeekday = 2
-        return calendario
-    }
+    ///
+    /// Delega en el núcleo: el recuento de series semanales depende de dónde
+    /// empieza la semana, así que solo puede haber una definición.
+    static var calendarioES: Calendar { CalendarioEntrenos.es }
 
     // MARK: - Utilidades
 

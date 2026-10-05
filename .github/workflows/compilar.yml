@@ -3,10 +3,12 @@ name: Compilar y testear
 # El desarrollo de esta app se hace desde un contenedor Linux, donde no existe
 # el SDK de iOS. Este workflow es el único compilador real del proyecto: si algo
 # no compila, sale aquí y no en el iPhone del usuario.
+# En cualquier rama, no solo en main ni solo con PR abierta: el trabajo llega
+# por ramas que se empujan antes de abrir la PR, y sin CI ahí no hay
+# compilador. Los check runs se asocian al SHA, así que igualmente aparecen en
+# la PR cuando se abre. No se escucha `pull_request` para no duplicar runs.
 on:
   push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
