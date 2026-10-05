@@ -257,7 +257,9 @@ struct VistaImportarRutinas: View {
         } catch let fallo as ErrorImportacion {
             error = fallo
         } catch {
-            error = ErrorImportacion(ruta: "", mensaje: error.localizedDescription)
+            // `error` sin `self` es el error capturado, que es un `let`:
+            // asignarle no compila.
+            self.error = ErrorImportacion(ruta: "", mensaje: error.localizedDescription)
         }
     }
 
