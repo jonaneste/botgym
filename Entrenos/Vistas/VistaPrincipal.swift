@@ -31,16 +31,11 @@ struct VistaPrincipal: View {
                     Label("Historial", systemImage: "clock.arrow.circlepath")
                 }
 
-            PlaceholderFase(
-                titulo: "Progreso",
-                icono: "chart.xyaxis.line",
-                detalle: "Récords, 1RM estimado, gráficas y series semanales por grupo muscular.",
-                fase: 2
-            )
-            .tag(Pestaña.progreso)
-            .tabItem {
-                Label("Progreso", systemImage: "chart.xyaxis.line")
-            }
+            VistaProgreso()
+                .tag(Pestaña.progreso)
+                .tabItem {
+                    Label("Progreso", systemImage: "chart.xyaxis.line")
+                }
 
             VistaAjustes()
                 .tag(Pestaña.ajustes)
@@ -54,34 +49,6 @@ struct VistaPrincipal: View {
             if controlador.hayEntrenoActivo && pestaña != .entreno {
                 BarraEntrenoActivo { pestaña = .entreno }
             }
-        }
-    }
-}
-
-/// Pantalla temporal para lo que llega en fases posteriores.
-struct PlaceholderFase: View {
-    let titulo: String
-    let icono: String
-    let detalle: String
-    let fase: Int
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                Image(systemName: icono)
-                    .font(.system(size: 56))
-                    .foregroundStyle(.tint)
-                Text(detalle)
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-                Text("Llega en la fase \(fase).")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(32)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle(titulo)
         }
     }
 }

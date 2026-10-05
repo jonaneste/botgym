@@ -21,6 +21,11 @@ struct VistaEntrenoEnCurso: View {
     /// segundo.
     @State private var anteriores: [UUID: [SerieValor]] = [:]
 
+    /// Sugerencia de doble progresión por ejercicio. Se calcula con las
+    /// anteriores, por el mismo motivo: consultarla en el cuerpo de la vista
+    /// lanzaría un `fetch` por ejercicio en cada redibujado.
+    @State private var sugerencias: [UUID: SugerenciaProgresion] = [:]
+
     var body: some View {
         VStack(spacing: 0) {
             lista
@@ -30,8 +35,23 @@ struct VistaEntrenoEnCurso: View {
                     .transition(.move(edge: .bottom))
             }
         }
-        .onAppear(perform: recargarAnteriores)
-        .onChange(of: entreno.ejercicios.count) { _, _ in recargarAnteriores() }
+        .overlay(alignment: .top) {
+            if let aviso = controlador.avisoRecord {
+                VistaAvisoRecord(aviso: aviso) {
+                    withAnimation { controlador.descartarAvisoRecord() }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .task(id: aviso.id) {
+                    // Se va solo a los 6 segundos: con el móvil en el banco no
+                    // apetece buscar la X.
+                    try? await Task.sleep(nanoseconds: 6_000_000_000)
+                    withAnimation { controlador.descartarAvisoRecord() }
+                }
+            }
+        }
+        .animation(.spring(duration: 0.35), value: controlador.avisoRecord)
+        .onAppear(perform: recargarContexto)
+        .onChange(of: entreno.ejercicios.count) { _, _ in recargarContexto() }
         .navigationTitle(entreno.nombre)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { barraHerramientas }
@@ -152,6 +172,11 @@ struct VistaEntrenoEnCurso: View {
                     Text("\(ejercicio.resumenObjetivo) · descanso \(Formato.descanso(ejercicio.descansoSegundos))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    if let sugerencia = sugerencias[ejercicio.idEjercicio] {
+                        VistaSugerencia(sugerencia: sugerencia, ejercicio: ejercicio)
+                            .padding(.top, 2)
+                    }
                 }
                 Spacer()
                 Menu {
@@ -221,15 +246,27 @@ struct VistaEntrenoEnCurso: View {
         .lineLimit(1...3)
     }
 
-    private func recargarAnteriores() {
-        var mapa: [UUID: [SerieValor]] = [:]
+    private func recargarContexto() {
+        var mapaAnteriores: [UUID: [SerieValor]] = [:]
+        var mapaSugerencias: [UUID: SugerenciaProgresion] = [:]
+
         for ejercicio in entreno.ejerciciosOrdenados {
-            guard mapa[ejercicio.idEjercicio] == nil else { continue }
-            if let previa = controlador.actuacionAnterior(de: ejercicio) {
-                mapa[ejercicio.idEjercicio] = previa.seriesEfectivas.map(\.valor)
+            let id = ejercicio.idEjercicio
+            if mapaAnteriores[id] == nil, let previa = controlador.actuacionAnterior(de: ejercicio) {
+                mapaAnteriores[id] = previa.seriesEfectivas.map(\.valor)
+            }
+            if mapaSugerencias[id] == nil {
+                let sugerencia = controlador.sugerencia(para: ejercicio, ajustes: ajustes)
+                // Las series libres no tienen nada que sugerir: no se guarda,
+                // y así la vista no pinta un hueco vacío.
+                if sugerencia.accion != .sinRango {
+                    mapaSugerencias[id] = sugerencia
+                }
             }
         }
-        anteriores = mapa
+
+        anteriores = mapaAnteriores
+        sugerencias = mapaSugerencias
     }
 
     /// Casa la serie actual con la misma serie de la sesión anterior.

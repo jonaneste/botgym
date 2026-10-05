@@ -13,6 +13,7 @@ struct VistaFinalizarEntreno: View {
     @State private var molestiaHombro: Double = 0
     @State private var molestiaRodilla: Double = 0
     @State private var notas = ""
+    @State private var recordsVolumen: [RecordDeEjercicio] = []
 
     var body: some View {
         NavigationStack {
@@ -22,6 +23,26 @@ struct VistaFinalizarEntreno: View {
                     filaResumen("Series completadas", "\(entreno.seriesCompletadas)", "checklist")
                     filaResumen("Volumen total", Formato.volumen(entreno.volumenTotal), "scalemass")
                     filaResumen("Ejercicios", "\(entreno.ejercicios.count)", "figure.strengthtraining.traditional")
+                }
+
+                if !todosLosRecords.isEmpty {
+                    Section {
+                        ForEach(todosLosRecords) { entrada in
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "trophy.fill")
+                                    .foregroundStyle(.yellow)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entrada.nombreEjercicio)
+                                        .font(.subheadline.weight(.medium))
+                                    Text(textoRecord(entrada.batido))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text(todosLosRecords.count == 1 ? "Récord batido" : "Récords batidos")
+                    }
                 }
 
                 Section {
@@ -67,8 +88,39 @@ struct VistaFinalizarEntreno: View {
                     Button("Cancelar") { cerrar() }
                 }
             }
-            .onAppear { notas = entreno.notas }
+            .onAppear {
+                notas = entreno.notas
+                recordsVolumen = controlador.recordsDeVolumen()
+            }
         }
+    }
+
+    /// Los de serie, detectados durante el entreno, más los de volumen, que
+    /// solo se pueden saber ahora.
+    private var todosLosRecords: [RecordDeEjercicio] {
+        let deSerie = controlador.resumenRecords.map {
+            RecordDeEjercicio(nombreEjercicio: entreno.nombre, batido: $0)
+        }
+        return deSerie + recordsVolumen
+    }
+
+    private func textoRecord(_ batido: RecordBatido) -> String {
+        let valor: String
+        switch batido.tipo {
+        case .peso, .unRM: valor = Formato.peso(batido.valor)
+        case .volumenSesion: valor = Formato.volumen(batido.valor)
+        case .tiempo: valor = "\(Int(batido.valor)) s"
+        }
+        guard let anterior = batido.anterior else {
+            return "\(batido.tipo.nombre): \(valor) — el primero"
+        }
+        let textoAnterior: String
+        switch batido.tipo {
+        case .peso, .unRM: textoAnterior = Formato.peso(anterior)
+        case .volumenSesion: textoAnterior = Formato.volumen(anterior)
+        case .tiempo: textoAnterior = "\(Int(anterior)) s"
+        }
+        return "\(batido.tipo.nombre): \(valor), antes \(textoAnterior)"
     }
 
     private func filaResumen(_ titulo: String, _ valor: String, _ icono: String) -> some View {

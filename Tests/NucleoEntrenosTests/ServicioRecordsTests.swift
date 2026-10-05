@@ -224,3 +224,61 @@ final class ServicioRecordsTests: XCTestCase {
         XCTAssertEqual(puntos[0].segundosMaximo, 45)
     }
 }
+
+final class IncorporarRecordsTests: XCTestCase {
+
+    private let ahora = Date(timeIntervalSince1970: 1_790_000_000)
+
+    private func serie(_ peso: Double, _ reps: Int, completada: Bool = true) -> SerieValor {
+        SerieValor(peso: peso, repeticiones: reps, completada: completada)
+    }
+
+    func testIncorporarSubeElPesoMaximo() throws {
+        var previos = RecordsEjercicio()
+        previos.pesoMaximo = 60
+        let nuevos = ServicioRecords.incorporando(serie(65, 8), tipo: .repeticiones, en: previos, fecha: ahora)
+        XCTAssertEqual(try XCTUnwrap(nuevos.pesoMaximo), 65, accuracy: 0.0001)
+        XCTAssertEqual(nuevos.fechaPesoMaximo, ahora)
+    }
+
+    func testIncorporarNoBajaUnRecordExistente() throws {
+        var previos = RecordsEjercicio()
+        previos.pesoMaximo = 80
+        let nuevos = ServicioRecords.incorporando(serie(60, 8), tipo: .repeticiones, en: previos, fecha: ahora)
+        XCTAssertEqual(try XCTUnwrap(nuevos.pesoMaximo), 80, accuracy: 0.0001)
+    }
+
+    func testUnaSerieSinCompletarNoIncorporaNada() {
+        let nuevos = ServicioRecords.incorporando(
+            serie(200, 10, completada: false), tipo: .repeticiones, en: RecordsEjercicio(), fecha: ahora
+        )
+        XCTAssertTrue(nuevos.estaVacio)
+    }
+
+    func testTrasIncorporarElMismoRecordYaNoSeBate() {
+        // Es lo que evita que el aviso de récord salte dos veces con la misma
+        // serie durante el entreno.
+        let primera = serie(65, 8)
+        var records = RecordsEjercicio()
+        records.pesoMaximo = 60
+        records.mejorUnRM = 70
+
+        let batidos = ServicioRecords.recordsBatidos(por: primera, tipo: .repeticiones, frenteA: records)
+        XCTAssertFalse(batidos.isEmpty)
+
+        records = ServicioRecords.incorporando(primera, tipo: .repeticiones, en: records, fecha: ahora)
+        let segundaVez = ServicioRecords.recordsBatidos(por: primera, tipo: .repeticiones, frenteA: records)
+        XCTAssertTrue(segundaVez.isEmpty, "llegaron \(segundaVez)")
+    }
+
+    func testIncorporarEnTiempoSoloTocaElTiempo() {
+        let previos = RecordsEjercicio()
+        let nuevos = ServicioRecords.incorporando(
+            SerieValor(peso: 0, segundos: 50, completada: true),
+            tipo: .tiempo, en: previos, fecha: ahora
+        )
+        XCTAssertEqual(nuevos.mejorTiempo, 50)
+        XCTAssertNil(nuevos.mejorUnRM)
+        XCTAssertNil(nuevos.pesoMaximo)
+    }
+}

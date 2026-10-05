@@ -15,16 +15,24 @@ final class ControladorEntreno {
     private(set) var entreno: Entreno?
     let temporizador = TemporizadorDescanso()
 
-    /// Récords batidos en este entreno, para el resumen final. Se rellena en
-    /// la fase 2.
-    var avisosRecord: [String] = []
+    /// Récord recién batido, para el aviso que aparece sobre el entreno.
+    var avisoRecord: AvisoRecord?
+    /// Todos los récords batidos en este entreno, para el resumen final.
+    private(set) var recordsDelEntreno: [RecordBatido] = []
 
     private var contexto: ModelContext
     private var repositorio: RepositorioEntrenos
+    private var progreso: RepositorioProgreso
+
+    /// Récords previos por ejercicio. Se cachean porque consultarlos en cada
+    /// toque significaría recorrer el historial entero, y porque al batir uno
+    /// hay que incorporarlo para no avisar dos veces de lo mismo.
+    private var recordsPrevios: [UUID: RecordsEjercicio] = [:]
 
     init(contexto: ModelContext) {
         self.contexto = contexto
         self.repositorio = RepositorioEntrenos(contexto: contexto)
+        self.progreso = RepositorioProgreso(contexto: contexto)
         temporizador.alTerminar = { [weak self] in
             self?.descansoTerminado()
         }
@@ -171,7 +179,8 @@ final class ControladorEntreno {
 
         if serie.completada {
             serie.fechaCompletada = Date()
-            if ajustes.vibrarFinDescanso { Haptica.serieCompletada() }
+            comprobarRecords(de: serie, en: ejercicio, ajustes: ajustes)
+            if ajustes.vibrarFinDescanso && avisoRecord == nil { Haptica.serieCompletada() }
             if ajustes.descansoAutomatico && ejercicio.descansoSegundos > 0 {
                 empezarDescanso(segundos: ejercicio.descansoSegundos, ejercicio: ejercicio, ajustes: ajustes)
             }
@@ -193,6 +202,102 @@ final class ControladorEntreno {
             serie.segundos = origen.segundos
         } else {
             serie.repeticiones = origen.repeticiones
+        }
+        Haptica.ligera()
+        guardar()
+    }
+
+    // MARK: - Récords y sugerencias
+
+    /// Récords previos de un ejercicio, excluyendo el entreno en curso.
+    ///
+    /// Hay que excluirlo: si el entreno de hoy contara, la serie que acaba de
+    /// batir el récord ya estaría dentro y el aviso nunca saltaría.
+    private func recordsDe(_ ejercicio: EjercicioEntreno) -> RecordsEjercicio {
+        if let cacheados = recordsPrevios[ejercicio.idEjercicio] {
+            return cacheados
+        }
+        let calculados = progreso.recordsPrevios(
+            idEjercicio: ejercicio.idEjercicio,
+            tipo: ejercicio.tipoRegistro,
+            excluyendoEntreno: entreno?.idPublico
+        )
+        recordsPrevios[ejercicio.idEjercicio] = calculados
+        return calculados
+    }
+
+    private func comprobarRecords(de serie: SerieRegistrada, en ejercicio: EjercicioEntreno, ajustes: Ajustes) {
+        let previos = recordsDe(ejercicio)
+        let batidos = ServicioRecords.recordsBatidos(
+            por: serie.valor,
+            tipo: ejercicio.tipoRegistro,
+            frenteA: previos
+        )
+        guard !batidos.isEmpty else { return }
+
+        // Incorporar lo batido, para que la siguiente serie se compare contra
+        // el valor nuevo y no vuelva a avisar de lo mismo.
+        recordsPrevios[ejercicio.idEjercicio] = ServicioRecords.incorporando(
+            serie.valor,
+            tipo: ejercicio.tipoRegistro,
+            en: previos,
+            fecha: Date()
+        )
+
+        recordsDelEntreno.append(contentsOf: batidos)
+        avisoRecord = AvisoRecord(nombreEjercicio: ejercicio.nombreEjercicio, batidos: batidos)
+        if ajustes.vibrarFinDescanso { Haptica.record() }
+    }
+
+    func descartarAvisoRecord() {
+        avisoRecord = nil
+    }
+
+    /// Récords de volumen por ejercicio, calculados al cerrar el entreno.
+    ///
+    /// El volumen de una sesión solo se sabe cuando la sesión termina, así que
+    /// este no se puede detectar serie a serie como los demás.
+    func recordsDeVolumen() -> [RecordDeEjercicio] {
+        guard let entreno else { return [] }
+        return entreno.ejerciciosOrdenados.compactMap { ejercicio in
+            guard let batido = ServicioRecords.recordDeVolumen(
+                volumenSesion: ejercicio.volumen,
+                frenteA: recordsDe(ejercicio)
+            ) else { return nil }
+            return RecordDeEjercicio(nombreEjercicio: ejercicio.nombreEjercicio, batido: batido)
+        }
+    }
+
+    /// Récords batidos serie a serie durante el entreno, con su ejercicio.
+    var resumenRecords: [RecordBatido] { recordsDelEntreno }
+
+    /// Sugerencia de carga para un ejercicio del entreno en curso.
+    func sugerencia(para ejercicio: EjercicioEntreno, ajustes: Ajustes) -> SugerenciaProgresion {
+        progreso.sugerencia(
+            idEjercicio: ejercicio.idEjercicio,
+            objetivo: ejercicio.objetivo,
+            material: ejercicio.ejercicio?.material ?? .otro,
+            tipo: ejercicio.tipoRegistro,
+            reglas: ajustes.reglasIncremento,
+            excluyendoEntreno: entreno?.idPublico
+        )
+    }
+
+    /// Aplica un peso a todas las series del ejercicio que aún no están
+    /// marcadas. Es el "aceptar la sugerencia" de un toque.
+    func aplicarPeso(_ peso: Double, a ejercicio: EjercicioEntreno) {
+        for serie in ejercicio.seriesOrdenadas where !serie.completada {
+            serie.peso = peso
+        }
+        Haptica.ligera()
+        guardar()
+    }
+
+    /// Aplica un objetivo de segundos a las series pendientes de un
+    /// isométrico.
+    func aplicarSegundos(_ segundos: Int, a ejercicio: EjercicioEntreno) {
+        for serie in ejercicio.seriesOrdenadas where !serie.completada {
+            serie.segundos = segundos
         }
         Haptica.ligera()
         guardar()
@@ -292,7 +397,9 @@ final class ControladorEntreno {
         Task { await GestorNotificaciones.shared.cancelarFinDescanso() }
 
         self.entreno = nil
-        avisosRecord = []
+        avisoRecord = nil
+        recordsDelEntreno = []
+        recordsPrevios = [:]
         guardar()
     }
 
@@ -303,7 +410,9 @@ final class ControladorEntreno {
         temporizador.parar()
         Task { await GestorNotificaciones.shared.cancelarFinDescanso() }
         self.entreno = nil
-        avisosRecord = []
+        avisoRecord = nil
+        recordsDelEntreno = []
+        recordsPrevios = [:]
         guardar()
     }
 

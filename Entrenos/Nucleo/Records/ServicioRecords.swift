@@ -188,6 +188,43 @@ public enum ServicioRecords {
         )
     }
 
+    /// Récords actualizados con una serie recién marcada.
+    ///
+    /// Se usa durante el entreno para no volver a avisar del mismo récord: en
+    /// cuanto una serie lo bate, se incorpora, y la siguiente serie se compara
+    /// ya contra el valor nuevo.
+    public static func incorporando(
+        _ serie: SerieValor,
+        tipo: TipoRegistro,
+        en records: RecordsEjercicio,
+        fecha: Date
+    ) -> RecordsEjercicio {
+        guard serie.esEfectiva else { return records }
+        var resultado = records
+
+        if tipo.esTiempo {
+            if let segundos = serie.segundos, segundos > 0,
+               resultado.mejorTiempo == nil || segundos > resultado.mejorTiempo! {
+                resultado.mejorTiempo = segundos
+                resultado.fechaMejorTiempo = fecha
+            }
+            return resultado
+        }
+
+        if serie.peso > 0, resultado.pesoMaximo == nil || serie.peso > resultado.pesoMaximo! {
+            resultado.pesoMaximo = serie.peso
+            resultado.fechaPesoMaximo = fecha
+        }
+
+        if let estimado = CalculadoraRM.epley(peso: serie.peso, repeticiones: serie.repeticiones),
+           resultado.mejorUnRM == nil || estimado > resultado.mejorUnRM! {
+            resultado.mejorUnRM = estimado
+            resultado.fechaMejorUnRM = fecha
+        }
+
+        return resultado
+    }
+
     /// Serie de puntos para la gráfica de un ejercicio: por sesión, el mejor
     /// 1RM estimado y el peso máximo.
     public static func puntosGrafica(
