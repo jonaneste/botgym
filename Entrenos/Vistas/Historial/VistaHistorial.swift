@@ -6,10 +6,12 @@ struct VistaHistorial: View {
     @Environment(\.modelContext) private var contexto
 
     // Se filtra por el valor crudo del estado porque en iOS 17 los
-    // `#Predicate` sobre propiedades de tipo enum no son fiables. El valor sale
-    // del propio enum para que renombrar un caso no deje la consulta muda.
+    // `#Predicate` sobre propiedades de tipo enum no son fiables.
+    // `rawEntrenoFinalizado` es una constante de nivel de archivo definida en
+    // Entreno.swift: dentro de un predicado solo se pueden capturar
+    // identificadores simples. Ver el comentario de allí.
     @Query(
-        filter: #Predicate<Entreno> { $0.estadoRaw == EstadoEntreno.finalizado.rawValue },
+        filter: #Predicate<Entreno> { $0.estadoRaw == rawEntrenoFinalizado },
         sort: \Entreno.fechaInicio,
         order: .reverse
     )

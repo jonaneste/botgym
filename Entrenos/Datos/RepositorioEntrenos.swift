@@ -18,9 +18,8 @@ struct RepositorioEntrenos {
     /// El entreno abierto, si hay alguno. Es lo que permite reanudar tras
     /// cerrar la app.
     func entrenoEnCurso() -> Entreno? {
-        let enCurso = EstadoEntreno.enCurso.rawValue
         var descriptor = FetchDescriptor<Entreno>(
-            predicate: #Predicate<Entreno> { $0.estadoRaw == enCurso },
+            predicate: #Predicate<Entreno> { $0.estadoRaw == rawEntrenoEnCurso },
             sortBy: [SortDescriptor(\.fechaInicio, order: .reverse)]
         )
         descriptor.fetchLimit = 1
@@ -64,9 +63,8 @@ struct RepositorioEntrenos {
     // MARK: - Entrenos finalizados
 
     func entrenosFinalizados(limite: Int? = nil) -> [Entreno] {
-        let finalizado = EstadoEntreno.finalizado.rawValue
         var descriptor = FetchDescriptor<Entreno>(
-            predicate: #Predicate<Entreno> { $0.estadoRaw == finalizado },
+            predicate: #Predicate<Entreno> { $0.estadoRaw == rawEntrenoFinalizado },
             sortBy: [SortDescriptor(\.fechaInicio, order: .reverse)]
         )
         if let limite { descriptor.fetchLimit = limite }
@@ -76,10 +74,9 @@ struct RepositorioEntrenos {
     /// Entrenos finalizados dentro de un intervalo, para los resúmenes
     /// semanales.
     func entrenosFinalizados(desde: Date, hasta: Date) -> [Entreno] {
-        let finalizado = EstadoEntreno.finalizado.rawValue
         let descriptor = FetchDescriptor<Entreno>(
             predicate: #Predicate<Entreno> {
-                $0.estadoRaw == finalizado && $0.fechaInicio >= desde && $0.fechaInicio < hasta
+                $0.estadoRaw == rawEntrenoFinalizado && $0.fechaInicio >= desde && $0.fechaInicio < hasta
             },
             sortBy: [SortDescriptor(\.fechaInicio, order: .reverse)]
         )

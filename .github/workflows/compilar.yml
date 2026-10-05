@@ -29,6 +29,9 @@ jobs:
       - name: El núcleo no depende de frameworks de Apple
         run: ./Herramientas/verificar-nucleo.sh
 
+      - name: Los predicados solo capturan identificadores simples
+        run: ./Herramientas/verificar-predicados.py
+
       - name: Tests
         run: swift test
 

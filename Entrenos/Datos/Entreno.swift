@@ -8,6 +8,19 @@ enum EstadoEntreno: String, Codable, CaseIterable, Sendable {
     case finalizado
 }
 
+// Valores crudos del estado, para usarlos dentro de un `#Predicate`.
+//
+// `#Predicate` es un macro puramente sintáctico: no tiene información de
+// tipos, así que convierte cualquier cadena de acceso a miembro en un key
+// path del modelo. Escribir `EstadoEntreno.finalizado.rawValue` dentro del
+// predicado se expande a `keyPath: \.finalizado` y no compila. Solo los
+// identificadores simples se capturan como valor, de ahí estas constantes.
+//
+// Siguen derivando del enum, así que renombrar un caso rompe la compilación
+// en lugar de dejar la consulta muda.
+let rawEntrenoEnCurso = EstadoEntreno.enCurso.rawValue
+let rawEntrenoFinalizado = EstadoEntreno.finalizado.rawValue
+
 /// Una sesión de entrenamiento.
 ///
 /// El entreno en curso es un `Entreno` con `estado == .enCurso` que se va

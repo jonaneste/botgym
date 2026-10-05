@@ -62,8 +62,9 @@ tests.
 ## Desarrollo
 
 ```sh
-swift test                          # tests de la lógica
-./Herramientas/verificar-nucleo.sh  # el núcleo no depende de Apple
+swift test                             # tests de la lógica
+./Herramientas/verificar-nucleo.sh     # el núcleo no depende de Apple
+./Herramientas/verificar-predicados.py # los #Predicate compilan
 ```
 
 ### Integración continua
