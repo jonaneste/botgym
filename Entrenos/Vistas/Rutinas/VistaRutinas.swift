@@ -1,0 +1,195 @@
+import SwiftUI
+import SwiftData
+
+/// Carpetas y rutinas.
+struct VistaRutinas: View {
+    @Environment(\.modelContext) private var contexto
+    @Environment(ControladorEntreno.self) private var controlador
+
+    @Query(sort: \CarpetaRutinas.orden) private var carpetas: [CarpetaRutinas]
+    @Query(sort: \Rutina.orden) private var todasLasRutinas: [Rutina]
+
+    @State private var mostrarNuevaCarpeta = false
+    @State private var nombreNuevaCarpeta = ""
+    @State private var rutinaAEditar: Rutina?
+    @State private var carpetaDestino: CarpetaRutinas?
+
+    private var rutinasSueltas: [Rutina] {
+        todasLasRutinas.filter { $0.carpeta == nil }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(carpetas) { carpeta in
+                    Section {
+                        ForEach(carpeta.rutinasOrdenadas) { rutina in
+                            filaRutina(rutina)
+                        }
+                        Button {
+                            crearRutina(en: carpeta)
+                        } label: {
+                            Label("Nueva rutina aquí", systemImage: "plus")
+                                .font(.subheadline)
+                        }
+                    } header: {
+                        HStack {
+                            Label(carpeta.nombre, systemImage: "folder")
+                            Spacer()
+                            Text("\(carpeta.rutinas.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if !rutinasSueltas.isEmpty {
+                    Section("Sin carpeta") {
+                        ForEach(rutinasSueltas) { rutina in
+                            filaRutina(rutina)
+                        }
+                    }
+                }
+
+                Section {
+                    Button {
+                        crearRutina(en: nil)
+                    } label: {
+                        Label("Nueva rutina", systemImage: "plus.circle.fill")
+                    }
+                    Button {
+                        mostrarNuevaCarpeta = true
+                    } label: {
+                        Label("Nueva carpeta", systemImage: "folder.badge.plus")
+                    }
+                    NavigationLink {
+                        VistaBibliotecaEjercicios()
+                    } label: {
+                        Label("Biblioteca de ejercicios", systemImage: "dumbbell")
+                    }
+                }
+
+                if carpetas.isEmpty && rutinasSueltas.isEmpty {
+                    ContentUnavailableView(
+                        "Sin rutinas",
+                        systemImage: "list.bullet.rectangle",
+                        description: Text("Crea una rutina para empezar a entrenar con ella.")
+                    )
+                }
+            }
+            .navigationTitle("Rutinas")
+            .sheet(item: $rutinaAEditar) { rutina in
+                VistaEditorRutina(rutina: rutina)
+            }
+            .alert("Nueva carpeta", isPresented: $mostrarNuevaCarpeta) {
+                TextField("Bloque otoño", text: $nombreNuevaCarpeta)
+                Button("Crear") { crearCarpeta() }
+                Button("Cancelar", role: .cancel) { nombreNuevaCarpeta = "" }
+            }
+        }
+    }
+
+    // MARK: - Filas
+
+    private func filaRutina(_ rutina: Rutina) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(rutina.nombre)
+                    .font(.body.weight(.medium))
+                Text(rutina.resumen)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                controlador.empezar(desde: rutina)
+            } label: {
+                Text("Empezar")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(controlador.hayEntrenoActivo)
+        }
+        .padding(.vertical, 4)
+        .contentShape(.rect)
+        .onTapGesture { rutinaAEditar = rutina }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                contexto.delete(rutina)
+                try? contexto.save()
+            } label: {
+                Label("Borrar", systemImage: "trash")
+            }
+            Button {
+                duplicar(rutina)
+            } label: {
+                Label("Duplicar", systemImage: "doc.on.doc")
+            }
+            .tint(.indigo)
+        }
+    }
+
+    // MARK: - Acciones
+
+    private func crearCarpeta() {
+        let nombre = nombreNuevaCarpeta.trimmingCharacters(in: .whitespacesAndNewlines)
+        nombreNuevaCarpeta = ""
+        guard !nombre.isEmpty else { return }
+        let orden = (carpetas.map(\.orden).max() ?? -1) + 1
+        let carpeta = CarpetaRutinas(nombre: nombre, orden: orden)
+        contexto.insert(carpeta)
+        try? contexto.save()
+    }
+
+    private func crearRutina(en carpeta: CarpetaRutinas?) {
+        let hermanas = carpeta?.rutinas ?? rutinasSueltas
+        let orden = (hermanas.map(\.orden).max() ?? -1) + 1
+        let rutina = Rutina(nombre: "Rutina nueva", orden: orden)
+        contexto.insert(rutina)
+        rutina.carpeta = carpeta
+        try? contexto.save()
+        rutinaAEditar = rutina
+    }
+
+    private func duplicar(_ rutina: Rutina) {
+        let copia = Rutina(
+            nombre: "\(rutina.nombre) (copia)",
+            notas: rutina.notas,
+            orden: rutina.orden + 1
+        )
+        contexto.insert(copia)
+        copia.carpeta = rutina.carpeta
+
+        // Las superseries se renumeran: los identificadores no se comparten
+        // entre rutinas distintas.
+        var mapaSuperseries: [UUID: UUID] = [:]
+        for elemento in rutina.elementosOrdenados {
+            var nuevoIdSuperserie: UUID?
+            if let original = elemento.idSuperserie {
+                if let yaMapeado = mapaSuperseries[original] {
+                    nuevoIdSuperserie = yaMapeado
+                } else {
+                    let nuevo = UUID()
+                    mapaSuperseries[original] = nuevo
+                    nuevoIdSuperserie = nuevo
+                }
+            }
+            let copiaElemento = ElementoRutina(
+                ejercicio: elemento.ejercicio,
+                orden: elemento.orden,
+                seriesObjetivo: elemento.seriesObjetivo,
+                objetivoMin: elemento.objetivoMin,
+                objetivoMax: elemento.objetivoMax,
+                rirMin: elemento.rirMin,
+                rirMax: elemento.rirMax,
+                descansoSegundos: elemento.descansoSegundos,
+                notas: elemento.notas,
+                idSuperserie: nuevoIdSuperserie
+            )
+            contexto.insert(copiaElemento)
+            copiaElemento.rutina = copia
+        }
+        try? contexto.save()
+    }
+}

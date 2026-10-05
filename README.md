@@ -10,8 +10,8 @@ automatizada.
 
 | Fase | Contenido | Estado |
 |------|-----------|--------|
-| 0 | Esqueleto del proyecto, núcleo testeable, documentación | **lista, a validar en Xcode** |
-| 1 | Biblioteca de ejercicios, rutinas, entreno en curso, historial | pendiente |
+| 0 | Esqueleto del proyecto, núcleo testeable, documentación | lista y validada en dispositivo |
+| 1 | Biblioteca de ejercicios, rutinas, entreno en curso, historial | **lista, a validar en Xcode** |
 | 2 | Doble progresión, récords, gráficas, series semanales | pendiente |
 | 3 | HealthKit, exportación JSON/CSV, importación de rutinas | pendiente |
 
