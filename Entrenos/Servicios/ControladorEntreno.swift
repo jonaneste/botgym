@@ -360,7 +360,7 @@ final class ControladorEntreno {
     /// Cierra el entreno. Las series vacías se descartan para no ensuciar el
     /// historial, y se marca `entrenoFinalizado` en cada ejercicio porque es
     /// el campo por el que se busca "la última vez".
-    func finalizar(molestiaHombro: Int?, molestiaRodilla: Int?, notas: String) {
+    func finalizar(molestiaHombro: Int?, molestiaRodilla: Int?, notas: String, ajustes: Ajustes) {
         guard let entreno else { return }
 
         // Se decide todo sobre copias tomadas antes de borrar nada: mutar una
@@ -396,11 +396,44 @@ final class ControladorEntreno {
         temporizador.parar()
         Task { await GestorNotificaciones.shared.cancelarFinDescanso() }
 
+        if ajustes.healthKitActivado {
+            escribirEnSalud(entreno)
+        }
+
         self.entreno = nil
         avisoRecord = nil
         recordsDelEntreno = []
         recordsPrevios = [:]
         guardar()
+    }
+
+    /// Guarda el entreno en Apple Health como entrenamiento de fuerza.
+    ///
+    /// No se escriben calorías: sin pulsómetro habría que inventárselas, y un
+    /// número inventado en los datos de salud del usuario es peor que no tener
+    /// el dato. Se guarda la duración y el nombre, que sí son reales.
+    private func escribirEnSalud(_ entreno: Entreno) {
+        guard entreno.idHealthKit == nil else { return }
+        guard let fin = entreno.fechaFin else { return }
+        let inicio = entreno.fechaInicio
+        let nombre = entreno.nombre
+
+        Task { [weak self] in
+            do {
+                let uuid = try await GestorHealthKit.shared.guardarEntrenoDeFuerza(
+                    inicio: inicio,
+                    fin: fin,
+                    nombre: nombre,
+                    caloriasEstimadas: nil
+                )
+                entreno.idHealthKit = uuid
+                self?.guardar()
+            } catch {
+                // Que Salud falle no puede perder el entreno: ya está guardado
+                // en la base local, que es la fuente de verdad de la app.
+                print("No se pudo escribir en Salud: \(error)")
+            }
+        }
     }
 
     /// Descarta el entreno en curso por completo.

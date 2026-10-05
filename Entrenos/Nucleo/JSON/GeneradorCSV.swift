@@ -77,12 +77,16 @@ public enum GeneradorCSV {
         return "\"" + campo.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
-    /// Coma decimal, sin separador de miles.
+    /// Coma decimal, sin separador de miles y sin ceros sobrantes:
+    /// 62,5 en lugar de 62,50. Hasta dos decimales.
     static func decimal(_ valor: Double) -> String {
         if valor == valor.rounded() {
             return "\(Int(valor))"
         }
-        return String(format: "%.2f", valor).replacingOccurrences(of: ".", with: ",")
+        var texto = String(format: "%.2f", valor)
+        while texto.hasSuffix("0") { texto.removeLast() }
+        if texto.hasSuffix(".") { texto.removeLast() }
+        return texto.replacingOccurrences(of: ".", with: ",")
     }
 
     static func fechaISO(_ fecha: Date) -> String {

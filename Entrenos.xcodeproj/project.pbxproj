@@ -226,6 +226,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Entrenos;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tus carreras junto a los entrenos de gimnasio y sumar los kilometros de la semana.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar cada entreno de gimnasio en Salud como entrenamiento de fuerza.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -253,6 +255,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Entrenos;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tus carreras junto a los entrenos de gimnasio y sumar los kilometros de la semana.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar cada entreno de gimnasio en Salud como entrenamiento de fuerza.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

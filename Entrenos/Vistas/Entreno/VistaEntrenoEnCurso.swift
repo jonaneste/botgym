@@ -62,7 +62,7 @@ struct VistaEntrenoEnCurso: View {
             }
         }
         .sheet(isPresented: $mostrarFinalizar) {
-            VistaFinalizarEntreno(entreno: entreno)
+            VistaFinalizarEntreno(entreno: entreno, ajustes: ajustes)
         }
         .sheet(item: $ejercicioAEditar) { ejercicio in
             VistaEditarObjetivoEjercicio(ejercicio: ejercicio)

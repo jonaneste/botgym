@@ -1,7 +1,12 @@
 # Esquema JSON para importar rutinas
 
-> Este documento describe el formato que leerá el importador de la **fase 3**.
-> Se publica ya para que quede fijado el contrato.
+Este es el formato que lee el importador, en **Ajustes → Exportar, importar y
+Salud → Importar rutinas desde JSON**. Puedes pegar el JSON o elegir un
+archivo.
+
+La app también **exporta** en este mismo formato, con «Solo las rutinas
+(JSON)»: así puedes sacar tus rutinas actuales, pasárselas a una IA y pedirle
+variaciones.
 
 La idea es que puedas pedirle a una IA una rutina y pegarla en la app sin
 tocar nada. Pégale a la IA este documento entero y te devolverá algo válido.
@@ -93,12 +98,37 @@ Si un nombre no está en tu biblioteca, la importación **no falla**: se para y
 te lista los nombres desconocidos, con los parecidos que haya encontrado, para
 que elijas entre crearlos nuevos o mapearlos a uno que ya tengas.
 
+## Tolerancias
+
+Pensadas para lo que suele salir de una IA:
+
+- El guion largo (`–`) y la palabra `a` valen como separador: `"8 – 10"` y
+  `"8 a 10"` se leen como `8-10`.
+- `rir` se acepta también como número: `"rir": 2`.
+- Un entero que llegue como decimal redondo (`3.0`) pasa; un decimal de verdad
+  (`3.5`) no.
+- Los espacios de sobra en los nombres se recortan.
+
+## Límites
+
+Para que un JSON disparatado dé un error legible en lugar de crear 900 series:
+
+| | |
+|---|---|
+| `series` | de 1 a 20 |
+| `descanso` | de 0 a 1800 segundos |
+| `reps` | números de 0 a 1000 |
+| `rir` | números de 0 a 10 |
+
 ## Errores
 
 La validación devuelve mensajes concretos con la ruta del problema, por
 ejemplo:
 
 ```
-rutinas[0].ejercicios[2].reps: "8 a 10" no es un rango válido.
+rutinas[1].ejercicios[2].reps: «8 hasta 10» no es un rango válido.
 Usa "8-10", "15" o "30-45s".
 ```
+
+El número entre corchetes es la posición en la lista, empezando por cero. La
+app lo muestra tal cual bajo el cuadro de texto.

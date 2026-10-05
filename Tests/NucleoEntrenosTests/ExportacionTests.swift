@@ -106,22 +106,31 @@ final class GeneradorCSVTests: XCTestCase {
     }
 
     /// Cuenta campos respetando las comillas, igual que un lector de CSV.
+    ///
+    /// Hay que mirar el carácter siguiente: dentro de un campo entrecomillado,
+    /// un `""` es una comilla literal y no abre ni cierra nada. Mirar solo el
+    /// anterior no basta, porque al llegar a la primera del par todavía no se
+    /// sabe que viene otra.
     private func contarCampos(_ linea: String) -> Int {
+        let caracteres = Array(linea)
         var campos = 1
         var dentroDeComillas = false
-        var anterior: Character?
-        for caracter in linea {
+        var indice = 0
+
+        while indice < caracteres.count {
+            let caracter = caracteres[indice]
             if caracter == "\"" {
-                // Una comilla duplicada es literal, no abre ni cierra.
-                if anterior == "\"" && dentroDeComillas {
-                    anterior = nil
+                if dentroDeComillas,
+                   indice + 1 < caracteres.count,
+                   caracteres[indice + 1] == "\"" {
+                    indice += 2
                     continue
                 }
                 dentroDeComillas.toggle()
             } else if caracter == ";" && !dentroDeComillas {
                 campos += 1
             }
-            anterior = caracter
+            indice += 1
         }
         return campos
     }

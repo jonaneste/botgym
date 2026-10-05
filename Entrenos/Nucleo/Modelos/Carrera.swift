@@ -5,7 +5,7 @@ import Foundation
 /// Llegan desde Zepp, que las escribe en Salud. La app no las crea nunca: solo
 /// las lee, así que esto no se persiste en SwiftData y Salud sigue siendo la
 /// única fuente de verdad.
-public struct Carrera: Equatable, Sendable, Identifiable {
+public struct Carrera: Codable, Equatable, Sendable, Identifiable {
     /// UUID del entrenamiento en Salud, para no duplicarlo al releer.
     public var id: String
     public var fechaInicio: Date

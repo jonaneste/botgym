@@ -65,6 +65,37 @@ dispositivo:
 swift test
 ```
 
+## Activar Apple Salud (solo con cuenta de pago)
+
+El proyecto **no** trae la capability de HealthKit a propósito. Si la trajera,
+Xcode no podría firmar la app con un Apple ID gratuito y no te arrancaría
+nada. Las descripciones de uso sí están puestas, así que lo único que falta es
+la casilla.
+
+Con el Apple Developer Program activo:
+
+1. Proyecto **Entrenos** → target **Entrenos** → **Signing & Capabilities**.
+2. **+ Capability** → **HealthKit**.
+3. Vuelve a ejecutar.
+4. En la app, **Ajustes → Exportar, importar y Salud** y activa
+   *Conectar con Apple Salud*.
+
+Sin eso, el interruptor de la app te dará un error al tocarlo, que es lo
+esperado. Las carreras entran igual por el archivo de exportación de Salud,
+explicado en la propia pantalla.
+
+## Importar carreras sin cuenta de pago
+
+1. En el iPhone, app **Salud** → tu foto de perfil arriba a la derecha.
+2. Abajo, **Exportar todos los datos de salud**. Tarda un rato y sale un
+   `exportar.zip`.
+3. Guárdalo en Archivos y descomprímelo (toca el zip).
+4. En Entrenos: **Ajustes → Exportar, importar y Salud → Importar carreras
+   desde un archivo**, y elige el `exportar.xml` de dentro.
+
+Se leen solo las carreras; el resto del archivo se ignora. Reimportar el mismo
+archivo no duplica nada, porque cada carrera se identifica por su fecha.
+
 ## Límites de la cuenta gratuita, por si los encuentras
 
 - Máximo **3 apps** instaladas a la vez por este método.
@@ -72,3 +103,5 @@ swift test
 - Sin HealthKit, iCloud, notificaciones push remotas ni App Groups.
   Las **notificaciones locales** (las del temporizador de descanso) sí
   funcionan: no necesitan ninguna capability.
+- Todo lo demás de la app funciona igual: rutinas, entrenos, progresión,
+  récords, gráficas, exportación e importación de rutinas.

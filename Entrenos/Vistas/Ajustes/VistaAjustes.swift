@@ -145,10 +145,15 @@ struct VistaAjustes: View {
             } label: {
                 Label("Biblioteca de ejercicios", systemImage: "dumbbell")
             }
+            NavigationLink {
+                VistaDatos()
+            } label: {
+                Label("Exportar, importar y Salud", systemImage: "arrow.up.arrow.down.circle")
+            }
         } header: {
             Text("Datos")
         } footer: {
-            Text("La exportación a JSON y CSV y la importación de rutinas llegan en la fase 3.")
+            Text("Exportar el historial a JSON o CSV, importar rutinas desde JSON y conectar con Apple Salud.")
         }
     }
 

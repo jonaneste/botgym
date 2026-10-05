@@ -4,6 +4,7 @@ import SwiftData
 /// Pantalla de cierre del entreno: resumen, molestia articular y notas.
 struct VistaFinalizarEntreno: View {
     let entreno: Entreno
+    let ajustes: Ajustes
 
     @Environment(ControladorEntreno.self) private var controlador
     @Environment(\.dismiss) private var cerrar
@@ -70,7 +71,8 @@ struct VistaFinalizarEntreno: View {
                         controlador.finalizar(
                             molestiaHombro: anotarHombro ? Int(molestiaHombro) : nil,
                             molestiaRodilla: anotarRodilla ? Int(molestiaRodilla) : nil,
-                            notas: notas
+                            notas: notas,
+                            ajustes: ajustes
                         )
                         cerrar()
                     } label: {
