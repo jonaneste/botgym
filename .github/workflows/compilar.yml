@@ -1,0 +1,67 @@
+name: Compilar y testear
+
+# El desarrollo de esta app se hace desde un contenedor Linux, donde no existe
+# el SDK de iOS. Este workflow es el único compilador real del proyecto: si algo
+# no compila, sale aquí y no en el iPhone del usuario.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nucleo:
+    name: Tests del núcleo
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Entorno
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: El núcleo no depende de frameworks de Apple
+        run: ./Herramientas/verificar-nucleo.sh
+
+      - name: Tests
+        run: swift test
+
+  app:
+    name: Compilar la app para iOS
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode disponible
+        run: |
+          ls /Applications | grep -i '^Xcode' || true
+          xcodebuild -version
+
+      - name: Compilar
+        # Sin firma: en el runner no hay identidad de firma ni perfil, y aquí
+        # solo interesa saber si el código compila.
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Entrenos.xcodeproj \
+            -scheme Entrenos \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | tee build.log
+
+      - name: Resumen de errores
+        if: failure()
+        run: |
+          echo "### Errores de compilación" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E 'error:' build.log | sort -u | head -60 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

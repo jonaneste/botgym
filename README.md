@@ -62,9 +62,18 @@ tests.
 ## Desarrollo
 
 ```sh
-swift test                        # tests de la lógica
+swift test                          # tests de la lógica
 ./Herramientas/verificar-nucleo.sh  # el núcleo no depende de Apple
 ```
+
+### Integración continua
+
+`.github/workflows/compilar.yml` compila la app con `xcodebuild` y ejecuta los
+tests en un runner de macOS en cada push y cada pull request. Es el compilador
+real del proyecto: el desarrollo se hace desde un contenedor Linux, donde no
+existe el SDK de iOS, así que un error de compilación aparece aquí antes de
+llegar al iPhone. Los runners de macOS son gratuitos en repositorios
+públicos.
 
 ## Instalación en el iPhone
 
