@@ -14,9 +14,14 @@ final class IncrementoCargaTests: XCTestCase {
         XCTAssertEqual(IncrementoCarga.siguientePeso(desde: 30, material: .maquina, reglas: reglas), 35, accuracy: 0.0001)
     }
 
-    func testPesoCorporalNoSube() {
+    func testPesoCorporalSinLastreNoSube() {
         // A peso corporal se progresa en repeticiones, no en kilos.
         XCTAssertEqual(IncrementoCarga.siguientePeso(desde: 0, material: .pesoCorporal), 0, accuracy: 0.0001)
+    }
+
+    func testPesoCorporalConLastreSubeComoBarra() {
+        // Dominadas con cinturón: los discos sí suben de 2,5 en 2,5.
+        XCTAssertEqual(IncrementoCarga.siguientePeso(desde: 10, material: .pesoCorporal), 12.5, accuracy: 0.0001)
     }
 
     func testMancuernaSaltaAlSiguienteParDisponible() {

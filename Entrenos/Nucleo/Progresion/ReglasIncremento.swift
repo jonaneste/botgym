@@ -40,8 +40,8 @@ public enum IncrementoCarga {
 
     /// Siguiente carga por encima de `pesoActual` para este material.
     ///
-    /// En peso corporal devuelve el mismo peso: ahí no se progresa subiendo
-    /// kilos sino repeticiones, y si se usa lastre el usuario lo pone a mano.
+    /// A peso corporal sin lastre devuelve el mismo peso: ahí no se progresa
+    /// subiendo kilos sino repeticiones. Si ya hay lastre, se trata como barra.
     public static func siguientePeso(
         desde pesoActual: Double,
         material: Material,
@@ -57,7 +57,9 @@ public enum IncrementoCarga {
         case .mancuerna:
             return siguienteMancuerna(desde: pesoActual, disponibles: reglas.mancuernasDisponibles)
         case .pesoCorporal:
-            return pesoActual
+            // Sin lastre no se progresa con kilos, sino con repeticiones.
+            // Con lastre (cinturón, chaleco) se añaden discos como en barra.
+            return pesoActual > 0 ? pesoActual + reglas.incrementoBarra : pesoActual
         case .otro:
             return pesoActual + reglas.incrementoBarra
         }
