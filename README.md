@@ -46,6 +46,7 @@ Entrenos/
 Tests/                   Tests unitarios del núcleo
 mcp/                     Servidor MCP para que Claude lea tus datos
 Herramientas/            Scripts de verificación
+CLAUDE.md                Decisiones del proyecto y trampas conocidas
 docs/                    Instalación y esquema JSON
 ```
 
@@ -66,10 +67,23 @@ tests.
 ## Desarrollo
 
 ```sh
+./Herramientas/verificar.sh      # todo de una vez: lints, núcleo y MCP
+```
+
+Con Xcode delante añade la compilación de iOS; sin él, avisa de que ese paso lo
+cubre CI. Por separado:
+
+```sh
 swift test                             # tests de la lógica
+node mcp/prueba.mjs                    # protocolo y agregados del MCP
 ./Herramientas/verificar-nucleo.sh     # el núcleo no depende de Apple
 ./Herramientas/verificar-predicados.py # los #Predicate compilan
 ```
+
+[CLAUDE.md](CLAUDE.md) recoge las decisiones que no se pueden deshacer sin
+romper algo: por qué la entitlement de HealthKit no está en el proyecto, por qué
+`#Predicate` obliga a escribir los predicados como están, y por qué nada se
+identifica por fecha. Si vas a tocar código, empieza por ahí.
 
 ### Integración continua
 
@@ -81,7 +95,7 @@ jobs en cada push:
 | Job | Dónde | Qué |
 |---|---|---|
 | Servidor MCP | Linux | `node mcp/prueba.mjs`, 87 comprobaciones del protocolo |
-| Tests del núcleo (Linux) | Linux | `swift test`, los 189 tests |
+| Tests del núcleo (Linux) | Linux | `swift test`, los 219 tests |
 | Tests del núcleo (macOS) | macOS | los mismos, más los lints del núcleo |
 | Compilar la app para iOS | macOS | `xcodebuild` del target de iOS |
 
@@ -102,7 +116,7 @@ permiso de la carpeta llega por el selector de archivos del sistema, y el
 servidor solo lee un archivo local.
 
 ```sh
-node mcp/prueba.mjs    # 55 comprobaciones, sin instalar nada
+node mcp/prueba.mjs    # 87 comprobaciones, sin instalar nada
 ```
 
 ## Instalación en el iPhone

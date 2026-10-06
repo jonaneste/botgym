@@ -9,6 +9,8 @@ xcuserdata/
 *.ipa
 *.dSYM.zip
 *.dSYM
+# Lo deja Herramientas/verificar.sh al compilar.
+build.log
 
 # Swift Package Manager
 .build/

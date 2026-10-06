@@ -35,6 +35,13 @@ jobs:
       - name: Prueba del protocolo y de los agregados
         run: node mcp/prueba.mjs
 
+      # El script que se ejecuta a mano antes de empujar. Aquí no añade
+      # cobertura nueva: lo que comprueba es que el propio script siga
+      # funcionando, porque si se rompe nadie se enteraría hasta necesitarlo.
+      # En Linux se salta solo los pasos que necesitan Swift o Xcode.
+      - name: El script de verificación local sigue funcionando
+        run: ./Herramientas/verificar.sh
+
   # Los mismos tests, en Linux. El núcleo solo importa Foundation, así que no
   # necesita macOS para nada, y los runners de macOS se agotan: una noche de
   # cola deja la lógica sin verificar aunque el código esté bien. Con esto, lo
