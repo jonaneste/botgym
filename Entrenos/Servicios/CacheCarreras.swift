@@ -34,17 +34,16 @@ final class CacheCarreras {
         carreras = (try? decodificador.decode([Carrera].self, from: datos)) ?? []
     }
 
-    /// Fusiona las carreras nuevas con las que ya había, por identificador.
+    /// Fusiona las carreras nuevas con las que ya había.
     ///
-    /// Reimportar el mismo archivo no duplica nada, y las de Salud y las de
-    /// archivo pueden convivir.
+    /// La fusión va por instante de inicio y no por identificador, porque las
+    /// dos vías de lectura no comparten identificador: el archivo de
+    /// exportación no trae UUID. Está en `FusionCarreras`, en el núcleo, para
+    /// poder testearla. Reimportar el mismo archivo no duplica nada, y leer la
+    /// misma carrera por Salud y por archivo tampoco.
     func guardar(_ nuevas: [Carrera]) {
         cargarSiHaceFalta()
-        var porId = Dictionary(carreras.map { ($0.id, $0) }, uniquingKeysWith: { _, ultima in ultima })
-        for carrera in nuevas {
-            porId[carrera.id] = carrera
-        }
-        carreras = porId.values.sorted { $0.fechaInicio > $1.fechaInicio }
+        carreras = FusionCarreras.fusionar(carreras, con: nuevas)
         escribir()
     }
 

@@ -106,8 +106,18 @@ struct ImportadorRutinas {
         var ejerciciosCreados = 0
         let carpeta = carpetaDestino(rutinas.carpeta, repositorio: repositorio)
 
+        // El orden de partida se lee UNA vez, antes del bucle. Leyéndolo
+        // dentro, cada `rutina.carpeta = carpeta` hacía crecer la relación y el
+        // contador avanzaba dos veces por rutina: cinco rutinas importadas
+        // quedaban en 0, 2, 4, 6 y 8. Los huecos importan porque crear o
+        // duplicar una rutina a mano asigna `max(orden) + 1`, así que caía
+        // sobre un orden ya usado y el empate se ordenaba de forma distinta en
+        // cada arranque. Y de paso, `rutinasSueltas()` era una consulta
+        // completa por iteración.
+        let ordenBase = carpeta?.rutinas.count ?? repositorio.rutinasSueltas().count
+
         for (indiceRutina, definicion) in rutinas.rutinas.enumerated() {
-            let orden = (carpeta?.rutinas.count ?? repositorio.rutinasSueltas().count) + indiceRutina
+            let orden = ordenBase + indiceRutina
             let rutina = Rutina(nombre: definicion.nombre, notas: definicion.notas, orden: orden)
             contexto.insert(rutina)
             rutina.carpeta = carpeta

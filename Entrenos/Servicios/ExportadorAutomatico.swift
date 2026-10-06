@@ -134,9 +134,53 @@ final class ExportadorAutomatico {
         return .escrito(destino)
     }
 
+    /// Igual que `exportar(contexto:)`, pero la escritura coordinada sale del
+    /// hilo principal.
+    ///
+    /// El JSON se tiene que construir aquí, porque `ModelContext` está atado al
+    /// hilo principal, pero eso es rápido. Lo que no lo es es la escritura: va
+    /// contra una carpeta de iCloud Drive y `NSFileCoordinator` espera a que el
+    /// demonio de sincronización suelte el archivo, que pueden ser segundos.
+    /// Haciéndolo en el hilo principal, la app se quedaba congelada justo al
+    /// pulsar "Guardar entreno", y una espera suficientemente larga ahí es un
+    /// cierre por watchdog.
+    ///
+    /// El ámbito de seguridad se mantiene abierto durante el `await`: el
+    /// `defer` no se ejecuta hasta que la función vuelve de verdad.
+    func exportarFueraDelPrincipal(contexto: ModelContext) async -> Resultado {
+        guard let carpeta = resolverCarpeta() else { return .sinCarpeta }
+
+        guard carpeta.startAccessingSecurityScopedResource() else {
+            return .fallo("La carpeta elegida ya no concede permiso. Vuelve a elegirla.")
+        }
+        defer { carpeta.stopAccessingSecurityScopedResource() }
+
+        let datos: Data
+        do {
+            datos = try SerializadorExportacion.json(
+                ServicioExportacion(contexto: contexto).construir()
+            )
+        } catch {
+            return .fallo(error.localizedDescription)
+        }
+
+        let destino = carpeta.appendingPathComponent(nombreArchivo)
+        let fallo = await Task.detached(priority: .utility) {
+            Self.escribirCoordinado(datos, en: destino)
+        }.value
+        if let fallo { return .fallo(fallo) }
+
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: claveUltima)
+        return .escrito(destino)
+    }
+
     /// Escritura coordinada, porque el archivo puede estar en iCloud y haber
     /// otro proceso sincronizándolo. Devuelve el mensaje de error, o `nil`.
-    private static func escribirCoordinado(_ datos: Data, en destino: URL) -> String? {
+    ///
+    /// `nonisolated` a propósito: `@MainActor` en la clase alcanza también a
+    /// sus miembros estáticos, así que sin esto llamarla desde una tarea aparte
+    /// volvía al hilo principal y la tarea no servía de nada.
+    nonisolated private static func escribirCoordinado(_ datos: Data, en destino: URL) -> String? {
         var errorCoordinacion: NSError?
         var errorEscritura: Error?
         NSFileCoordinator().coordinate(
@@ -158,14 +202,14 @@ final class ExportadorAutomatico {
     /// Exporta solo si hay carpeta configurada. Es lo que se llama al terminar
     /// un entreno: si no está configurado, no hace nada y no molesta.
     ///
-    /// Va en un `Task` para no bloquear el cierre del entreno: la escritura
-    /// coordinada en iCloud puede tardar, y el usuario no tiene que esperarla
-    /// para ver su resumen.
+    /// Usa la variante asíncrona para no bloquear el cierre del entreno: el
+    /// usuario no tiene que esperar a que iCloud suelte el archivo para ver su
+    /// resumen.
     func exportarSiProcede(contexto: ModelContext) {
         guard estaConfigurado else { return }
         Task { [weak self] in
             guard let self else { return }
-            if case .fallo(let detalle) = self.exportar(contexto: contexto) {
+            if case .fallo(let detalle) = await self.exportarFueraDelPrincipal(contexto: contexto) {
                 print("Exportación automática fallida: \(detalle)")
             }
         }

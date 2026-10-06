@@ -106,6 +106,53 @@ final class ServicioRecordsTests: XCTestCase {
         XCTAssertEqual(r.fechaMejorTiempo, fecha(8))
     }
 
+    // MARK: - Fecha de un récord igualado
+
+    func testUnRecordIgualadoConservaLaFechaEnQueSeHizo() {
+        // Las sesiones llegan de más reciente a más antigua, porque así se
+        // consulta el historial. Con una comparación estricta y ese orden, en
+        // un empate ganaba la más reciente y el récord quedaba fechado el día
+        // en que se IGUALÓ: quien levantó 100 kg el día 1 y los repitió el 15
+        // veía el 15 como fecha de su récord.
+        let sesiones = [
+            SesionEjercicio(fecha: fecha(15), series: [serie(100, 5)]),
+            SesionEjercicio(fecha: fecha(1), series: [serie(100, 5)]),
+        ]
+        let r = ServicioRecords.records(de: sesiones, tipo: .repeticiones)
+        XCTAssertEqual(r.pesoMaximo, 100)
+        XCTAssertEqual(r.fechaPesoMaximo, fecha(1))
+        XCTAssertEqual(r.fechaMejorUnRM, fecha(1))
+    }
+
+    func testElOrdenDeEntradaNoCambiaLosRecords() {
+        let series = [
+            SesionEjercicio(fecha: fecha(1), series: [serie(60, 10)]),
+            SesionEjercicio(fecha: fecha(8), series: [serie(65, 8)]),
+            SesionEjercicio(fecha: fecha(15), series: [serie(62.5, 10)]),
+        ]
+        let ascendente = ServicioRecords.records(de: series, tipo: .repeticiones)
+        let descendente = ServicioRecords.records(de: Array(series.reversed()), tipo: .repeticiones)
+        XCTAssertEqual(ascendente, descendente)
+    }
+
+    func testUnTiempoIgualadoConservaLaFechaEnQueSeHizo() {
+        let sesiones = [
+            SesionEjercicio(fecha: fecha(15), series: [SerieValor(peso: 0, segundos: 45, completada: true)]),
+            SesionEjercicio(fecha: fecha(1), series: [SerieValor(peso: 0, segundos: 45, completada: true)]),
+        ]
+        let r = ServicioRecords.records(de: sesiones, tipo: .tiempo)
+        XCTAssertEqual(r.fechaMejorTiempo, fecha(1))
+    }
+
+    func testUnVolumenIgualadoConservaLaFechaEnQueSeHizo() {
+        let sesiones = [
+            SesionEjercicio(fecha: fecha(15), series: [serie(60, 10), serie(60, 10)]),
+            SesionEjercicio(fecha: fecha(1), series: [serie(60, 10), serie(60, 10)]),
+        ]
+        let r = ServicioRecords.records(de: sesiones, tipo: .repeticiones)
+        XCTAssertEqual(r.fechaMejorVolumen, fecha(1))
+    }
+
     // MARK: - Detección durante el entreno
 
     func testUnaSerieMasPesadaBateElRecordDePeso() throws {
@@ -190,6 +237,27 @@ final class ServicioRecordsTests: XCTestCase {
         ]
         let puntos = ServicioRecords.puntosGrafica(de: sesiones, tipo: .repeticiones)
         XCTAssertEqual(puntos.map(\.fecha), [fecha(1), fecha(8), fecha(15)])
+    }
+
+    func testDosEjerciciosDelMismoEntrenoDanDosPuntosDistintos() {
+        // Todos los ejercicios de un entreno comparten `fechaEntreno`, así que
+        // el mismo ejercicio repetido en una sesión daba dos sesiones con
+        // fecha idéntica. Con la fecha como identidad, SwiftUI se comía uno de
+        // los dos puntos de la gráfica y una de las dos filas del historial.
+        let sesiones = [
+            SesionEjercicio(fecha: fecha(1), series: [serie(12, 15)]),
+            SesionEjercicio(fecha: fecha(1), series: [serie(10, 20)]),
+        ]
+        let puntos = ServicioRecords.puntosGrafica(de: sesiones, tipo: .repeticiones)
+        XCTAssertEqual(puntos.count, 2)
+        XCTAssertEqual(Set(puntos.map(\.id)).count, 2, "los dos puntos comparten identidad")
+        XCTAssertEqual(Set(sesiones.map(\.id)).count, 2, "las dos sesiones comparten identidad")
+    }
+
+    func testElPuntoHeredaLaIdentidadDeSuSesion() {
+        let sesion = SesionEjercicio(fecha: fecha(1), series: [serie(60, 10)])
+        let puntos = ServicioRecords.puntosGrafica(de: [sesion], tipo: .repeticiones)
+        XCTAssertEqual(puntos.first?.id, sesion.id)
     }
 
     func testLasSesionesSinSeriesEfectivasNoDanPunto() {

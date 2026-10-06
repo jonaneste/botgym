@@ -32,7 +32,11 @@ struct SincronizadorSalud {
     func pendientes() -> [Entreno] {
         RepositorioEntrenos(contexto: contexto)
             .entrenosFinalizados()
-            .filter { $0.idHealthKit == nil && $0.fechaFin != nil }
+            .filter { entreno in
+                entreno.idHealthKit == nil
+                    && entreno.fechaFin != nil
+                    && !EscriturasEnSalud.estaEnCurso(entreno.idPublico)
+            }
     }
 
     /// Sube los pendientes.
@@ -78,6 +82,14 @@ struct SincronizadorSalud {
                 )
                 entreno.idHealthKit = uuid
                 resultado.subidos += 1
+                // Se guarda tras CADA entreno, no al final del bucle. El UUID
+                // que devuelve Salud es la única llave de idempotencia que
+                // tenemos: si la app se va a segundo plano y el sistema la
+                // mata a mitad de una subida de sesenta entrenos, con un
+                // guardado único al final se perdían las llaves de todos los
+                // que ya estaban escritos, y la siguiente subida los duplicaba
+                // en Salud sin forma de distinguir las copias.
+                try? contexto.save()
             } catch {
                 resultado.fallidos += 1
                 if resultado.primerError == nil {
@@ -109,9 +121,39 @@ struct SincronizadorSalud {
         let ejercicios = entreno.ejerciciosOrdenados
             .filter { !$0.seriesEfectivas.isEmpty }
             .map { "\($0.nombreEjercicio) \($0.seriesEfectivas.count)×" }
-        let volumen = Int(entreno.volumenTotal.rounded())
+        let volumen = LimitesEntrada.entero(entreno.volumenTotal)
         let cabecera = "\(entreno.seriesCompletadas) series · \(volumen) kg"
         guard !ejercicios.isEmpty else { return cabecera }
         return cabecera + " · " + ejercicios.joined(separator: ", ")
+    }
+}
+
+/// Entrenos que ahora mismo se están escribiendo en Salud.
+///
+/// Hacen falta porque hay dos caminos que escriben: el cierre de un entreno
+/// (`ControladorEntreno.escribirEnSalud`) y la subida manual del historial.
+/// El primero lanza un `Task` y vuelve en seguida, así que el entreno queda
+/// guardado con `idHealthKit == nil` durante los segundos que tarda Salud en
+/// responder, que con el diálogo de permisos pueden ser bastantes. En esa
+/// ventana la subida manual lo veía pendiente y lo escribía otra vez.
+///
+/// No lo salva la detección de duplicados: `existeEntrenoDeFuerzaDeOtraApp`
+/// ignora a propósito las muestras de la propia app, que es lo que permite que
+/// el entreno del reloj gane al nuestro.
+@MainActor
+enum EscriturasEnSalud {
+    private static var enCurso: Set<UUID> = []
+
+    /// Reserva el entreno. Devuelve `false` si ya lo estaba escribiendo otro.
+    static func reservar(_ id: UUID) -> Bool {
+        enCurso.insert(id).inserted
+    }
+
+    static func liberar(_ id: UUID) {
+        enCurso.remove(id)
+    }
+
+    static func estaEnCurso(_ id: UUID) -> Bool {
+        enCurso.contains(id)
     }
 }

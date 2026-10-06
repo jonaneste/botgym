@@ -225,6 +225,87 @@ final class ServicioProgresionTests: XCTestCase {
         XCTAssertEqual(s.accion, .subirPeso(nuevoPeso: 10))
     }
 
+    // MARK: - Series de descarga y series extra
+
+    func testUnaSerieDeDescargaNoArrastraLaSugerenciaHaciaAbajo() {
+        // 3×8-10 completas a 70 y una cuarta de descarga a 50. Juzgando TODAS
+        // las efectivas, el peso base era el mínimo (50) y la sugerencia salía
+        // "sube a 52,5": aplicada a las series pendientes, una regresión de
+        // 17,5 kg en el ejercicio principal de un solo toque.
+        let objetivo = ObjetivoEjercicio(series: 3, objetivoMin: 8, objetivoMax: 10)
+        let anteriores = [serie(70, 10), serie(70, 10), serie(70, 10), serie(50, 12)]
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .barra, tipo: .repeticiones
+        )
+        XCTAssertEqual(s.accion, .subirPeso(nuevoPeso: 72.5))
+    }
+
+    func testUnaSerieDeDescargaFlojaNoBloqueaLaProgresion() {
+        // La misma cuarta serie, esta vez a 50×7. Antes hacía falso
+        // `todasEnElTope` y quien había completado 3×10 a 70 no progresaba
+        // nunca.
+        let objetivo = ObjetivoEjercicio(series: 3, objetivoMin: 8, objetivoMax: 10)
+        let anteriores = [serie(70, 10), serie(70, 10), serie(70, 10), serie(50, 7)]
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .barra, tipo: .repeticiones
+        )
+        XCTAssertEqual(s.accion, .subirPeso(nuevoPeso: 72.5))
+    }
+
+    func testLaDescargaDaIgualDondeEsteEnElOrden() {
+        let objetivo = ObjetivoEjercicio(series: 3, objetivoMin: 8, objetivoMax: 10)
+        let anteriores = [serie(50, 12), serie(70, 10), serie(70, 10), serie(70, 10)]
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .barra, tipo: .repeticiones
+        )
+        XCTAssertEqual(s.accion, .subirPeso(nuevoPeso: 72.5))
+    }
+
+    func testUnaSerieExtraFallidaAlMismoPesoNoBloquea() {
+        // 3×10 hechas y una cuarta que se cayó a 6. Lo pedido estaba
+        // completo, así que toca subir.
+        let objetivo = ObjetivoEjercicio(series: 3, objetivoMin: 8, objetivoMax: 10)
+        let anteriores = [serie(70, 10), serie(70, 10), serie(70, 10), serie(70, 6)]
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .barra, tipo: .repeticiones
+        )
+        XCTAssertEqual(s.accion, .subirPeso(nuevoPeso: 72.5))
+    }
+
+    func testDentroDeLasSeriesDeTrabajoElPesoBaseSigueSiendoElMinimo() {
+        // La decisión documentada no cambia: con una pirámide descendente de
+        // tres series y un objetivo de tres, las tres son de trabajo y el
+        // único peso que se sostuvo en todas es el menor.
+        let objetivo = ObjetivoEjercicio(series: 3, objetivoMin: 8, objetivoMax: 10)
+        let anteriores = [serie(70, 10), serie(65, 10), serie(60, 10)]
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .barra, tipo: .repeticiones
+        )
+        XCTAssertEqual(s.accion, .subirPeso(nuevoPeso: 62.5))
+    }
+
+    func testEnIsometricoLaSerieCortaExtraNoBloquea() {
+        // Sin peso que ordenar, manda el logro: de 60, 60, 60 y 30 se juzgan
+        // las tres de 60 esté la corta donde esté.
+        let objetivo = ObjetivoEjercicio(series: 3, objetivoMin: 45, objetivoMax: 60)
+        let anteriores = [serieTiempo(30), serieTiempo(60), serieTiempo(60), serieTiempo(60)]
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .maquina, tipo: .tiempo
+        )
+        XCTAssertEqual(s.accion, .subirTiempo(nuevosSegundos: 65))
+    }
+
+    func testConMenosSeriesQueElObjetivoSeJuzganTodas() {
+        let objetivo = ObjetivoEjercicio(series: 4, objetivoMin: 8, objetivoMax: 10)
+        let anteriores = [serie(70, 10), serie(70, 10)]
+        let deTrabajo = ServicioProgresion.seriesDeTrabajo(anteriores, series: 4, tipo: .repeticiones)
+        XCTAssertEqual(deTrabajo.count, 2)
+        let s = ServicioProgresion.sugerencia(
+            seriesAnteriores: anteriores, objetivo: objetivo, material: .barra, tipo: .repeticiones
+        )
+        XCTAssertEqual(s.accion, .mantener(peso: 70, objetivo: 10))
+    }
+
     // MARK: - Formato
 
     func testElTextoDePesoUsaComaDecimal() {

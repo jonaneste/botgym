@@ -10,8 +10,15 @@ import Foundation
 /// `exportar.zip` con `exportar.xml` dentro. Hay que descomprimirlo e importar
 /// el XML.
 ///
-/// El parser va en streaming (`XMLParser` es SAX) porque ese XML puede pesar
-/// cientos de megas: cargarlo en memoria de golpe tumbaría la app.
+/// El parser va en streaming de verdad: `XMLParser(stream:)` sobre un
+/// `InputStream` del archivo, y no `XMLParser(contentsOf:)`, que pese a ser SAX
+/// empieza por leerse el archivo entero en memoria. Con un export de un giga
+/// eso era un cierre por consumo de memoria antes de interpretar nada.
+///
+/// Y se lee fuera del hilo principal, con `leerFueraDelPrincipal(urlArchivo:)`:
+/// recorrer ese archivo son decenas de segundos, y hacerlo en el hilo principal
+/// congelaba la interfaz hasta el punto de que el indicador de "Procesando…" no
+/// llegaba ni a pintarse antes de que el sistema matase la app por no responder.
 final class LectorExportHealth: NSObject {
 
     /// Carreras encontradas, de más reciente a más antigua.
@@ -21,11 +28,26 @@ final class LectorExportHealth: NSObject {
     private var entrenosVistos = 0
 
     /// Lee el XML y devuelve las carreras.
+    ///
+    /// Bloquea el hilo desde el que se llame durante todo el recorrido. Desde
+    /// la interfaz hay que usar `leerFueraDelPrincipal(urlArchivo:)`.
     func leer(urlArchivo: URL) throws -> [Carrera] {
-        guard let parser = XMLParser(contentsOf: urlArchivo) else {
+        guard let flujo = InputStream(url: urlArchivo) else {
             throw ErrorImportacionSalud.noSePudoAbrir
         }
-        return try ejecutar(parser)
+        return try ejecutar(XMLParser(stream: flujo))
+    }
+
+    /// Lee el XML en una tarea aparte y devuelve las carreras al terminar.
+    ///
+    /// El permiso de lectura del archivo lo tiene que haber pedido quien llama,
+    /// con `startAccessingSecurityScopedResource()`, y mantenerlo abierto hasta
+    /// que esto vuelva: el ámbito de seguridad es del proceso y no del hilo, así
+    /// que vale igual desde aquí.
+    static func leerFueraDelPrincipal(urlArchivo: URL) async throws -> [Carrera] {
+        try await Task.detached(priority: .userInitiated) {
+            try LectorExportHealth().leer(urlArchivo: urlArchivo)
+        }.value
     }
 
     func leer(datos: Data) throws -> [Carrera] {

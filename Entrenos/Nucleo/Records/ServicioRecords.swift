@@ -1,11 +1,20 @@
 import Foundation
 
 /// Una sesión pasada de un ejercicio, como valor puro.
-public struct SesionEjercicio: Equatable, Sendable {
+public struct SesionEjercicio: Equatable, Sendable, Identifiable {
+    /// Identidad propia, y no la fecha.
+    ///
+    /// Todos los ejercicios de un entreno comparten `fechaEntreno`, que se
+    /// copia de `fechaInicio`, así que el mismo ejercicio repetido en una
+    /// sesión (un finisher, o el compañero de una superserie que se repite)
+    /// daba dos sesiones con fecha idéntica. Usar la fecha como identidad en
+    /// un `ForEach` o en un `Chart` hacía desaparecer una de las dos.
+    public var id: UUID
     public var fecha: Date
     public var series: [SerieValor]
 
-    public init(fecha: Date, series: [SerieValor]) {
+    public init(id: UUID = UUID(), fecha: Date, series: [SerieValor]) {
+        self.id = id
         self.fecha = fecha
         self.series = series
     }
@@ -81,7 +90,13 @@ public enum ServicioRecords {
     ) -> RecordsEjercicio {
         var resultado = RecordsEjercicio()
 
-        for sesion in sesiones {
+        // De más antigua a más reciente, a propósito. Las sesiones llegan en
+        // orden inverso, porque el historial se consulta así, y la comparación
+        // es `>` estricta: en un empate ganaba la primera vista, o sea la más
+        // reciente, y el récord quedaba fechado el día en que se IGUALÓ y no
+        // el día en que se hizo. Quien levantó 100 kg en marzo y los repitió
+        // en octubre veía "1 oct" como fecha de su récord.
+        for sesion in sesiones.sorted(by: { $0.fecha < $1.fecha }) {
             let efectivas = sesion.seriesEfectivas
             guard !efectivas.isEmpty else { continue }
 
@@ -242,6 +257,7 @@ public enum ServicioRecords {
             let segundos = tipo.esTiempo ? efectivas.compactMap(\.segundos).max() : nil
 
             return PuntoGrafica(
+                id: sesion.id,
                 fecha: sesion.fecha,
                 pesoMaximo: pesoMaximo,
                 unRMEstimado: unRM,
@@ -255,7 +271,9 @@ public enum ServicioRecords {
 
 /// Un punto de la gráfica de progreso de un ejercicio.
 public struct PuntoGrafica: Equatable, Sendable, Identifiable {
-    public var id: Date { fecha }
+    /// La de la sesión que lo produjo. No la fecha: dos ejercicios del mismo
+    /// entreno la comparten y el punto se perdería.
+    public var id: UUID
     public var fecha: Date
     public var pesoMaximo: Double
     public var unRMEstimado: Double?
@@ -263,12 +281,14 @@ public struct PuntoGrafica: Equatable, Sendable, Identifiable {
     public var segundosMaximo: Int?
 
     public init(
+        id: UUID = UUID(),
         fecha: Date,
         pesoMaximo: Double,
         unRMEstimado: Double?,
         volumen: Double,
         segundosMaximo: Int? = nil
     ) {
+        self.id = id
         self.fecha = fecha
         self.pesoMaximo = pesoMaximo
         self.unRMEstimado = unRMEstimado

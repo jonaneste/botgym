@@ -53,7 +53,7 @@ struct VistaDatos: View {
         }
         .fileImporter(
             isPresented: $mostrarSelector,
-            allowedContentTypes: modoSelector.tiposAdmitidos,
+            allowedContentTypes: ModoSelector.tiposAdmitidos,
             allowsMultipleSelection: false
         ) { salida in
             switch modoSelector {
@@ -362,6 +362,13 @@ struct VistaDatos: View {
             mensaje = MensajeDatos(titulo: "No se pudo elegir la carpeta", detalle: fallo.localizedDescription)
         case .success(let urls):
             guard let url = urls.first else { return }
+            guard esCarpeta(url) != false else {
+                mensaje = MensajeDatos(
+                    titulo: "Eso es un archivo",
+                    detalle: "Hay que elegir una CARPETA, no un archivo: la app escribe «entrenos.json» dentro de ella."
+                )
+                return
+            }
             do {
                 try ExportadorAutomatico.compartido.configurar(carpeta: url)
                 carpetaClaude = ExportadorAutomatico.compartido.nombreCarpeta
@@ -378,7 +385,13 @@ struct VistaDatos: View {
     }
 
     private func volcarAhora() {
-        switch ExportadorAutomatico.compartido.exportar(contexto: contexto) {
+        Task { await volcarAhoraEsperando() }
+    }
+
+    private func volcarAhoraEsperando() async {
+        trabajando = true
+        defer { trabajando = false }
+        switch await ExportadorAutomatico.compartido.exportarFueraDelPrincipal(contexto: contexto) {
         case .escrito(let url):
             ultimaAuto = ExportadorAutomatico.compartido.ultimaExportacion
             mensaje = MensajeDatos(
@@ -390,6 +403,16 @@ struct VistaDatos: View {
         case .fallo(let detalle):
             mensaje = MensajeDatos(titulo: "No se pudo escribir", detalle: detalle)
         }
+    }
+
+    /// ¿Es una carpeta lo que se eligió? `nil` si el sistema no lo dice.
+    ///
+    /// Los dos sitios que la usan comparan contra `false` y contra `true`, no
+    /// contra `nil`: ante la duda se sigue adelante. Un falso positivo aquí
+    /// dejaría la función inalcanzable, que es exactamente lo que se quería
+    /// evitar al dejar de atar los tipos admitidos al modo del selector.
+    private func esCarpeta(_ url: URL) -> Bool? {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory
     }
 
     private func recontarPendientes() {
@@ -435,6 +458,13 @@ struct VistaDatos: View {
 
         case .success(let urls):
             guard let url = urls.first else { return }
+            guard esCarpeta(url) != true else {
+                mensaje = MensajeDatos(
+                    titulo: "Eso es una carpeta",
+                    detalle: "Hay que elegir el archivo «exportar.xml» que sale al descomprimir la exportación de Salud."
+                )
+                return
+            }
             Task {
                 trabajando = true
                 defer { trabajando = false }
@@ -444,8 +474,13 @@ struct VistaDatos: View {
                     let concedido = url.startAccessingSecurityScopedResource()
                     defer { if concedido { url.stopAccessingSecurityScopedResource() } }
 
-                    let lector = LectorExportHealth()
-                    let carreras = try lector.leer(urlArchivo: url)
+                    // Fuera del hilo principal: recorrer un export de
+                    // varios cientos de megas son decenas de segundos, y
+                    // hacerlo aquí mismo congelaba la interfaz hasta que el
+                    // sistema mataba la app por no responder. El permiso de
+                    // lectura sigue abierto durante el await, porque el
+                    // `defer` de arriba no corre hasta que esto vuelve.
+                    let carreras = try await LectorExportHealth.leerFueraDelPrincipal(urlArchivo: url)
                     CacheCarreras.compartida.guardar(carreras)
                     mensaje = MensajeDatos(
                         titulo: carreras.isEmpty ? "Ninguna carrera" : "Carreras importadas",
@@ -473,12 +508,16 @@ enum ModoSelector {
     case carpetaClaude
     case exportDeSalud
 
-    var tiposAdmitidos: [UTType] {
-        switch self {
-        case .carpetaClaude: return [.folder]
-        case .exportDeSalud: return [.xml]
-        }
-    }
+    /// Los tipos NO dependen del modo, a propósito.
+    ///
+    /// Hacerlos depender del modo acoplaba la configuración del selector a un
+    /// estado que cambia en el mismo gesto que lo presenta, y si SwiftUI
+    /// presentase con el valor anterior, el selector se abriría pidiendo
+    /// carpetas cuando toca elegir el XML y el archivo saldría en gris, sin
+    /// forma de seguir. Admitiendo siempre los dos, lo que se eligió se
+    /// comprueba después: lo peor que pasa es un mensaje de error claro en
+    /// lugar de una función inalcanzable.
+    static let tiposAdmitidos: [UTType] = [.folder, .xml]
 }
 
 /// Aviso simple para las alertas de esta pantalla.

@@ -13,6 +13,7 @@ struct VistaRutinas: View {
     @State private var nombreNuevaCarpeta = ""
     @State private var rutinaAEditar: Rutina?
     @State private var carpetaDestino: CarpetaRutinas?
+    @State private var rutinaABorrar: Rutina?
 
     private var rutinasSueltas: [Rutina] {
         todasLasRutinas.filter { $0.carpeta == nil }
@@ -85,6 +86,32 @@ struct VistaRutinas: View {
                 Button("Crear") { crearCarpeta() }
                 Button("Cancelar", role: .cancel) { nombreNuevaCarpeta = "" }
             }
+            // Con confirmación, como el borrado de un entreno y el de un
+            // ejercicio. La fila ya tiene un toque que abre el editor y un
+            // botón de "Empezar", así que es un sitio donde se desliza sin
+            // querer, y "Borrar" está justo al lado de "Duplicar". El borrado
+            // va en cascada a los elementos de la rutina: se lleva objetivos,
+            // rangos de RIR, descansos, notas y superseries, sin deshacer.
+            //
+            // Es un `confirmationDialog` y no un `.alert` para no apilar dos
+            // modificadores del mismo tipo de presentación en la misma vista,
+            // que es la clase de cosa que SwiftUI resuelve de formas poco
+            // obvias. Y para un borrado destructivo desde un deslizamiento, la
+            // hoja de abajo es además lo idiomático en iOS.
+            .confirmationDialog(
+                "¿Borrar la rutina?",
+                isPresented: Binding(
+                    get: { rutinaABorrar != nil },
+                    set: { presentado in if !presentado { rutinaABorrar = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: rutinaABorrar
+            ) { rutina in
+                Button("Borrar", role: .destructive) { borrar(rutina) }
+                Button("Cancelar", role: .cancel) { rutinaABorrar = nil }
+            } message: { rutina in
+                Text("«\(rutina.nombre)» y sus \(rutina.elementos.count) ejercicios planificados. El historial de lo que ya entrenaste no se toca.")
+            }
         }
     }
 
@@ -116,8 +143,7 @@ struct VistaRutinas: View {
         .onTapGesture { rutinaAEditar = rutina }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
-                contexto.delete(rutina)
-                try? contexto.save()
+                rutinaABorrar = rutina
             } label: {
                 Label("Borrar", systemImage: "trash")
             }
@@ -131,6 +157,12 @@ struct VistaRutinas: View {
     }
 
     // MARK: - Acciones
+
+    private func borrar(_ rutina: Rutina) {
+        rutinaABorrar = nil
+        contexto.delete(rutina)
+        try? contexto.save()
+    }
 
     private func crearCarpeta() {
         let nombre = nombreNuevaCarpeta.trimmingCharacters(in: .whitespacesAndNewlines)

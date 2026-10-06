@@ -30,7 +30,7 @@ struct GraficaEjercicio: View {
     let metrica: MetricaGrafica
 
     var body: some View {
-        Chart(puntosConValor, id: \.fecha) { punto in
+        Chart(puntosConValor, id: \.id) { punto in
             LineMark(
                 x: .value("Fecha", punto.fecha),
                 y: .value(metrica.nombre, valor(de: punto))

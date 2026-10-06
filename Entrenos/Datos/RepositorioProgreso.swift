@@ -20,7 +20,14 @@ struct RepositorioProgreso {
     /// Historial de un ejercicio como sesiones de valores puros.
     func sesiones(idEjercicio: UUID, limite: Int? = nil) -> [SesionEjercicio] {
         repositorio.historial(idEjercicio: idEjercicio, limite: limite)
-            .map { SesionEjercicio(fecha: $0.fechaEntreno, series: $0.seriesValor) }
+            .map {
+                // La identidad es la de la fila, no la fecha: todos los
+                // ejercicios de un entreno comparten `fechaEntreno`, así que
+                // el mismo ejercicio repetido en una sesión daba dos sesiones
+                // con fecha idéntica y una de las dos desaparecía de la lista
+                // y de la gráfica.
+                SesionEjercicio(id: $0.idPublico, fecha: $0.fechaEntreno, series: $0.seriesValor)
+            }
     }
 
     // MARK: - Récords
@@ -39,7 +46,7 @@ struct RepositorioProgreso {
                 guard let excluyendoEntreno else { return true }
                 return ejercicio.entreno?.idPublico != excluyendoEntreno
             }
-            .map { SesionEjercicio(fecha: $0.fechaEntreno, series: $0.seriesValor) }
+            .map { SesionEjercicio(id: $0.idPublico, fecha: $0.fechaEntreno, series: $0.seriesValor) }
         return ServicioRecords.records(de: historial, tipo: tipo)
     }
 

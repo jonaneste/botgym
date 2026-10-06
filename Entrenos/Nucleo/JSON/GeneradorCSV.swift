@@ -81,7 +81,9 @@ public enum GeneradorCSV {
     /// 62,5 en lugar de 62,50. Hasta dos decimales.
     static func decimal(_ valor: Double) -> String {
         if valor == valor.rounded() {
-            return "\(Int(valor))"
+            // No `Int(valor)`: un peso imposible guardado en una serie haría
+            // que la exportación entera cerrase la app, no que fallase.
+            return "\(LimitesEntrada.entero(valor))"
         }
         var texto = String(format: "%.2f", valor)
         while texto.hasSuffix("0") { texto.removeLast() }

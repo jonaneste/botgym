@@ -60,6 +60,10 @@ final class EjercicioEntreno {
         self.orden = orden
         self.fechaEntreno = fechaEntreno
         self.entrenoFinalizado = false
+        // El `?? UUID()` solo se alcanza si alguien construye esto sin
+        // ejercicio a mano. Los dos caminos reales (añadir desde la biblioteca
+        // y empezar una rutina) traen siempre uno: el segundo porque
+        // `init?(desde:fechaEntreno:)` rechaza los elementos huérfanos.
         self.idEjercicio = ejercicio?.idPublico ?? UUID()
         self.nombreEjercicio = ejercicio?.nombre ?? "Ejercicio"
         self.tipoRegistroRaw = (ejercicio?.tipoRegistro ?? .repeticiones).rawValue
@@ -75,7 +79,14 @@ final class EjercicioEntreno {
 
     /// Crea el ejercicio del entreno a partir de un elemento de rutina,
     /// copiando sus objetivos.
-    convenience init(desde elemento: ElementoRutina, fechaEntreno: Date) {
+    ///
+    /// Devuelve `nil` si el elemento se quedó sin ejercicio porque se borró de
+    /// la biblioteca: la relación es `.nullify`, así que esos elementos siguen
+    /// ahí apuntando a nada. Crear historial con ellos daba filas con un
+    /// `idEjercicio` inventado que no casaban con nada, así que es mejor no
+    /// crearlas.
+    convenience init?(desde elemento: ElementoRutina, fechaEntreno: Date) {
+        guard elemento.ejercicio != nil else { return nil }
         self.init(
             ejercicio: elemento.ejercicio,
             orden: elemento.orden,

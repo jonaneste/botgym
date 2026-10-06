@@ -54,7 +54,7 @@ public enum InterpreteHealth {
 
         // El export no trae UUID, así que se compone uno estable a partir de la
         // fecha: releer el mismo archivo no duplica la carrera.
-        let identificador = atributos["uuid"] ?? "export-\(textoInicio)"
+        let identificador = atributos["uuid"] ?? "\(FusionCarreras.prefijoExport)\(textoInicio)"
 
         return Carrera(
             id: identificador,
@@ -69,14 +69,27 @@ public enum InterpreteHealth {
 
     // MARK: - Piezas
 
+    /// Formateadores creados una vez y no por elemento del XML.
+    ///
+    /// Construir un `DateFormatter` no es gratis y aquí se llamaba hasta tres
+    /// veces por cada `<Workout>` de un archivo que puede tener miles.
+    ///
+    /// Compartirlos es seguro: `DateFormatter` admite `date(from:)` desde
+    /// varios hilos, y aquí nadie los reconfigura después de crearlos.
+    private static let formateadores: [DateFormatter] = formatosFecha.map { formato in
+        let formateador = DateFormatter()
+        formateador.locale = Locale(identifier: "en_US_POSIX")
+        formateador.dateFormat = formato
+        return formateador
+    }
+
+    private static let formateadorISO = ISO8601DateFormatter()
+
     static func fecha(de texto: String) -> Date? {
-        for formato in formatosFecha {
-            let formateador = DateFormatter()
-            formateador.locale = Locale(identifier: "en_US_POSIX")
-            formateador.dateFormat = formato
+        for formateador in formateadores {
             if let fecha = formateador.date(from: texto) { return fecha }
         }
-        return ISO8601DateFormatter().date(from: texto)
+        return formateadorISO.date(from: texto)
     }
 
     /// Duración en segundos. El export la da casi siempre en minutos.

@@ -17,8 +17,15 @@ final class ControladorEntreno {
 
     /// Récord recién batido, para el aviso que aparece sobre el entreno.
     var avisoRecord: AvisoRecord?
-    /// Todos los récords batidos en este entreno, para el resumen final.
-    private(set) var recordsDelEntreno: [RecordBatido] = []
+    /// Todos los récords batidos en este entreno, para el resumen final, cada
+    /// uno con el ejercicio en que ocurrió.
+    ///
+    /// El ejercicio tiene que viajar con el récord: guardando solo
+    /// `[RecordBatido]`, el resumen de cierre no tenía de dónde sacar el
+    /// nombre y etiquetaba todos los récords con el nombre del ENTRENO, así
+    /// que dos récords en ejercicios distintos salían como dos filas
+    /// idénticas tituladas "Lunes – Empuje".
+    private(set) var recordsDelEntreno: [RecordDeEjercicio] = []
 
     private var contexto: ModelContext
     private var repositorio: RepositorioEntrenos
@@ -74,7 +81,17 @@ final class ControladorEntreno {
         contexto.insert(nuevo)
 
         for elemento in rutina.elementosOrdenados {
-            let ejercicio = EjercicioEntreno(desde: elemento, fechaEntreno: ahora)
+            // Un elemento cuyo ejercicio se borró de la biblioteca se salta.
+            // La relación es `.nullify`, así que esos elementos sobreviven con
+            // `ejercicio == nil`, y antes se creaba con ellos una fila de
+            // historial llamada literalmente "Ejercicio" y con un `idEjercicio`
+            // recién inventado: las series que el usuario anotara ahí no
+            // casaban con nada. No aparecían en "Anterior:", la progresión
+            // volvía a "primera vez" cada sesión, no contaban en el volumen
+            // semanal y no salían en Progreso, todo sin un solo aviso.
+            guard let ejercicio = EjercicioEntreno(desde: elemento, fechaEntreno: ahora) else {
+                continue
+            }
             contexto.insert(ejercicio)
             ejercicio.entreno = nuevo
 
@@ -244,7 +261,11 @@ final class ControladorEntreno {
             fecha: Date()
         )
 
-        recordsDelEntreno.append(contentsOf: batidos)
+        recordsDelEntreno.append(
+            contentsOf: batidos.map {
+                RecordDeEjercicio(nombreEjercicio: ejercicio.nombreEjercicio, batido: $0)
+            }
+        )
         avisoRecord = AvisoRecord(nombreEjercicio: ejercicio.nombreEjercicio, batidos: batidos)
         if ajustes.vibrarFinDescanso { Haptica.record() }
     }
@@ -269,7 +290,7 @@ final class ControladorEntreno {
     }
 
     /// Récords batidos serie a serie durante el entreno, con su ejercicio.
-    var resumenRecords: [RecordBatido] { recordsDelEntreno }
+    var resumenRecords: [RecordDeEjercicio] { recordsDelEntreno }
 
     /// Sugerencia de carga para un ejercicio del entreno en curso.
     func sugerencia(para ejercicio: EjercicioEntreno, ajustes: Ajustes) -> SugerenciaProgresion {
@@ -321,6 +342,17 @@ final class ControladorEntreno {
     func ajustarDescanso(segundos: Int, ajustes: Ajustes) {
         temporizador.ajustar(segundos: segundos)
         entreno?.descansoHasta = temporizador.fechaFin
+        // La duración también, y no solo la fecha de fin. Es lo que se usa al
+        // reanudar para calcular el progreso de la barra: dejándola en el
+        // valor original, tras cerrar y reabrir la app la barra de un descanso
+        // alargado a mano iba mal el resto del descanso. Y cuando `ajustar`
+        // acaba parando el temporizador hay que limpiarla, o quedaba un
+        // descanso a medio borrar en la base.
+        if temporizador.fechaFin == nil {
+            entreno?.descansoDuracion = nil
+        } else {
+            entreno?.descansoDuracion = LimitesEntrada.entero(temporizador.duracionTotal)
+        }
         if let fin = temporizador.fechaFin, ajustes.notificarFinDescanso {
             let nombre = temporizador.nombreEjercicio
             Task { await GestorNotificaciones.shared.programarFinDescanso(en: fin, nombreEjercicio: nombre) }
@@ -431,7 +463,15 @@ final class ControladorEntreno {
         let resumen = SincronizadorSalud.resumen(de: entreno)
         let evitarDuplicados = ajustes.evitarDuplicadosEnSalud
 
+        // Se reserva antes de lanzar el Task: hasta que Salud responda, el
+        // entreno queda guardado con `idHealthKit == nil` y la subida manual
+        // del historial lo vería pendiente y lo escribiría por segunda vez.
+        let identificador = entreno.idPublico
+        guard EscriturasEnSalud.reservar(identificador) else { return }
+
         Task { [weak self] in
+            defer { EscriturasEnSalud.liberar(identificador) }
+
             if evitarDuplicados,
                await GestorHealthKit.shared.existeEntrenoDeFuerzaDeOtraApp(inicio: inicio, fin: fin) {
                 // El reloj ya lo registró, con pulso real. El suyo es mejor.

@@ -44,8 +44,10 @@ public struct Carrera: Codable, Equatable, Sendable, Identifiable {
 
     /// Ritmo como "5:12 /km".
     public var ritmoTexto: String? {
-        guard let ritmo = ritmoSegundosPorKm else { return nil }
-        let total = Int(ritmo.rounded())
+        guard let ritmo = ritmoSegundosPorKm, ritmo.isFinite else { return nil }
+        // Se redondea ANTES de dividir, no después: con 359,6 s/km, dividir
+        // primero da 5 minutos y 60 segundos, o sea "5:60 /km".
+        let total = LimitesEntrada.entero(ritmo)
         return String(format: "%d:%02d /km", total / 60, total % 60)
     }
 

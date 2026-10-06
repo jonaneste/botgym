@@ -87,7 +87,7 @@ struct VistaDetalleEjercicio: View {
 
             if !sesiones.isEmpty {
                 Section("Historial") {
-                    ForEach(sesiones.sorted { $0.fecha > $1.fecha }, id: \.fecha) { sesion in
+                    ForEach(sesiones.sorted { $0.fecha > $1.fecha }) { sesion in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(Formato.fechaCorta(sesion.fecha))

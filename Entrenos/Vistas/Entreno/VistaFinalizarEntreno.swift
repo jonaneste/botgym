@@ -100,10 +100,7 @@ struct VistaFinalizarEntreno: View {
     /// Los de serie, detectados durante el entreno, más los de volumen, que
     /// solo se pueden saber ahora.
     private var todosLosRecords: [RecordDeEjercicio] {
-        let deSerie = controlador.resumenRecords.map {
-            RecordDeEjercicio(nombreEjercicio: entreno.nombre, batido: $0)
-        }
-        return deSerie + recordsVolumen
+        controlador.resumenRecords + recordsVolumen
     }
 
     private func textoRecord(_ batido: RecordBatido) -> String {

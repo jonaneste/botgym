@@ -40,7 +40,11 @@ struct AvisoRecord: Identifiable, Equatable {
 
 /// Un récord batido, atado al ejercicio en que ocurrió.
 struct RecordDeEjercicio: Identifiable, Equatable {
-    let id = UUID()
+    /// Compuesta, no un UUID nuevo por instancia: en un entreno hay como mucho
+    /// un récord de cada tipo por ejercicio, así que esto identifica igual de
+    /// bien, no cambia si la lista se vuelve a construir y hace que `Equatable`
+    /// signifique algo.
+    var id: String { "\(nombreEjercicio)-\(batido.tipo.rawValue)" }
     let nombreEjercicio: String
     let batido: RecordBatido
 }
