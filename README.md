@@ -45,7 +45,7 @@ Entrenos/
   DatosIniciales/        Semilla: ejercicios y la rutina de 5 días
 Tests/                   Tests unitarios del núcleo
 mcp/                     Servidor MCP para que Claude lea tus datos
-Herramientas/            Scripts de verificación
+Herramientas/            Verificación e instalación en el dispositivo
 CLAUDE.md                Decisiones del proyecto y trampas conocidas
 docs/                    Instalación y esquema JSON
 ```
@@ -67,7 +67,8 @@ tests.
 ## Desarrollo
 
 ```sh
-./Herramientas/verificar.sh      # todo de una vez: lints, núcleo y MCP
+./Herramientas/verificar.sh          # todo de una vez: lints, núcleo y MCP
+./Herramientas/instalar-en-iphone.sh # compila firmada e instala, sin abrir Xcode
 ```
 
 Con Xcode delante añade la compilación de iOS; sin él, avisa de que ese paso lo

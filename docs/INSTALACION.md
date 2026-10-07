@@ -6,6 +6,27 @@
 - El iPhone y su cable.
 - Un Apple ID. No hace falta pagar nada para empezar.
 
+## En un comando
+
+```sh
+./Herramientas/instalar-en-iphone.sh
+```
+
+Compila firmada, encuentra el iPhone conectado e instala, sin abrir Xcode. Busca
+tu identidad de firma sola; si tienes varias o el identificador ya está cogido,
+te dice exactamente con qué volver a lanzarlo.
+
+Existe sobre todo por el plazo de los 7 días: con un Apple ID gratuito la firma
+caduca y la app deja de abrirse, así que reinstalar no es algo que se haga una
+vez sino todas las semanas. Volver a lanzar el script **no borra el historial**,
+que vive en el dispositivo.
+
+Lo único que no puede hacer por ti es lo que iOS exige a mano la primera vez:
+confiar en el certificado en Ajustes → General → VPN y gestión de dispositivos.
+
+Si prefieres hacerlo desde Xcode, o si el script falla por algo que no sabe
+explicar, sigue el camino de abajo.
+
 ## Primera instalación
 
 1. Abre `Entrenos.xcodeproj` haciendo doble clic.

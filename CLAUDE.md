@@ -130,8 +130,15 @@ recuento semanal en silencio.
 ## Si esta sesión corre en el Mac
 
 Entonces puedes hacer lo que una sesión en la nube no: `xcodebuild` de verdad,
-abrir Xcode e instalar en el iPhone conectado. Los pasos están en
-`docs/INSTALACION.md`.
+compilar firmada e instalar en el iPhone conectado.
+
+```sh
+./Herramientas/instalar-en-iphone.sh
+```
+
+Hace todo el lado del Mac sin abrir Xcode y explica qué hacer en cada fallo que
+sabe reconocer. `docs/INSTALACION.md` tiene el camino manual y los límites de la
+cuenta gratuita.
 
 Lo que hay que comprobar en el dispositivo, en este orden, porque CI no lo
 alcanza:
