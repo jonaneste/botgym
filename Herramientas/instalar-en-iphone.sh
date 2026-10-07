@@ -34,11 +34,31 @@ titulo "Comprobando el entorno"
     "Firmar e instalar en un iPhone necesita Xcode y el dispositivo conectado," \
     "así que no hay forma de hacerlo desde Linux ni desde un contenedor."
 
-command -v xcodebuild >/dev/null 2>&1 || morir \
-    "No encuentro xcodebuild." \
-    "Instala Xcode desde la App Store y ábrelo una vez para que acepte la licencia."
+# `command -v xcodebuild` NO sirve para esto, aunque lo parezca: macOS trae un
+# enlace en /usr/bin que existe siempre, incluso con solo las Command Line Tools
+# instaladas, y al usarlo falla con
+#
+#   xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer
+#   directory '/Library/Developer/CommandLineTools' is a command line tools instance
+#
+# Lo que decide es si se puede ejecutar de verdad. Comprobarlo mal hacía que el
+# script siguiera adelante y acabara culpando a la identidad de firma, mandando
+# al usuario a los ajustes de un Xcode que no tiene.
+if ! version=$(xcodebuild -version 2>&1); then
+    activo=$(xcode-select -p 2>/dev/null || true)
+    morir \
+        "Falta Xcode. Aquí solo están las Command Line Tools, que no traen el SDK de iOS ni la firma." \
+        "Directorio activo: ${activo:-ninguno}" \
+        "" \
+        "1. Instala Xcode desde la App Store. Son unos 10 GB: tarda un rato largo." \
+        "2. Ábrelo una vez y acepta la licencia." \
+        "3. Añade tu Apple ID en Xcode → Settings → Accounts." \
+        "" \
+        "Si tras instalarlo sigue saliendo esto, apunta las herramientas al Xcode nuevo:" \
+        "   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+fi
 
-xcodebuild -version | head -1 | sed 's/^/  /'
+printf '%s\n' "$version" | head -1 | sed 's/^/  /'
 
 # ------------------------------------------------------------------ equipo
 
