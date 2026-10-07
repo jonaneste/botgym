@@ -13,6 +13,7 @@
 #
 #   EQUIPO=ABCDE12345    ./Herramientas/instalar-en-iphone.sh   # tu Team ID
 #   BUNDLE=com.tunombre.entrenos ./Herramientas/instalar-en-iphone.sh
+#   UDID=...             ./Herramientas/instalar-en-iphone.sh   # columna Identifier
 #   SOLO_COMPILAR=1      ./Herramientas/instalar-en-iphone.sh   # no instala
 set -uo pipefail
 
@@ -92,21 +93,68 @@ gris "  Identificador: $bundle"
 
 titulo "Buscando el iPhone"
 
-udid=""
+udid="${UDID:-}"
 nombre=""
-if xcrun devicectl list devices >/dev/null 2>&1; then
-    # Columnas: Name, Hostname, Identifier, State, Model. Nos vale el UDID de
-    # cualquier iPhone emparejado y conectado.
-    linea=$(xcrun devicectl list devices 2>/dev/null \
-        | grep -i 'iphone' | grep -iv 'unavailable' | head -1)
-    if [ -n "$linea" ]; then
-        udid=$(printf '%s' "$linea" | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}|[0-9A-Fa-f]{40}' | head -1)
-        nombre=$(printf '%s' "$linea" | awk '{print $1}')
+
+# Por JSON y no leyendo la tabla. La tabla de `devicectl list devices` tiene dos
+# columnas que parecen un identificador —Hostname, que lleva el UDID del
+# aparato, e Identifier, que es el UUID que `devicectl` acepta en --device— y
+# cualquier expresión regular sobre el texto puede coger la que no es. El JSON
+# las distingue por nombre, que es lo único que no se presta a confusión.
+if [ -z "$udid" ] && xcrun devicectl list devices >/dev/null 2>&1; then
+    json=$(mktemp "${TMPDIR:-/tmp}/entrenos-dispositivos.XXXXXX") || json=""
+    if [ -n "$json" ] \
+       && xcrun devicectl list devices --json-output "$json" >/dev/null 2>&1 \
+       && [ -s "$json" ] && command -v python3 >/dev/null 2>&1; then
+        leido=$(python3 - "$json" <<'PY' 2>/dev/null
+import json, sys
+try:
+    datos = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+
+for d in datos.get("result", {}).get("devices", []):
+    propiedades = d.get("deviceProperties", {}) or {}
+    conexion = d.get("connectionProperties", {}) or {}
+    hardware = d.get("hardwareProperties", {}) or {}
+
+    nombre = propiedades.get("name") or "iPhone"
+    estado = (conexion.get("tunnelState") or "").lower()
+    emparejado = (conexion.get("pairingState") or "").lower()
+    tipo = (hardware.get("deviceType") or "").lower()
+    identificador = d.get("identifier")
+
+    if not identificador or tipo and tipo != "iphone":
+        continue
+    # Un aparato visto por wifi pero no accesible no sirve para instalar.
+    if estado in ("unavailable",) or emparejado == "unpaired":
+        continue
+    print(identificador)
+    print(nombre)
+    break
+PY
+        )
+        udid=$(printf '%s' "$leido" | sed -n 1p)
+        nombre=$(printf '%s' "$leido" | sed -n 2p)
+    fi
+    rm -f "$json"
+
+    # Sin python3 o con un JSON que no entiendo, se lee la tabla. La columna
+    # Identifier es un UUID con el formato 8-4-4-4-12, que no se confunde con el
+    # UDID del Hostname (8 hex, guion, 16 hex).
+    if [ -z "$udid" ]; then
+        linea=$(xcrun devicectl list devices 2>/dev/null \
+            | grep -i 'iphone' | grep -iv 'unavailable' | head -1)
+        if [ -n "$linea" ]; then
+            udid=$(printf '%s' "$linea" \
+                | grep -oE '[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}' | head -1)
+            nombre=$(printf '%s' "$linea" | sed -E 's/[[:space:]]{2,}.*//; s/\t.*//')
+        fi
     fi
 fi
 
 if [ -z "$udid" ]; then
-    # Xcode antiguo: xctrace lista "Nombre (versión) (UDID)".
+    # Xcode antiguo, sin devicectl: xctrace lista "Nombre (versión) (UDID)".
     linea=$(xcrun xctrace list devices 2>/dev/null \
         | grep -i 'iphone' | grep -iv 'simulator' | head -1)
     udid=$(printf '%s' "$linea" | sed -n 's/.*(\([0-9A-Fa-f-]\{25,\}\)).*/\1/p')
@@ -116,9 +164,13 @@ fi
 [ -n "$udid" ] || morir \
     "No veo ningún iPhone conectado." \
     "Conéctalo por cable, desbloquéalo y, si sale el aviso, dale a «Confiar en este ordenador»." \
-    "Luego vuelve a lanzar esto."
+    "" \
+    "Si está conectado y aun así no lo ve, mira qué dice esto:" \
+    "   xcrun devicectl list devices" \
+    "y pásale el de la columna Identifier a mano:" \
+    "   UDID=el-identificador-de-ahi $0"
 
-verde "✓ $nombre"
+verde "✓ ${nombre:-el dispositivo que has indicado}"
 gris "  $udid"
 
 # ------------------------------------------------------------------ compilar
@@ -127,7 +179,9 @@ titulo "Compilando firmada"
 gris "  La primera vez Xcode crea el perfil de aprovisionamiento solo, y puede"
 gris "  pedirte la contraseña del llavero. Es normal."
 
-salida=$(mktemp -t entrenos-build)
+salida=$(mktemp "${TMPDIR:-/tmp}/entrenos-build.XXXXXX") || morir \
+    "No he podido crear un archivo temporal para el registro de compilación." \
+    "Revisa que \$TMPDIR apunte a un sitio donde se pueda escribir."
 construccion=".build-iphone"
 
 if ! xcodebuild build \
