@@ -6,6 +6,11 @@
 - El iPhone y su cable.
 - Un Apple ID. No hace falta pagar nada para empezar.
 
+Este camino es el gratuito, y por eso **caduca a los 7 días**. Con el Apple
+Developer Program la app se instala por TestFlight sin cable y sin caducar cada
+semana, y la build la sube el propio repositorio:
+[TESTFLIGHT.md](TESTFLIGHT.md).
+
 ## En un comando
 
 ```sh
