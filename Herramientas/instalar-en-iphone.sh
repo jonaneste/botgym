@@ -166,6 +166,14 @@ for d in datos.get("result", {}).get("devices", []):
 
     if not identificador or tipo and tipo != "iphone":
         continue
+    # Los simuladores salen en la MISMA lista y tambien son "iPhone": con uno
+    # arrancado, esto elegia el simulador y la instalacion fallaba con un error
+    # de CoreSimulator que no decia nada del iPhone de verdad. Lo que los
+    # separa es `isProxiedDevice`/`reality`, no el nombre.
+    if (hardware.get("reality") or "").lower() == "simulated":
+        continue
+    if propiedades.get("isProxiedDevice") is True:
+        continue
     # Un aparato visto por wifi pero no accesible no sirve para instalar.
     if estado in ("unavailable",) or emparejado == "unpaired":
         continue
@@ -183,8 +191,10 @@ PY
     # Identifier es un UUID con el formato 8-4-4-4-12, que no se confunde con el
     # UDID del Hostname (8 hex, guion, 16 hex).
     if [ -z "$udid" ]; then
+        # `physical` al final de la linea es lo que descarta los simuladores,
+        # que aparecen en esta misma tabla como `simulated`.
         linea=$(xcrun devicectl list devices 2>/dev/null \
-            | grep -i 'iphone' | grep -iv 'unavailable' | head -1)
+            | grep -i 'iphone' | grep -i 'physical' | grep -iv 'unavailable' | head -1)
         if [ -n "$linea" ]; then
             udid=$(printf '%s' "$linea" \
                 | grep -oE '[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}' | head -1)

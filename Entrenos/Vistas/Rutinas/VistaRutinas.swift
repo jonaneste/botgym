@@ -151,16 +151,24 @@ struct VistaRutinas: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Button {
-                controlador.empezar(desde: rutina)
-            } label: {
-                Text("Empezar")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
+            // Con un entreno abierto no se puede empezar otro, pero cinco
+            // botones grises sin decir por qué no explican nada: parecen la
+            // app rota. El de la rutina en curso pasa a «En curso», que es
+            // la razón de que los demás estén apagados.
+            if esLaDelEntrenoActivo(rutina) {
+                Pastilla(texto: "En curso")
+            } else {
+                Button {
+                    controlador.empezar(desde: rutina)
+                } label: {
+                    Text("Empezar")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(controlador.hayEntrenoActivo)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(controlador.hayEntrenoActivo)
         }
         .tarjeta()
         .contentShape(.rect)
@@ -199,6 +207,15 @@ struct VistaRutinas: View {
         rutinaABorrar = nil
         contexto.delete(rutina)
         try? contexto.save()
+    }
+
+    /// La rutina de la que salió el entreno que está abierto ahora mismo.
+    ///
+    /// Por identificador y no por nombre: dos rutinas pueden llamarse igual, y
+    /// renombrar una no debe desvincularla del entreno que salió de ella.
+    private func esLaDelEntrenoActivo(_ rutina: Rutina) -> Bool {
+        guard let entreno = controlador.entreno else { return false }
+        return entreno.idRutinaOrigen == rutina.idPublico
     }
 
     private func crearCarpeta() {
