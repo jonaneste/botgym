@@ -44,7 +44,8 @@ struct VistaProgreso: View {
                             GraficaSeriesSemanales(datos: tendencia)
                                 .frame(height: altoGrafica)
                         }
-                        .padding(.vertical, 6)
+                        .tarjeta()
+                        .filaDesnuda(arriba: 8, abajo: 4)
                     }
                 }
 
@@ -52,10 +53,25 @@ struct VistaProgreso: View {
                     if seriesSemanales.isEmpty {
                         Text("Sin series esta semana.")
                             .foregroundStyle(.secondary)
+                            .tarjeta()
+                            .filaDesnuda(arriba: 4, abajo: 4)
                     } else {
-                        ForEach(seriesSemanales) { grupo in
-                            FilaSeriesGrupo(datos: grupo)
+                        // Los grupos comparten una sola tarjeta porque se leen
+                        // comparándolos entre sí. Ocho tarjetas con sombra
+                        // repartirían la pantalla sin decir nada más, y es la
+                        // misma decisión que las acciones del final de Rutinas.
+                        VStack(spacing: 0) {
+                            ForEach(seriesSemanales) { grupo in
+                                FilaSeriesGrupo(datos: grupo)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                if grupo.id != seriesSemanales.last?.id {
+                                    Divider()
+                                }
+                            }
                         }
+                        .tarjeta(relleno: 0)
+                        .filaDesnuda(arriba: 4, abajo: 4)
                     }
                 } header: {
                     HStack {
@@ -76,28 +92,52 @@ struct VistaProgreso: View {
                              ? "Cuando termines un entreno, aquí verás tus récords y gráficas."
                              : "Sin resultados.")
                         .foregroundStyle(.secondary)
+                        .tarjeta()
+                        .filaDesnuda(arriba: 4, abajo: 4)
                     }
                     ForEach(ejerciciosFiltrados, id: \.ejercicio.idPublico) { entrada in
-                        NavigationLink {
-                            VistaDetalleEjercicio(ejercicio: entrada.ejercicio)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(entrada.ejercicio.nombre)
-                                    .font(.body)
-                                Text("Última vez: \(Formato.fechaRelativa(entrada.ultimaVez))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        // El enlace va invisible por encima de la tarjeta, por
+                        // lo mismo que en el historial: un `NavigationLink`
+                        // normal pinta su chevron en el borde de la fila, que
+                        // con la lista sin fondo cae fuera de la tarjeta.
+                        filaEjercicio(entrada)
+                            .overlay {
+                                NavigationLink {
+                                    VistaDetalleEjercicio(ejercicio: entrada.ejercicio)
+                                } label: {
+                                    Color.clear
+                                }
+                                .opacity(0)
                             }
-                            .padding(.vertical, 2)
-                        }
+                            .filaDesnuda(arriba: 3, abajo: 3)
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .searchable(text: $busqueda, prompt: "Buscar ejercicio")
             .navigationTitle("Progreso")
             .refreshable { recargar() }
             .onAppear(perform: recargar)
         }
+    }
+
+    private func filaEjercicio(_ entrada: (ejercicio: Ejercicio, ultimaVez: Date)) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entrada.ejercicio.nombre)
+                    .font(.body)
+                Text("Última vez: \(Formato.fechaRelativa(entrada.ultimaVez))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .tarjeta(relleno: 12)
     }
 
     /// Las series de la última semana de la tendencia, que es la actual.
