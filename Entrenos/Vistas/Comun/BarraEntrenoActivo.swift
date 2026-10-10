@@ -27,7 +27,7 @@ struct BarraEntrenoActivo: View {
                                 .font(.subheadline.weight(.semibold))
                                 .lineLimit(1)
                                 .foregroundStyle(.primary)
-                            Text("\(entreno.seriesCompletadas) series · \(Formato.volumen(entreno.volumenTotal))")
+                            Text("\(entreno.seriesCompletadas) \(entreno.seriesCompletadas == 1 ? "serie" : "series") · \(Formato.volumen(entreno.volumenTotal))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

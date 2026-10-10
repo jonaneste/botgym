@@ -142,12 +142,10 @@ struct FilaSerie: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Copia el peso y las repeticiones de la última vez")
-        } else {
-            Text("Primera vez con este ejercicio")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 4)
         }
+        // Sin serie anterior no se escribe nada: la cabecera del ejercicio ya
+        // lleva su pastilla de «Primera vez», y repetirlo en cada fila eran
+        // cuatro líneas idénticas diciendo lo mismo.
     }
 
     private var casillaCompletada: some View {

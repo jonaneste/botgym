@@ -43,11 +43,38 @@ struct VistaPrincipal: View {
                     Label("Ajustes", systemImage: "gearshape.fill")
                 }
         }
-        .safeAreaInset(edge: .bottom) {
-            // Barra que recuerda que hay un entreno abierto desde cualquier
-            // pestaña, y lleva de vuelta a él con un toque.
-            if controlador.hayEntrenoActivo && pestaña != .entreno {
-                BarraEntrenoActivo { pestaña = .entreno }
+        .conBarraDeEntreno(visible: controlador.hayEntrenoActivo && pestaña != .entreno) {
+            pestaña = .entreno
+        }
+    }
+}
+
+
+private extension View {
+    /// Coloca la barra de entreno activo encima de la barra de pestañas.
+    ///
+    /// Hacen falta dos caminos porque la barra de pestañas cambió de sitio.
+    /// Hasta iOS 18 está pegada al borde inferior y `safeAreaInset` la
+    /// respeta; desde iOS 26 flota por encima del contenido, y ese mismo
+    /// `safeAreaInset` dibujaba la barra DEBAJO de ella: tapaba «Entreno»,
+    /// «Rutinas» y el resto de etiquetas. `tabViewBottomAccessory` es el
+    /// hueco que el sistema reserva justo encima, que es donde va.
+    @ViewBuilder
+    func conBarraDeEntreno(
+        visible: Bool,
+        alTocar: @escaping () -> Void
+    ) -> some View {
+        if #available(iOS 26.0, *) {
+            self.tabViewBottomAccessory {
+                if visible {
+                    BarraEntrenoActivo(alTocar: alTocar)
+                }
+            }
+        } else {
+            self.safeAreaInset(edge: .bottom) {
+                if visible {
+                    BarraEntrenoActivo(alTocar: alTocar)
+                }
             }
         }
     }
