@@ -11,6 +11,9 @@ xcuserdata/
 *.dSYM
 # Lo deja Herramientas/verificar.sh al compilar.
 build.log
+# Lo deja Herramientas/instalar-en-iphone.sh: son los DerivedData de la
+# compilacion firmada, y pasan de los cien megas.
+.build-iphone/
 
 # Swift Package Manager
 .build/

@@ -162,7 +162,7 @@ struct VistaHistorial: View {
             Text("\(zona) \(valor)/10")
         }
         .font(.caption2)
-        .foregroundStyle(valor >= 7 ? .red : .orange)
+        .foregroundStyle(Paleta.molestia(valor))
     }
 
     // MARK: - Agrupación por mes
@@ -256,7 +256,7 @@ struct FilaCarrera: View {
         HStack(spacing: 12) {
             Image(systemName: "figure.run")
                 .font(.title3)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Paleta.carrera)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 5) {

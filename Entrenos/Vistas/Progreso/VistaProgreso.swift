@@ -11,13 +11,18 @@ struct VistaProgreso: View {
     @State private var ejercicios: [(ejercicio: Ejercicio, ultimaVez: Date)] = []
     @State private var busqueda = ""
 
+    /// El alto de la gráfica sube con el tamaño de texto del sistema: con
+    /// cuerpos de accesibilidad, las etiquetas de los ejes se comían el área
+    /// de dibujo a 150 puntos fijos.
+    @ScaledMetric(relativeTo: .caption) private var altoGrafica: CGFloat = 150
+
     var body: some View {
         NavigationStack {
             List {
                 if !tendencia.isEmpty {
                     Section("Series por semana") {
                         GraficaSeriesSemanales(datos: tendencia)
-                            .frame(height: 150)
+                            .frame(height: altoGrafica)
                             .padding(.vertical, 4)
                     }
                 }
@@ -100,10 +105,18 @@ struct FilaSeriesGrupo: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(datos.grupo.nombre)
                     .font(.subheadline)
                 Spacer()
+                // El símbolo acompaña al color a propósito: si el cumplimiento
+                // se dijera solo con verde, naranja o rojo, quien no distinga
+                // esos tonos se queda sin saber si va bien.
+                if let simbolo {
+                    Image(systemName: simbolo)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(color)
+                }
                 Text(texto)
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .monospacedDigit()
@@ -116,6 +129,9 @@ struct FilaSeriesGrupo: View {
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(datos.grupo.nombre)
+        .accessibilityValue(descripcionAccesible)
     }
 
     private var texto: String {
@@ -128,7 +144,33 @@ struct FilaSeriesGrupo: View {
 
     private var color: Color {
         guard let progreso = datos.progreso else { return .secondary }
-        if datos.cumplido { return .green }
-        return progreso >= 0.6 ? .orange : .red
+        if datos.cumplido { return Paleta.logrado }
+        return progreso >= 0.6 ? Paleta.aviso : Paleta.insuficiente
+    }
+
+    /// Forma que dobla al color. Sin objetivo no hay nada que cumplir, así que
+    /// tampoco hay símbolo.
+    private var simbolo: String? {
+        guard let progreso = datos.progreso else { return nil }
+        if datos.cumplido { return "checkmark.circle.fill" }
+        return progreso >= 0.6 ? "circle.bottomhalf.filled" : "exclamationmark.circle"
+    }
+
+    /// Lo que oye VoiceOver: el número y el estado dichos con palabras, porque
+    /// ni el color ni la barra de progreso le llegan.
+    private var descripcionAccesible: String {
+        let series = Formato.numeroCorto(datos.series)
+        guard let objetivo = datos.objetivo else {
+            return "\(series) series esta semana"
+        }
+        let estado: String
+        if datos.cumplido {
+            estado = "objetivo cumplido"
+        } else if let progreso = datos.progreso, progreso >= 0.6 {
+            estado = "cerca del objetivo"
+        } else {
+            estado = "por debajo del objetivo"
+        }
+        return "\(series) de \(objetivo) series, \(estado)"
     }
 }

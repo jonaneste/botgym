@@ -22,7 +22,7 @@ struct VistaPrincipal: View {
             VistaRutinas()
                 .tag(Pestaña.rutinas)
                 .tabItem {
-                    Label("Rutinas", systemImage: "list.bullet.rectangle")
+                    Label("Rutinas", systemImage: "list.bullet.rectangle.fill")
                 }
 
             VistaHistorial()
@@ -34,13 +34,13 @@ struct VistaPrincipal: View {
             VistaProgreso()
                 .tag(Pestaña.progreso)
                 .tabItem {
-                    Label("Progreso", systemImage: "chart.xyaxis.line")
+                    Label("Progreso", systemImage: "chart.bar.fill")
                 }
 
             VistaAjustes()
                 .tag(Pestaña.ajustes)
                 .tabItem {
-                    Label("Ajustes", systemImage: "gearshape")
+                    Label("Ajustes", systemImage: "gearshape.fill")
                 }
         }
         .safeAreaInset(edge: .bottom) {

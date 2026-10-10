@@ -27,7 +27,7 @@ struct FilaSerie: View {
             casillaCompletada
         }
         .padding(.vertical, 6)
-        .listRowBackground(serie.completada ? Color.green.opacity(0.12) : nil)
+        .listRowBackground(serie.completada ? Paleta.logrado.opacity(0.12) : nil)
     }
 
     // MARK: - Piezas
@@ -36,7 +36,7 @@ struct FilaSerie: View {
         Group {
             if serie.esCalentamiento {
                 Image(systemName: "flame")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Paleta.calentamiento)
             } else {
                 Text("\(numeroSerieEfectiva)")
                     .font(.system(.body, design: .rounded, weight: .semibold))
@@ -120,7 +120,7 @@ struct FilaSerie: View {
         } else {
             Text("Primera vez con este ejercicio")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .padding(.vertical, 4)
         }
     }
@@ -131,7 +131,7 @@ struct FilaSerie: View {
         } label: {
             Image(systemName: serie.completada ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 30))
-                .foregroundStyle(serie.completada ? Color.green : Color.secondary)
+                .foregroundStyle(serie.completada ? Paleta.logrado : Color.secondary)
                 .frame(width: 48, height: 48)
                 .contentShape(.rect)
         }

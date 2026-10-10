@@ -92,7 +92,7 @@ struct VistaDatos: View {
                     Label(nombreCarpeta, systemImage: "folder.badge.gearshape")
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Paleta.logrado)
                 }
 
                 if let ultimaAuto {
