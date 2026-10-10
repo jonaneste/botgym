@@ -15,6 +15,28 @@
       "tipoRegistro": "repeticiones",
       "esPersonalizado": false,
       "notas": ""
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "nombre": "Elevaciones laterales",
+      "grupoPrincipal": "hombroLateral",
+      "gruposSecundarios": [],
+      "material": "mancuerna",
+      "tipoRegistro": "repeticiones",
+      "esPersonalizado": false,
+      "notas": ""
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "nombre": "Curl martillo",
+      "grupoPrincipal": "biceps",
+      "gruposSecundarios": [
+        "antebrazo"
+      ],
+      "material": "mancuerna",
+      "tipoRegistro": "repeticiones",
+      "esPersonalizado": false,
+      "notas": ""
     }
   ],
   "carpetas": [
@@ -402,5 +424,36 @@
       "calorias": 420.0,
       "origen": "Zepp"
     }
-  ]
+  ],
+  "ajustes": {
+    "objetivosSemanales": {
+      "pecho": 12,
+      "espalda": 14,
+      "cuadriceps": 10
+    },
+    "incrementoBarra": 2.5,
+    "incrementoPolea": 2.5,
+    "incrementoMaquina": 2.5,
+    "incrementoTiempo": 5,
+    "mancuernasDisponibles": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22.5,
+      25,
+      27.5,
+      30
+    ],
+    "rirPorDefectoMin": 1,
+    "rirPorDefectoMax": 2,
+    "descansoPorDefectoSegundos": 90,
+    "pesoCorporal": 78.5
+  }
 }

@@ -258,6 +258,37 @@ const HERRAMIENTAS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'ejercicios_disponibles',
+    description:
+      'El catálogo entero de ejercicios de la app, con grupo muscular, material ' +
+      'y tipo de registro. Es lo que hay que mirar ANTES de proponer una rutina: ' +
+      'un ejercicio que no esté aquí no existe en la app. Incluye los que todavía ' +
+      'no se han hecho nunca, que `historial_ejercicio` no puede encontrar.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        grupo: {
+          type: 'string',
+          description: 'Opcional. Filtra por grupo muscular, principal o secundario.',
+        },
+        material: {
+          type: 'string',
+          description: 'Opcional. Filtra por material: barra, mancuerna, polea, maquina…',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'ajustes',
+    description:
+      'Los objetivos de series por semana de cada grupo, los saltos de carga de ' +
+      'cada material, qué mancuernas hay en el gimnasio y el peso corporal. Hace ' +
+      'falta para aconsejar una carga concreta: entre la mancuerna de 20 y la de ' +
+      '22,5 no hay nada, y el salto depende de si es barra, polea o máquina.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'carreras',
     description:
       'Carreras registradas, que llegan desde Zepp a través de Apple Salud: ' +
@@ -314,6 +345,79 @@ const EJECUTORES = {
     }
   },
 
+  ejercicios_disponibles({ grupo, material } = {}) {
+    const datos = cargarDatos()
+    const g = grupo ? normalizar(grupo) : null
+    const m = material ? normalizar(material) : null
+
+    // Qué se ha hecho ya y cuándo, para distinguir el catálogo muerto del
+    // que se usa: proponer un ejercicio que lleva seis meses sin tocarse no
+    // es lo mismo que proponer uno que nunca se ha hecho.
+    const ultimaVez = new Map()
+    for (const entreno of datos.entrenos || []) {
+      for (const ej of entreno.ejercicios || []) {
+        const previa = ultimaVez.get(ej.nombre)
+        if (!previa || entreno.fechaInicio > previa) ultimaVez.set(ej.nombre, entreno.fechaInicio)
+      }
+    }
+
+    const lista = (datos.ejercicios || [])
+      .filter((e) => {
+        if (m && normalizar(e.material || '') !== m) return false
+        if (!g) return true
+        const grupos = [e.grupoPrincipal, ...(e.gruposSecundarios || [])]
+        return grupos.some((x) => normalizar(x || '').includes(g))
+      })
+      .map((e) => ({
+        nombre: e.nombre,
+        grupoPrincipal: e.grupoPrincipal,
+        gruposSecundarios: e.gruposSecundarios || [],
+        material: e.material,
+        tipoRegistro: e.tipoRegistro,
+        esPersonalizado: e.esPersonalizado === true,
+        ultimaVez: ultimaVez.get(e.nombre) ?? null,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+    return {
+      total: lista.length,
+      // Decirlo explícitamente evita el error de proponer algo que no existe
+      // cuando un filtro no ha encontrado nada.
+      nota: lista.length === 0
+        ? 'Ningún ejercicio cumple el filtro. No inventes uno: créalo en la app primero.'
+        : undefined,
+      ejercicios: lista,
+    }
+  },
+
+  ajustes() {
+    const datos = cargarDatos()
+    const a = datos.ajustes
+    if (!a) {
+      return {
+        disponible: false,
+        nota:
+          'Este entrenos.json es de una versión anterior y no lleva los ajustes. ' +
+          'Vuelve a volcarlo desde la app (Ajustes → Datos → Volcar ahora) para ' +
+          'tener objetivos semanales e incrementos de carga.',
+      }
+    }
+    return {
+      disponible: true,
+      objetivosSemanales: a.objetivosSemanales || {},
+      incrementos: {
+        barraKg: a.incrementoBarra,
+        poleaKg: a.incrementoPolea,
+        maquinaKg: a.incrementoMaquina,
+        tiempoSegundos: a.incrementoTiempo,
+      },
+      mancuernasDisponiblesKg: a.mancuernasDisponibles || [],
+      rirPorDefecto: { min: a.rirPorDefectoMin, max: a.rirPorDefectoMax },
+      descansoPorDefectoSegundos: a.descansoPorDefectoSegundos,
+      pesoCorporalKg: a.pesoCorporal ?? null,
+    }
+  },
+
   resumen_semanal({ semanas = 8 } = {}) {
     const datos = cargarDatos()
     const porSemana = new Map()
@@ -334,15 +438,38 @@ const EJECUTORES = {
       if (porSemana.has(clave)) porSemana.get(clave).carreras.push(carrera)
     }
 
-    return [...porSemana.entries()].map(([semana, { entrenos, carreras }]) => ({
-      semanaDesde: semana,
-      entrenos: entrenos.length,
-      series: entrenos.reduce((s, e) => s + contarSeries(e), 0),
-      volumenKg: redondear(entrenos.reduce((s, e) => s + volumenDeEntreno(e), 0), 0),
-      seriesPorGrupo: seriesPorGrupo(entrenos),
-      carreras: carreras.length,
-      kilometros: redondear(carreras.reduce((s, c) => s + c.distanciaKm, 0)),
-    }))
+    // Los objetivos se cruzan aquí y no se dejan para quien lea: «12 series de
+    // pecho» no dice si está bien o mal sin saber contra qué se compara, y
+    // ese número vive en los ajustes de la app.
+    const objetivos = datos.ajustes?.objetivosSemanales || {}
+
+    return [...porSemana.entries()].map(([semana, { entrenos, carreras }]) => {
+      const porGrupo = seriesPorGrupo(entrenos)
+      const conObjetivo = {}
+      for (const [grupo, series] of Object.entries(porGrupo)) {
+        const objetivo = objetivos[grupo]
+        conObjetivo[grupo] = objetivo === undefined
+          ? { series }
+          : { series, objetivo, cumplido: series >= objetivo }
+      }
+      // Un grupo con objetivo y cero series no aparece en `porGrupo`, y es
+      // justo el caso que hay que ver: la semana que te saltaste las piernas.
+      for (const [grupo, objetivo] of Object.entries(objetivos)) {
+        if (conObjetivo[grupo] === undefined) {
+          conObjetivo[grupo] = { series: 0, objetivo, cumplido: false }
+        }
+      }
+
+      return {
+        semanaDesde: semana,
+        entrenos: entrenos.length,
+        series: entrenos.reduce((s, e) => s + contarSeries(e), 0),
+        volumenKg: redondear(entrenos.reduce((s, e) => s + volumenDeEntreno(e), 0), 0),
+        seriesPorGrupo: conObjetivo,
+        carreras: carreras.length,
+        kilometros: redondear(carreras.reduce((s, c) => s + c.distanciaKm, 0)),
+      }
+    })
   },
 
   historial_ejercicio({ nombre, limite = 20 } = {}) {

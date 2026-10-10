@@ -209,6 +209,10 @@ const { respuestas, errores } = await hablarConElServidor([
   llamar(11, 'no_existe'),
   llamar(12, 'historial_ejercicio', { nombre: 'ejercicio inventado' }),
   { jsonrpc: '2.0', id: 13, method: 'metodo/inventado' },
+  llamar(14, 'ejercicios_disponibles'),
+  llamar(15, 'ejercicios_disponibles', { material: 'mancuerna' }),
+  llamar(16, 'ejercicios_disponibles', { grupo: 'inventado' }),
+  llamar(17, 'ajustes'),
 ])
 
 const por = Object.fromEntries(respuestas.map((r) => [r.id, r]))
@@ -250,9 +254,24 @@ comprobar(Array.isArray(semanal) && semanal.length === 4, `semanal tiene ${seman
 const conDatos = semanal.filter((s) => s.entrenos > 0)
 comprobar(conDatos.length === 3, `semanas con entrenos = ${conDatos.length}, esperado 3`)
 const grupos = conDatos[0].seriesPorGrupo
-comprobar(grupos.pecho === 4, `pecho = ${grupos.pecho}, esperado 4`)
-comprobar(grupos.triceps === 2, `triceps = ${grupos.triceps}, esperado 2 (4 series × 0,5)`)
-comprobar(grupos.hombroLateral === 4, `hombroLateral = ${grupos.hombroLateral}, esperado 4`)
+comprobar(grupos.pecho.series === 4, `pecho = ${grupos.pecho.series}, esperado 4`)
+comprobar(grupos.triceps.series === 2, `triceps = ${grupos.triceps.series}, esperado 2 (4 series × 0,5)`)
+comprobar(grupos.hombroLateral.series === 4, `hombroLateral = ${grupos.hombroLateral.series}, esperado 4`)
+
+// El objetivo se cruza desde los ajustes: 4 de 12 no está cumplido.
+comprobar(grupos.pecho.objetivo === 12, `objetivo de pecho = ${grupos.pecho.objetivo}, esperado 12`)
+comprobar(grupos.pecho.cumplido === false, 'pecho sale como cumplido con 4 de 12')
+// Un grupo con objetivo y sin ninguna serie tiene que aparecer igualmente:
+// es justo la semana que te saltaste ese grupo.
+comprobar(
+  grupos.cuadriceps && grupos.cuadriceps.series === 0 && grupos.cuadriceps.cumplido === false,
+  'un grupo con objetivo y cero series no aparece'
+)
+// Y uno sin objetivo configurado no se inventa ninguno.
+comprobar(
+  grupos.hombroLateral.objetivo === undefined,
+  'se inventa un objetivo para un grupo que no lo tiene'
+)
 
 // El calentamiento de 40 kg × 15 no debe aparecer en el historial.
 const historial = contenido(por[6])
@@ -350,6 +369,47 @@ for (const entreno of ejemplo.entrenos) {
     }
   }
 }
+
+// ─── Las herramientas nuevas: catálogo y ajustes ─────────────────────────────
+
+// El catálogo lista TODOS los ejercicios, también los que nunca se han hecho.
+// Eso es lo que lo distingue de `historial_ejercicio`, y lo que permite
+// proponer una rutina sin inventarse ejercicios que no existen en la app.
+const catalogo = contenido(por[14])
+comprobar(catalogo.total === 3, `catálogo con ${catalogo.total} ejercicios, esperado 3`)
+const curl = catalogo.ejercicios.find((e) => e.nombre === 'Curl martillo')
+comprobar(curl !== undefined, 'el catálogo no incluye un ejercicio sin historial')
+comprobar(curl && curl.ultimaVez === null, 'un ejercicio nunca hecho tiene fecha de última vez')
+const press = catalogo.ejercicios.find((e) => e.nombre === 'Press banca con barra')
+comprobar(press && press.ultimaVez !== null, 'un ejercicio con historial no trae su última vez')
+comprobar(
+  catalogo.ejercicios.every((e, i, a) => i === 0 || a[i - 1].nombre.localeCompare(e.nombre, 'es') <= 0),
+  'el catálogo no viene ordenado por nombre'
+)
+
+const mancuernas = contenido(por[15])
+comprobar(mancuernas.total === 2, `filtro por material devuelve ${mancuernas.total}, esperado 2`)
+comprobar(
+  mancuernas.ejercicios.every((e) => e.material === 'mancuerna'),
+  'el filtro por material deja pasar otro material'
+)
+
+// Con un filtro sin resultados hay que decirlo, porque el error caro es
+// inventarse un ejercicio para rellenar el hueco.
+const vacio = contenido(por[16])
+comprobar(vacio.total === 0, `filtro inventado devuelve ${vacio.total}, esperado 0`)
+comprobar(typeof vacio.nota === 'string' && vacio.nota.length > 0, 'un filtro sin resultados no avisa')
+
+const ajustes = contenido(por[17])
+comprobar(ajustes.disponible === true, 'los ajustes del ejemplo no se leen')
+comprobar(ajustes.objetivosSemanales.pecho === 12, `objetivo de pecho = ${ajustes.objetivosSemanales.pecho}`)
+comprobar(ajustes.incrementos.barraKg === 2.5, `incremento de barra = ${ajustes.incrementos.barraKg}`)
+comprobar(ajustes.pesoCorporalKg === 78.5, `peso corporal = ${ajustes.pesoCorporalKg}`)
+// Es el dato por el que existe la herramienta: entre 20 y 22,5 no hay nada.
+comprobar(
+  ajustes.mancuernasDisponiblesKg.includes(22.5) && !ajustes.mancuernasDisponiblesKg.includes(21),
+  'las mancuernas disponibles no son las del ejemplo'
+)
 
 // ─── Resultado ───────────────────────────────────────────────────────────────
 
