@@ -85,7 +85,8 @@ struct VistaEntrenoEnCurso: View {
 
     private var lista: some View {
         List {
-            Section { cabecera }
+            cabecera
+                .filaDesnuda(arriba: 4, abajo: 8)
 
             ForEach(gruposVisuales) { grupo in
                 Section {
@@ -97,6 +98,7 @@ struct VistaEntrenoEnCurso: View {
                         Label("Superserie", systemImage: "link")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tint)
+                            .textCase(nil)
                     }
                 }
             }
@@ -107,55 +109,66 @@ struct VistaEntrenoEnCurso: View {
                 } label: {
                     Label("Añadir ejercicio", systemImage: "plus.circle.fill")
                         .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
+                .buttonStyle(.borderedProminent)
+                .filaDesnuda(arriba: 8, abajo: 4)
 
                 Button(role: .destructive) {
                     mostrarDescartar = true
                 } label: {
                     Label("Descartar entreno", systemImage: "trash")
+                        .font(.subheadline)
                         .frame(maxWidth: .infinity, minHeight: 36)
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(Paleta.insuficiente)
+                .filaDesnuda(arriba: 4, abajo: 24)
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
     }
 
     /// Cronómetro, series y volumen. Se refresca cada segundo.
     private var cabecera: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
-            HStack {
-                bloqueDato(
-                    titulo: "Tiempo",
-                    valor: Formato.cronometro(entreno.duracion),
-                    icono: "stopwatch"
-                )
-                Spacer()
-                bloqueDato(
-                    titulo: "Series",
-                    valor: "\(entreno.seriesCompletadas)/\(entreno.seriesTotales)",
-                    icono: "checklist"
-                )
-                Spacer()
-                bloqueDato(
-                    titulo: "Volumen",
-                    valor: Formato.volumen(entreno.volumenTotal),
-                    icono: "scalemass"
-                )
+            VStack(spacing: 12) {
+                HStack(spacing: 0) {
+                    CifraDestacada(
+                        valor: Formato.cronometro(entreno.duracion),
+                        etiqueta: "Tiempo"
+                    )
+                    divisor
+                    CifraDestacada(
+                        valor: "\(entreno.seriesCompletadas)/\(entreno.seriesTotales)",
+                        etiqueta: "Series",
+                        color: entreno.seriesCompletadas > 0 ? Paleta.logrado : .primary
+                    )
+                    divisor
+                    CifraDestacada(
+                        valor: Formato.volumen(entreno.volumenTotal),
+                        etiqueta: "Volumen"
+                    )
+                }
+
+                // La barra dice de un vistazo cuánto queda, que es la pregunta
+                // que uno se hace entre serie y serie.
+                if entreno.seriesTotales > 0 {
+                    ProgressView(
+                        value: Double(entreno.seriesCompletadas),
+                        total: Double(entreno.seriesTotales)
+                    )
+                    .tint(Paleta.logrado)
+                }
             }
-            .padding(.vertical, 4)
+            .tarjeta()
         }
     }
 
-    private func bloqueDato(titulo: String, valor: String, icono: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(titulo, systemImage: icono)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(valor)
-                .font(.system(.headline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-        }
+    private var divisor: some View {
+        Divider().frame(height: 28)
     }
 
     // MARK: - Bloque de un ejercicio
@@ -164,14 +177,18 @@ struct VistaEntrenoEnCurso: View {
     private func bloqueEjercicio(_ ejercicio: EjercicioEntreno) -> some View {
         let seriesAnteriores = anteriores[ejercicio.idEjercicio] ?? []
 
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(ejercicio.nombreEjercicio)
                         .font(.headline)
-                    Text("\(ejercicio.resumenObjetivo) · descanso \(Formato.descanso(ejercicio.descansoSegundos))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Pastilla(texto: ejercicio.resumenObjetivo)
+                        Pastilla(
+                            texto: "descanso \(Formato.descanso(ejercicio.descansoSegundos))",
+                            color: .secondary
+                        )
+                    }
 
                     if let sugerencia = sugerencias[ejercicio.idEjercicio] {
                         VistaSugerencia(sugerencia: sugerencia, ejercicio: ejercicio)
@@ -201,9 +218,11 @@ struct VistaEntrenoEnCurso: View {
                         .frame(width: 44, height: 44)
                         .contentShape(.rect)
                 }
+                .offset(x: 8)
             }
         }
-        .padding(.vertical, 2)
+        .tarjeta()
+        .filaDesnuda(arriba: 10, abajo: 4)
 
         ForEach(ejercicio.seriesOrdenadas) { serie in
             FilaSerie(
@@ -212,6 +231,7 @@ struct VistaEntrenoEnCurso: View {
                 serieAnterior: serieAnterior(para: serie, en: seriesAnteriores),
                 ajustes: ajustes
             )
+            .filaDesnuda(arriba: 2, abajo: 2)
             .swipeActions(edge: .trailing) {
                 Button(role: .destructive) {
                     controlador.quitarSerie(serie, de: ejercicio)
@@ -233,10 +253,11 @@ struct VistaEntrenoEnCurso: View {
             controlador.añadirSerie(a: ejercicio)
         } label: {
             Label("Añadir serie", systemImage: "plus")
-                .font(.subheadline)
-                .frame(maxWidth: .infinity, minHeight: 32)
+                .font(.subheadline.weight(.medium))
+                .frame(maxWidth: .infinity, minHeight: 36)
         }
         .buttonStyle(.bordered)
+        .filaDesnuda(arriba: 4, abajo: 2)
 
         TextField("Notas del ejercicio", text: Binding(
             get: { ejercicio.notas },
@@ -244,6 +265,8 @@ struct VistaEntrenoEnCurso: View {
         ), axis: .vertical)
         .font(.subheadline)
         .lineLimit(1...3)
+        .tarjeta(relleno: 12, radio: 12)
+        .filaDesnuda(arriba: 2, abajo: 10)
     }
 
     private func recargarContexto() {
