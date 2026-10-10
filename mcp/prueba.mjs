@@ -127,6 +127,29 @@ function generarFixture() {
         esPersonalizado: false,
         notas: '',
       },
+      // Este se hace en los entrenos, así que tiene fecha de última vez.
+      {
+        id: '22222222-2222-2222-2222-222222222222',
+        nombre: 'Elevaciones laterales',
+        grupoPrincipal: 'hombroLateral',
+        gruposSecundarios: [],
+        material: 'mancuerna',
+        tipoRegistro: 'repeticiones',
+        esPersonalizado: false,
+        notas: '',
+      },
+      // Nunca se ha hecho: es el que `historial_ejercicio` no puede encontrar
+      // y que `ejercicios_disponibles` tiene que listar igualmente.
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        nombre: 'Curl martillo',
+        grupoPrincipal: 'biceps',
+        gruposSecundarios: ['antebrazo'],
+        material: 'mancuerna',
+        tipoRegistro: 'repeticiones',
+        esPersonalizado: false,
+        notas: '',
+      },
     ],
     carpetas: [
       {
@@ -145,6 +168,20 @@ function generarFixture() {
     ],
     entrenos,
     carreras,
+    ajustes: {
+      // Pecho con objetivo y series hechas, cuádriceps con objetivo y ninguna:
+      // los dos casos que `resumen_semanal` tiene que saber contar.
+      objetivosSemanales: { pecho: 12, espalda: 14, cuadriceps: 10 },
+      incrementoBarra: 2.5,
+      incrementoPolea: 2.5,
+      incrementoMaquina: 2.5,
+      incrementoTiempo: 5,
+      mancuernasDisponibles: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22.5, 25, 27.5, 30],
+      rirPorDefectoMin: 1,
+      rirPorDefectoMax: 2,
+      descansoPorDefectoSegundos: 90,
+      pesoCorporal: 78.5,
+    },
   }
 }
 
@@ -352,6 +389,17 @@ comprobar(errores.trim() === '', `el servidor escribió en stderr: ${errores.tri
 // parsearse la primera prueba que haga el usuario fallará.
 const ejemplo = JSON.parse(readFileSync(EJEMPLO, 'utf8'))
 comprobar(ejemplo.version === 1, 'el ejemplo del README no declara version 1')
+// El ejemplo es con lo que el usuario prueba el MCP antes de tener datos
+// propios: si no lleva ajustes, `ajustes` y los objetivos de `resumen_semanal`
+// le salen vacíos en la primera prueba y parece que no funcionan.
+comprobar(
+  ejemplo.ajustes && typeof ejemplo.ajustes.objetivosSemanales === 'object',
+  'el ejemplo del README no lleva ajustes'
+)
+comprobar(
+  Array.isArray(ejemplo.ejercicios) && ejemplo.ejercicios.length >= 2,
+  'el ejemplo no tiene catálogo suficiente para probar ejercicios_disponibles'
+)
 comprobar(Array.isArray(ejemplo.entrenos) && ejemplo.entrenos.length > 0, 'el ejemplo no tiene entrenos')
 for (const entreno of ejemplo.entrenos) {
   for (const ejercicio of entreno.ejercicios) {

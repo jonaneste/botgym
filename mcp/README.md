@@ -72,10 +72,25 @@ claude mcp add entrenos -- node /ruta/a/botgym/mcp/servidor-entrenos.mjs
 | `records` | Peso máximo, mejor 1RM y mejor volumen por ejercicio, con fechas |
 | `ultimos_entrenos` | Las últimas sesiones con series, RIR, notas y molestias |
 | `rutinas` | Lo planificado, para comparar con lo que de verdad se hizo |
+| `ejercicios_disponibles` | El catálogo entero, con grupo y material. Incluye los que nunca se han hecho |
+| `ajustes` | Objetivos semanales, saltos de carga, mancuernas del gimnasio y peso corporal |
 | `carreras` | Carreras con ritmo y pulso, y resumen semanal |
 
 Son consultas estructuradas y no el archivo entero a propósito: así Claude
 puede preguntar «¿cómo va mi press banca?» sin tragarse dos años de series.
+
+Las dos últimas existen para que un consejo no sea una suposición.
+`ejercicios_disponibles` dice qué ejercicios hay de verdad en la app, que es
+lo que hay que mirar antes de proponer una rutina: uno que no esté ahí no se
+puede usar. Y `ajustes` dice contra qué objetivo se cuentan las series de cada
+grupo y con qué saltos sube la carga: «sube a 22,5» solo es correcto si esa
+mancuerna existe en tu gimnasio.
+
+**Todo es de solo lectura.** Claude puede mirar y aconsejar, pero no escribe
+nada: no crea rutinas ni apunta series. Para meter una rutina que te proponga,
+el camino es el de siempre —copiarla en **Ajustes → Importar rutinas**, con el
+formato de [`docs/ESQUEMA-RUTINA-JSON.md`](../docs/ESQUEMA-RUTINA-JSON.md)—,
+que además deja que la revises antes de que toque tus datos.
 
 ## Cómo pedirle consejo
 
@@ -92,6 +107,12 @@ Una vez conectado, basta con hablarle normal. Algunos arranques que funcionan:
 
 > Compara mis rutinas con lo que de verdad hago. ¿Hay ejercicios que me salto
 > siempre o series que nunca completo?
+
+> Mira qué ejercicios de espalda tengo disponibles y móntame un día de tirón
+> usando solo esos, con el formato de importación de la app.
+
+> Con mis mancuernas y mis incrementos, ¿qué peso me toca la próxima vez en
+> press inclinado?
 
 ## Y las carreras, ¿qué?
 
