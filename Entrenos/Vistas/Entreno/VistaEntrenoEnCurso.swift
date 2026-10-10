@@ -225,7 +225,7 @@ struct VistaEntrenoEnCurso: View {
                 } label: {
                     Label("Calentamiento", systemImage: "flame")
                 }
-                .tint(.orange)
+                .tint(Paleta.calentamiento)
             }
         }
 

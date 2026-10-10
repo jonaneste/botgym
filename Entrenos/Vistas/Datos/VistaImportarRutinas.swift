@@ -61,10 +61,10 @@ struct VistaImportarRutinas: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(error.ruta.isEmpty ? "Error" : error.ruta, systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Paleta.insuficiente)
                         Text(error.mensaje)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Paleta.insuficiente)
                     }
                 } else {
                     Text("Pega aquí lo que te dé la IA, o usa el botón de archivo.")
@@ -222,7 +222,7 @@ struct VistaImportarRutinas: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.green)
+                .foregroundStyle(Paleta.logrado)
             Text("\(resultado.rutinasCreadas) \(resultado.rutinasCreadas == 1 ? "rutina importada" : "rutinas importadas")")
                 .font(.headline)
             if let carpeta = resultado.carpeta {

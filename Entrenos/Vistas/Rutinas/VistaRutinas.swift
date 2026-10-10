@@ -152,7 +152,7 @@ struct VistaRutinas: View {
             } label: {
                 Label("Duplicar", systemImage: "doc.on.doc")
             }
-            .tint(.indigo)
+            .tint(Paleta.carpeta)
         }
     }
 

@@ -31,7 +31,7 @@ struct VistaFinalizarEntreno: View {
                         ForEach(todosLosRecords) { entrada in
                             HStack(alignment: .top, spacing: 10) {
                                 Image(systemName: "trophy.fill")
-                                    .foregroundStyle(.yellow)
+                                    .foregroundStyle(Paleta.record)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(entrada.nombreEjercicio)
                                         .font(.subheadline.weight(.medium))

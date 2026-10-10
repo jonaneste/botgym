@@ -59,8 +59,45 @@ struct GraficaEjercicio: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading)
+            AxisMarks(position: .leading) { valor in
+                AxisGridLine()
+                AxisTick()
+                // La unidad va en las marcas del eje y no en el título: un
+                // número suelto en una gráfica de pesos no dice si son kilos.
+                AxisValueLabel {
+                    if let numero = valor.as(Double.self) {
+                        Text("\(Formato.numeroCorto(numero)) \(metrica.unidad)")
+                            .font(.caption2)
+                    }
+                }
+            }
         }
+        .accessibilityLabel("\(metrica.nombre) a lo largo del tiempo")
+        .accessibilityValue(resumenAccesible)
+    }
+
+    /// Lo que oye VoiceOver. Una gráfica de líneas no le dice nada por sí
+    /// sola, así que se resume el recorrido: de cuánto a cuánto y en cuántas
+    /// sesiones.
+    private var resumenAccesible: String {
+        let valores = puntosConValor.map(valor(de:))
+        guard let primero = valores.first, let ultimo = valores.last else {
+            return "Sin datos todavía"
+        }
+        let sesiones = valores.count
+        let unidad = metrica.unidad
+        if sesiones == 1 {
+            return "Una sesión, \(Formato.numeroCorto(ultimo)) \(unidad)"
+        }
+        let tendencia: String
+        if ultimo > primero {
+            tendencia = "subiendo"
+        } else if ultimo < primero {
+            tendencia = "bajando"
+        } else {
+            tendencia = "igual"
+        }
+        return "\(sesiones) sesiones, de \(Formato.numeroCorto(primero)) a \(Formato.numeroCorto(ultimo)) \(unidad), \(tendencia)"
     }
 
     /// Puntos que tienen valor para esta métrica. El 1RM no existe en los
