@@ -19,11 +19,29 @@ struct VistaProgreso: View {
     var body: some View {
         NavigationStack {
             List {
+                // La pestaña abría directamente con una gráfica de barras y
+                // ningún número: para saber cómo iba la semana había que leer
+                // el eje. Esto lo dice de una vez, que es lo que se viene a ver.
                 if !tendencia.isEmpty {
-                    Section("Series por semana") {
-                        GraficaSeriesSemanales(datos: tendencia)
-                            .frame(height: altoGrafica)
-                            .padding(.vertical, 4)
+                    Section {
+                        VStack(spacing: 14) {
+                            HStack(spacing: 0) {
+                                CifraDestacada(
+                                    valor: Formato.numeroCorto(seriesEstaSemana),
+                                    etiqueta: "Series esta semana",
+                                    color: .accentColor
+                                )
+                                Divider().frame(height: 28)
+                                CifraDestacada(
+                                    valor: Formato.numeroCorto(mediaSemanal),
+                                    etiqueta: "Media de 8 semanas"
+                                )
+                            }
+
+                            GraficaSeriesSemanales(datos: tendencia)
+                                .frame(height: altoGrafica)
+                        }
+                        .padding(.vertical, 6)
                     }
                 }
 
@@ -77,6 +95,16 @@ struct VistaProgreso: View {
             .refreshable { recargar() }
             .onAppear(perform: recargar)
         }
+    }
+
+    /// Las series de la última semana de la tendencia, que es la actual.
+    private var seriesEstaSemana: Double {
+        tendencia.last?.series ?? 0
+    }
+
+    private var mediaSemanal: Double {
+        guard !tendencia.isEmpty else { return 0 }
+        return tendencia.reduce(0.0) { $0 + $1.series } / Double(tendencia.count)
     }
 
     private var ejerciciosFiltrados: [(ejercicio: Ejercicio, ultimaVez: Date)] {
