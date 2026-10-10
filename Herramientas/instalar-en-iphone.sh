@@ -74,9 +74,24 @@ if [ -z "$equipo" ]; then
     numero=$(printf '%s' "$equipos" | grep -c . || true)
 
     if [ "$numero" -eq 0 ]; then
-        morir "No hay ninguna identidad de firma en este Mac." \
-            "Abre Xcode → Settings → Accounts y añade tu Apple ID." \
-            "Con eso basta: no hace falta la cuenta de pago del Developer Program."
+        # Tener la cuenta añadida en Xcode NO crea el certificado: hay que
+        # pedirlo, o dejar que lo cree la primera compilación desde la interfaz.
+        # Decir solo "añade tu Apple ID" mandaba a quien ya lo había añadido a
+        # mirar una pantalla donde todo parecía correcto.
+        morir "Tu Apple ID está en Xcode, pero todavía no hay certificado de firma." \
+            "Añadir la cuenta no lo crea: hay que pedirlo una vez." \
+            "" \
+            "En Xcode (⌘ + , abre los ajustes):" \
+            "  Accounts → pincha tu Apple ID → botón «Manage Certificates…»" \
+            "  → botón «+» abajo a la izquierda → «Apple Development»" \
+            "" \
+            "Espera unos segundos a que aparezca en la lista, cierra, y vuelve a" \
+            "lanzar esto. No hace falta la cuenta de pago del Developer Program." \
+            "" \
+            "Alternativa si esa ventana se te resiste: abre Entrenos.xcodeproj," \
+            "elige tu iPhone arriba y dale al botón de Play. Xcode crea el" \
+            "certificado e instala él mismo, y a partir de ahí este script ya" \
+            "funciona para las reinstalaciones semanales."
     elif [ "$numero" -gt 1 ]; then
         rojo "✗ Hay varias identidades y no sé cuál quieres:"
         printf '%s' "$equipos" | sed 's/^/    /'
