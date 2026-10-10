@@ -16,7 +16,6 @@ struct VistaSugerencia: View {
         case .subirPeso(let nuevoPeso):
             fila(
                 icono: "arrow.up.circle.fill",
-                color: .green,
                 titulo: "Sube a \(Formato.peso(nuevoPeso))",
                 accion: { controlador.aplicarPeso(nuevoPeso, a: ejercicio) }
             )
@@ -24,7 +23,6 @@ struct VistaSugerencia: View {
         case .subirTiempo(let segundos):
             fila(
                 icono: "arrow.up.circle.fill",
-                color: .green,
                 titulo: "Sube a \(segundos) s",
                 accion: { controlador.aplicarSegundos(segundos, a: ejercicio) }
             )
@@ -32,7 +30,6 @@ struct VistaSugerencia: View {
         case .mantener(let peso, let objetivo):
             fila(
                 icono: "equal.circle.fill",
-                color: .blue,
                 titulo: peso > 0
                     ? "Mantén \(Formato.peso(peso)), busca \(objetivo)"
                     : "Busca \(objetivo)",
@@ -40,11 +37,11 @@ struct VistaSugerencia: View {
             )
 
         case .ampliarRango:
-            fila(icono: "arrow.up.left.and.arrow.down.right.circle.fill", color: .orange,
+            fila(icono: "arrow.up.left.and.arrow.down.right.circle.fill",
                  titulo: "Toca ampliar el rango", accion: nil)
 
         case .primeraVez:
-            fila(icono: "sparkles", color: .purple, titulo: "Primera vez", accion: nil)
+            fila(icono: "sparkles", titulo: "Primera vez", accion: nil)
 
         case .sinRango:
             EmptyView()
@@ -52,11 +49,11 @@ struct VistaSugerencia: View {
     }
 
     @ViewBuilder
-    private func fila(icono: String, color: Color, titulo: String, accion: (() -> Void)?) -> some View {
+    private func fila(icono: String, titulo: String, accion: (() -> Void)?) -> some View {
         let contenido = HStack(spacing: 6) {
             Image(systemName: icono)
                 .font(.caption)
-                .foregroundStyle(color)
+                .foregroundStyle(Paleta.progresion)
             Text(titulo)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.primary)
@@ -69,7 +66,7 @@ struct VistaSugerencia: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(color.opacity(0.12), in: .rect(cornerRadius: 8))
+        .background(Paleta.progresion.opacity(0.12), in: .rect(cornerRadius: 8))
 
         if let accion {
             Button(action: accion) { contenido }
@@ -91,7 +88,7 @@ struct VistaAvisoRecord: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "trophy.fill")
                 .font(.title2)
-                .foregroundStyle(.yellow)
+                .foregroundStyle(Paleta.record)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(aviso.titulo)

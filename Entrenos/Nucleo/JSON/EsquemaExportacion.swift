@@ -17,6 +17,11 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     /// Carreras importadas de Apple Salud. Van en el mismo archivo para que un
     /// solo JSON contenga todo el entrenamiento, gimnasio y carrera.
     public var carreras: [CarreraExportada]
+    /// Objetivo de series semanales por grupo muscular, con el grupo como
+    /// clave cruda. Sin esto, quien lea el archivo puede contar las series de
+    /// pecho de la semana pero no sabe a cuántas apuntabas, que es la mitad de
+    /// la pregunta.
+    public var objetivosSemanales: [String: Int]
 
     public init(
         version: Int = ExportacionCompleta.versionActual,
@@ -25,7 +30,8 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         ejercicios: [EjercicioExportado],
         carpetas: [CarpetaExportada],
         entrenos: [EntrenoExportado],
-        carreras: [CarreraExportada] = []
+        carreras: [CarreraExportada] = [],
+        objetivosSemanales: [String: Int] = [:]
     ) {
         self.version = version
         self.generado = generado
@@ -34,14 +40,16 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         self.carpetas = carpetas
         self.entrenos = entrenos
         self.carreras = carreras
+        self.objetivosSemanales = objetivosSemanales
     }
 
     public static let versionActual = 1
 
-    /// Las carreras se añadieron después, así que un archivo de la versión 1
-    /// sin ellas sigue siendo válido.
+    /// Las carreras y los objetivos se añadieron después, así que un archivo de
+    /// la versión 1 sin ellos sigue siendo válido.
     enum CodingKeys: String, CodingKey {
         case version, generado, app, ejercicios, carpetas, entrenos, carreras
+        case objetivosSemanales
     }
 
     public init(from decodificador: Decoder) throws {
@@ -53,6 +61,8 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         carpetas = try contenedor.decode([CarpetaExportada].self, forKey: .carpetas)
         entrenos = try contenedor.decode([EntrenoExportado].self, forKey: .entrenos)
         carreras = try contenedor.decodeIfPresent([CarreraExportada].self, forKey: .carreras) ?? []
+        objetivosSemanales =
+            try contenedor.decodeIfPresent([String: Int].self, forKey: .objetivosSemanales) ?? [:]
     }
 }
 

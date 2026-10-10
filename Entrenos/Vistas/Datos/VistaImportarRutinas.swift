@@ -2,10 +2,26 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-/// Importa rutinas desde JSON, pegado o desde archivo.
+/// Importa rutinas desde JSON, pegado, desde archivo o desde una propuesta
+/// que Claude ha dejado en la carpeta compartida.
 struct VistaImportarRutinas: View {
     @Environment(\.modelContext) private var contexto
     @Environment(\.dismiss) private var cerrar
+
+    /// JSON ya cargado. Entrando desde una propuesta del buzón no hay nada que
+    /// pegar, así que se revisa sola y la pantalla de pegar no se llega a ver.
+    private let textoInicial: String?
+
+    /// Se llama al importar con éxito, para que quien abrió la pantalla pueda
+    /// apartar la propuesta y no volver a ofrecerla.
+    private let alImportar: (() -> Void)?
+
+    /// Explícito y no el de memberwise: con miembros `private` el inicializador
+    /// sintetizado también lo es, y entonces no se puede llamar desde Datos.
+    init(textoInicial: String? = nil, alImportar: (() -> Void)? = nil) {
+        self.textoInicial = textoInicial
+        self.alImportar = alImportar
+    }
 
     @State private var texto = ""
     @State private var error: ErrorImportacion?
@@ -41,6 +57,11 @@ struct VistaImportarRutinas: View {
             ) { salida in
                 cargarArchivo(salida)
             }
+            .onAppear {
+                guard let textoInicial, texto.isEmpty, revision == nil else { return }
+                texto = textoInicial
+                revisar()
+            }
         }
     }
 
@@ -61,10 +82,10 @@ struct VistaImportarRutinas: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(error.ruta.isEmpty ? "Error" : error.ruta, systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Paleta.insuficiente)
                         Text(error.mensaje)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Paleta.insuficiente)
                     }
                 } else {
                     Text("Pega aquí lo que te dé la IA, o usa el botón de archivo.")
@@ -222,7 +243,7 @@ struct VistaImportarRutinas: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.green)
+                .foregroundStyle(Paleta.logrado)
             Text("\(resultado.rutinasCreadas) \(resultado.rutinasCreadas == 1 ? "rutina importada" : "rutinas importadas")")
                 .font(.headline)
             if let carpeta = resultado.carpeta {
@@ -266,6 +287,7 @@ struct VistaImportarRutinas: View {
     private func importar(_ revision: ImportadorRutinas.Revision) {
         let importador = ImportadorRutinas(contexto: contexto)
         resultado = importador.importar(revision.rutinas, mapeo: mapeo)
+        alImportar?()
     }
 
     private func cargarArchivo(_ salida: Result<[URL], Error>) {

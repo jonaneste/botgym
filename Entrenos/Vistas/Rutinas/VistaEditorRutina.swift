@@ -139,14 +139,14 @@ struct VistaEditorRutina: View {
                 } label: {
                     Label("Agrupar", systemImage: "link")
                 }
-                .tint(.indigo)
+                .tint(Paleta.carpeta)
             } else {
                 Button {
                     desagrupar(elemento)
                 } label: {
                     Label("Separar", systemImage: "link.badge.plus")
                 }
-                .tint(.orange)
+                .tint(Paleta.aviso)
             }
         }
     }

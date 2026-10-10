@@ -81,9 +81,16 @@ jobs:
       - name: Tests
         run: swift test
 
+  # La imagen va fijada a mano y no a `macos-latest`: la versión de Xcode del
+  # runner *es* parte de lo que se compila, y no puede cambiar sola.
+  #
+  # Estuvo en `macos-15`, que trae Xcode 16.4 y el SDK de iOS 18.5. Con ese SDK,
+  # el camino de la barra flotante de iOS 26 queda detrás de
+  # `#if compiler(>=6.2)` y no se compila nunca: un error ahí no salía aquí,
+  # salía en el Mac. Y es justo el camino que corre en el iPhone.
   app:
     name: Compilar la app para iOS
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -92,6 +99,7 @@ jobs:
         run: |
           ls /Applications | grep -i '^Xcode' || true
           xcodebuild -version
+          xcodebuild -showsdks | grep -i iphone || true
 
       - name: Compilar
         # Sin firma: en el runner no hay identidad de firma ni perfil, y aquí

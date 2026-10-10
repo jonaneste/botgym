@@ -402,5 +402,11 @@
       "calorias": 420.0,
       "origen": "Zepp"
     }
-  ]
+  ],
+  "objetivosSemanales": {
+    "pecho": 12,
+    "espalda": 14,
+    "cuadriceps": 12,
+    "hombroLateral": 8
+  }
 }

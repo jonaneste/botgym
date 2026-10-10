@@ -122,4 +122,9 @@ node mcp/prueba.mjs    # 87 comprobaciones, sin instalar nada
 
 ## Instalación en el iPhone
 
-Ver [docs/INSTALACION.md](docs/INSTALACION.md).
+Por **TestFlight**, sin cable y sin que caduque cada semana: la build la sube el
+repositorio desde Actions. Ver [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md).
+Necesita el Apple Developer Program.
+
+Con el cable y una cuenta gratuita, que caduca a los 7 días:
+[docs/INSTALACION.md](docs/INSTALACION.md).

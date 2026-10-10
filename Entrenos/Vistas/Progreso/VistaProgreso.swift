@@ -11,14 +11,41 @@ struct VistaProgreso: View {
     @State private var ejercicios: [(ejercicio: Ejercicio, ultimaVez: Date)] = []
     @State private var busqueda = ""
 
+    /// El alto de la gráfica sube con el tamaño de texto del sistema: con
+    /// cuerpos de accesibilidad, las etiquetas de los ejes se comían el área
+    /// de dibujo a 150 puntos fijos.
+    @ScaledMetric(relativeTo: .caption) private var altoGrafica: CGFloat = 150
+
     var body: some View {
         NavigationStack {
             List {
-                if !tendencia.isEmpty {
-                    Section("Series por semana") {
-                        GraficaSeriesSemanales(datos: tendencia)
-                            .frame(height: 150)
-                            .padding(.vertical, 4)
+                // La pestaña abría directamente con una gráfica de barras y
+                // ningún número: para saber cómo iba la semana había que leer
+                // el eje. Esto lo dice de una vez, que es lo que se viene a ver.
+                // Ocho semanas a cero no son una gráfica: son un marco con
+                // fechas y nada dentro, que parece que algo ha fallado. Hasta
+                // que haya una serie registrada, mejor no pintarla.
+                if tendencia.contains(where: { $0.series > 0 }) {
+                    Section {
+                        VStack(spacing: 14) {
+                            HStack(spacing: 0) {
+                                CifraDestacada(
+                                    valor: Formato.numeroCorto(seriesEstaSemana),
+                                    etiqueta: "Series esta semana",
+                                    color: .accentColor
+                                )
+                                Divider().frame(height: 28)
+                                CifraDestacada(
+                                    valor: Formato.numeroCorto(mediaSemanal),
+                                    etiqueta: "Media de 8 semanas"
+                                )
+                            }
+
+                            GraficaSeriesSemanales(datos: tendencia)
+                                .frame(height: altoGrafica)
+                        }
+                        .tarjeta()
+                        .filaDesnuda(arriba: 8, abajo: 4)
                     }
                 }
 
@@ -26,10 +53,25 @@ struct VistaProgreso: View {
                     if seriesSemanales.isEmpty {
                         Text("Sin series esta semana.")
                             .foregroundStyle(.secondary)
+                            .tarjeta()
+                            .filaDesnuda(arriba: 4, abajo: 4)
                     } else {
-                        ForEach(seriesSemanales) { grupo in
-                            FilaSeriesGrupo(datos: grupo)
+                        // Los grupos comparten una sola tarjeta porque se leen
+                        // comparándolos entre sí. Ocho tarjetas con sombra
+                        // repartirían la pantalla sin decir nada más, y es la
+                        // misma decisión que las acciones del final de Rutinas.
+                        VStack(spacing: 0) {
+                            ForEach(seriesSemanales) { grupo in
+                                FilaSeriesGrupo(datos: grupo)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                if grupo.id != seriesSemanales.last?.id {
+                                    Divider()
+                                }
+                            }
                         }
+                        .tarjeta(relleno: 0)
+                        .filaDesnuda(arriba: 4, abajo: 4)
                     }
                 } header: {
                     HStack {
@@ -50,28 +92,62 @@ struct VistaProgreso: View {
                              ? "Cuando termines un entreno, aquí verás tus récords y gráficas."
                              : "Sin resultados.")
                         .foregroundStyle(.secondary)
+                        .tarjeta()
+                        .filaDesnuda(arriba: 4, abajo: 4)
                     }
                     ForEach(ejerciciosFiltrados, id: \.ejercicio.idPublico) { entrada in
-                        NavigationLink {
-                            VistaDetalleEjercicio(ejercicio: entrada.ejercicio)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(entrada.ejercicio.nombre)
-                                    .font(.body)
-                                Text("Última vez: \(Formato.fechaRelativa(entrada.ultimaVez))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        // El enlace va invisible por encima de la tarjeta, por
+                        // lo mismo que en el historial: un `NavigationLink`
+                        // normal pinta su chevron en el borde de la fila, que
+                        // con la lista sin fondo cae fuera de la tarjeta.
+                        filaEjercicio(entrada)
+                            .overlay {
+                                NavigationLink {
+                                    VistaDetalleEjercicio(ejercicio: entrada.ejercicio)
+                                } label: {
+                                    Color.clear
+                                }
+                                .opacity(0)
                             }
-                            .padding(.vertical, 2)
-                        }
+                            .filaDesnuda(arriba: 3, abajo: 3)
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .searchable(text: $busqueda, prompt: "Buscar ejercicio")
             .navigationTitle("Progreso")
             .refreshable { recargar() }
             .onAppear(perform: recargar)
         }
+    }
+
+    private func filaEjercicio(_ entrada: (ejercicio: Ejercicio, ultimaVez: Date)) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entrada.ejercicio.nombre)
+                    .font(.body)
+                Text("Última vez: \(Formato.fechaRelativa(entrada.ultimaVez))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .tarjeta(relleno: 12)
+    }
+
+    /// Las series de la última semana de la tendencia, que es la actual.
+    private var seriesEstaSemana: Double {
+        tendencia.last?.series ?? 0
+    }
+
+    private var mediaSemanal: Double {
+        guard !tendencia.isEmpty else { return 0 }
+        return tendencia.reduce(0.0) { $0 + $1.series } / Double(tendencia.count)
     }
 
     private var ejerciciosFiltrados: [(ejercicio: Ejercicio, ultimaVez: Date)] {
@@ -100,10 +176,18 @@ struct FilaSeriesGrupo: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(datos.grupo.nombre)
                     .font(.subheadline)
                 Spacer()
+                // El símbolo acompaña al color a propósito: si el cumplimiento
+                // se dijera solo con verde, naranja o rojo, quien no distinga
+                // esos tonos se queda sin saber si va bien.
+                if let simbolo {
+                    Image(systemName: simbolo)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(color)
+                }
                 Text(texto)
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .monospacedDigit()
@@ -116,6 +200,9 @@ struct FilaSeriesGrupo: View {
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(datos.grupo.nombre)
+        .accessibilityValue(descripcionAccesible)
     }
 
     private var texto: String {
@@ -128,7 +215,33 @@ struct FilaSeriesGrupo: View {
 
     private var color: Color {
         guard let progreso = datos.progreso else { return .secondary }
-        if datos.cumplido { return .green }
-        return progreso >= 0.6 ? .orange : .red
+        if datos.cumplido { return Paleta.logrado }
+        return progreso >= 0.6 ? Paleta.aviso : Paleta.insuficiente
+    }
+
+    /// Forma que dobla al color. Sin objetivo no hay nada que cumplir, así que
+    /// tampoco hay símbolo.
+    private var simbolo: String? {
+        guard let progreso = datos.progreso else { return nil }
+        if datos.cumplido { return "checkmark.circle.fill" }
+        return progreso >= 0.6 ? "circle.bottomhalf.filled" : "exclamationmark.circle"
+    }
+
+    /// Lo que oye VoiceOver: el número y el estado dichos con palabras, porque
+    /// ni el color ni la barra de progreso le llegan.
+    private var descripcionAccesible: String {
+        let series = Formato.numeroCorto(datos.series)
+        guard let objetivo = datos.objetivo else {
+            return "\(series) series esta semana"
+        }
+        let estado: String
+        if datos.cumplido {
+            estado = "objetivo cumplido"
+        } else if let progreso = datos.progreso, progreso >= 0.6 {
+            estado = "cerca del objetivo"
+        } else {
+            estado = "por debajo del objetivo"
+        }
+        return "\(series) de \(objetivo) series, \(estado)"
     }
 }

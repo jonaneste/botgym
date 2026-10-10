@@ -12,6 +12,10 @@ struct VistaDetalleEjercicio: View {
     @State private var sesiones: [SesionEjercicio] = []
     @State private var metrica: MetricaGrafica = .unRM
 
+    /// Igual que en la pestaña de progreso: el alto acompaña al cuerpo de
+    /// letra para que las etiquetas de los ejes no ahoguen la gráfica.
+    @ScaledMetric(relativeTo: .caption) private var altoGrafica: CGFloat = 200
+
     private var esTiempo: Bool { ejercicio.tipoRegistro.esTiempo }
 
     /// En los ejercicios de tiempo el 1RM no significa nada, así que esa
@@ -22,56 +26,49 @@ struct VistaDetalleEjercicio: View {
 
     var body: some View {
         List {
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(ejercicio.descripcionCorta)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    if !ejercicio.gruposSecundarios.isEmpty {
-                        Text("También: \(ejercicio.gruposSecundarios.map(\.nombre).joined(separator: ", "))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
+            ficha
+                .filaDesnuda(arriba: 10, abajo: 4)
 
             if records.estaVacio {
-                Section {
-                    ContentUnavailableView(
-                        "Sin datos todavía",
-                        systemImage: "chart.xyaxis.line",
-                        description: Text("Completa alguna serie de este ejercicio y aquí aparecerán tus récords.")
-                    )
-                }
+                ContentUnavailableView(
+                    "Sin datos todavía",
+                    systemImage: "chart.xyaxis.line",
+                    description: Text("Completa alguna serie de este ejercicio y aquí aparecerán tus récords.")
+                )
+                .filaDesnuda(arriba: 12, abajo: 4)
             } else {
                 Section("Récords") {
-                    if let peso = records.pesoMaximo {
-                        filaRecord("Peso máximo", Formato.peso(peso), records.fechaPesoMaximo, "scalemass")
+                    // Rejilla de dos columnas y no una lista de filas: un
+                    // récord es un número, y en filas el número quedaba a la
+                    // derecha en cuerpo de texto, con el mismo peso visual
+                    // que su etiqueta.
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                        spacing: 10
+                    ) {
+                        ForEach(recordsVisibles) { record in
+                            tarjetaRecord(record)
+                        }
                     }
-                    if let unRM = records.mejorUnRM {
-                        filaRecord("1RM estimado", Formato.peso(unRM), records.fechaMejorUnRM, "arrow.up.circle")
-                    }
-                    if let tiempo = records.mejorTiempo {
-                        filaRecord("Tiempo máximo", "\(tiempo) s", records.fechaMejorTiempo, "timer")
-                    }
-                    if let volumen = records.mejorVolumenSesion {
-                        filaRecord("Mejor sesión", Formato.volumen(volumen), records.fechaMejorVolumen, "chart.bar.fill")
-                    }
+                    .filaDesnuda(arriba: 4, abajo: 4)
                 }
             }
 
             if puntos.count >= 2 {
                 Section {
-                    Picker("Métrica", selection: $metrica) {
-                        ForEach(metricasDisponibles) { opcion in
-                            Text(opcion.nombre).tag(opcion)
+                    VStack(spacing: 12) {
+                        Picker("Métrica", selection: $metrica) {
+                            ForEach(metricasDisponibles) { opcion in
+                                Text(opcion.nombre).tag(opcion)
+                            }
                         }
-                    }
-                    .pickerStyle(.segmented)
+                        .pickerStyle(.segmented)
 
-                    GraficaEjercicio(puntos: puntos, metrica: metrica)
-                        .frame(height: 200)
-                        .padding(.vertical, 6)
+                        GraficaEjercicio(puntos: puntos, metrica: metrica)
+                            .frame(height: altoGrafica)
+                    }
+                    .tarjeta()
+                    .filaDesnuda(arriba: 4, abajo: 4)
                 } header: {
                     Text("Evolución")
                 } footer: {
@@ -82,51 +79,155 @@ struct VistaDetalleEjercicio: View {
                     Text("Hacen falta al menos dos sesiones para dibujar la gráfica.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .tarjeta()
+                        .filaDesnuda(arriba: 4, abajo: 4)
                 }
             }
 
             if !sesiones.isEmpty {
                 Section("Historial") {
-                    ForEach(sesiones.sorted { $0.fecha > $1.fecha }) { sesion in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(Formato.fechaCorta(sesion.fecha))
-                                    .font(.subheadline.weight(.medium))
-                                Spacer()
-                                Text(Formato.volumen(sesion.volumen))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(resumen(de: sesion))
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 2)
+                    ForEach(sesionesRecientes) { sesion in
+                        filaSesion(sesion)
+                            .filaDesnuda(arriba: 3, abajo: 3)
                     }
                 }
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(ejercicio.nombre)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: cargar)
     }
 
-    private func filaRecord(_ titulo: String, _ valor: String, _ fecha: Date?, _ icono: String) -> some View {
-        HStack {
-            Label(titulo, systemImage: icono)
-                .font(.subheadline)
-            Spacer()
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(valor)
-                    .font(.system(.body, design: .rounded, weight: .semibold))
-                    .monospacedDigit()
-                if let fecha {
-                    Text(Formato.fechaCorta(fecha))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+    // MARK: - Ficha del ejercicio
+
+    private var ficha: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Pastilla(texto: ejercicio.grupoPrincipal.nombre)
+                Pastilla(texto: ejercicio.material.nombre, color: .secondary)
+                Spacer(minLength: 0)
+            }
+
+            if !ejercicio.gruposSecundarios.isEmpty {
+                Text("También trabaja \(ejercicio.gruposSecundarios.map(\.nombre).joined(separator: ", ").lowercased())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !ejercicio.notas.isEmpty {
+                Text(ejercicio.notas)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .tarjeta()
+    }
+
+    // MARK: - Récords
+
+    /// Un récord ya listo para pintar. Se arma en una lista para poder
+    /// repartirlo en una rejilla sin repetir el bloque cuatro veces.
+    private struct Record: Identifiable {
+        let id: String
+        let titulo: String
+        let valor: String
+        let fecha: Date?
+        let icono: String
+    }
+
+    private var recordsVisibles: [Record] {
+        var lista: [Record] = []
+        if let peso = records.pesoMaximo {
+            lista.append(Record(
+                id: "peso",
+                titulo: "Peso máximo",
+                valor: Formato.peso(peso),
+                fecha: records.fechaPesoMaximo,
+                icono: "scalemass"
+            ))
+        }
+        if let unRM = records.mejorUnRM {
+            lista.append(Record(
+                id: "unRM",
+                titulo: "1RM estimado",
+                valor: Formato.peso(unRM),
+                fecha: records.fechaMejorUnRM,
+                icono: "arrow.up.circle"
+            ))
+        }
+        if let tiempo = records.mejorTiempo {
+            lista.append(Record(
+                id: "tiempo",
+                titulo: "Tiempo máximo",
+                valor: "\(tiempo) s",
+                fecha: records.fechaMejorTiempo,
+                icono: "timer"
+            ))
+        }
+        if let volumen = records.mejorVolumenSesion {
+            lista.append(Record(
+                id: "volumen",
+                titulo: "Mejor sesión",
+                valor: Formato.volumen(volumen),
+                fecha: records.fechaMejorVolumen,
+                icono: "chart.bar.fill"
+            ))
+        }
+        return lista
+    }
+
+    private func tarjetaRecord(_ record: Record) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(record.titulo, systemImage: record.icono)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            Text(record.valor)
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            Text(record.fecha.map(Formato.fechaCorta) ?? " ")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .tarjeta(relleno: 12, radio: 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Historial
+
+    /// Las sesiones, de la más reciente a la más antigua. El orden se calcula
+    /// una vez y no dentro del `ForEach`.
+    private var sesionesRecientes: [SesionEjercicio] {
+        sesiones.sorted { $0.fecha > $1.fecha }
+    }
+
+    private func filaSesion(_ sesion: SesionEjercicio) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(Formato.fechaCorta(sesion.fecha))
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(Formato.volumen(sesion.volumen))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(resumen(de: sesion))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .tarjeta(relleno: 12)
     }
 
     private func resumen(de sesion: SesionEjercicio) -> String {

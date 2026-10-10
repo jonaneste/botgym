@@ -26,12 +26,16 @@ struct VistaHistorial: View {
                 if !entrenos.isEmpty {
                     Section {
                         resumenGeneral
+                            .tarjeta()
+                            .filaDesnuda(arriba: 8, abajo: 4)
                     }
                 }
 
                 if resumenSemanal.carreras > 0 {
                     Section("Esta semana corriendo") {
                         FilaResumenCarreras(resumen: resumenSemanal)
+                            .tarjeta()
+                            .filaDesnuda(arriba: 4, abajo: 4)
                     }
                 }
 
@@ -40,20 +44,35 @@ struct VistaHistorial: View {
                         ForEach(grupo.elementos) { elemento in
                             switch elemento {
                             case .gimnasio(let entreno):
-                                NavigationLink {
-                                    VistaDetalleEntreno(entreno: entreno)
-                                } label: {
-                                    filaEntreno(entreno)
-                                }
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        entrenoABorrar = entreno
-                                    } label: {
-                                        Label("Borrar", systemImage: "trash")
+                                // El enlace va invisible encima de la
+                                // tarjeta, y no envolviéndola: un
+                                // `NavigationLink` normal pinta su chevron en
+                                // el borde de la fila, que con la lista sin
+                                // fondo cae fuera de la tarjeta y sobre el
+                                // gris. Así el chevron es el de dentro. El
+                                // `Color.clear` es lo que le da el área de
+                                // toque: con `EmptyView` el enlace no mide
+                                // nada y la tarjeta dejaría de abrirse.
+                                filaEntreno(entreno)
+                                    .overlay {
+                                        NavigationLink {
+                                            VistaDetalleEntreno(entreno: entreno)
+                                        } label: {
+                                            Color.clear
+                                        }
+                                        .opacity(0)
                                     }
-                                }
+                                    .filaDesnuda(arriba: 4, abajo: 4)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            entrenoABorrar = entreno
+                                        } label: {
+                                            Label("Borrar", systemImage: "trash")
+                                        }
+                                    }
                             case .carrera(let carrera):
                                 FilaCarrera(carrera: carrera)
+                                    .filaDesnuda(arriba: 4, abajo: 4)
                             }
                         }
                     }
@@ -67,6 +86,9 @@ struct VistaHistorial: View {
                     )
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Historial")
             .onAppear {
                 CacheCarreras.compartida.cargarSiHaceFalta()
@@ -96,39 +118,36 @@ struct VistaHistorial: View {
     // MARK: - Resumen
 
     private var resumenGeneral: some View {
-        HStack {
-            columnaResumen("Entrenos", "\(entrenos.count)")
+        HStack(spacing: 0) {
+            CifraDestacada(valor: "\(entrenos.count)", etiqueta: "Entrenos")
             Divider()
-            columnaResumen("Series", "\(entrenos.reduce(0) { $0 + $1.seriesCompletadas })")
+            CifraDestacada(
+                valor: "\(entrenos.reduce(0) { $0 + $1.seriesCompletadas })",
+                etiqueta: "Series"
+            )
             Divider()
-            columnaResumen("Volumen", Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }))
+            CifraDestacada(
+                valor: Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }),
+                etiqueta: "Volumen"
+            )
         }
-        .frame(height: 44)
-    }
-
-    private func columnaResumen(_ titulo: String, _ valor: String) -> some View {
-        VStack(spacing: 2) {
-            Text(valor)
-                .font(.system(.headline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-            Text(titulo)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
+        .frame(height: 52)
     }
 
     // MARK: - Fila
 
     private func filaEntreno(_ entreno: Entreno) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(entreno.nombre)
-                    .font(.body.weight(.medium))
-                Spacer()
+                    .font(.headline)
+                Spacer(minLength: 8)
                 Text(Formato.fechaRelativa(entreno.fechaInicio))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
 
             HStack(spacing: 12) {
@@ -146,7 +165,7 @@ struct VistaHistorial: View {
                 etiquetaMolestia("Rodilla", rodilla)
             }
         }
-        .padding(.vertical, 3)
+        .tarjeta()
     }
 
     private func etiqueta(_ icono: String, _ texto: String) -> some View {
@@ -162,7 +181,7 @@ struct VistaHistorial: View {
             Text("\(zona) \(valor)/10")
         }
         .font(.caption2)
-        .foregroundStyle(valor >= 7 ? .red : .orange)
+        .foregroundStyle(Paleta.molestia(valor))
     }
 
     // MARK: - Agrupación por mes
@@ -256,7 +275,7 @@ struct FilaCarrera: View {
         HStack(spacing: 12) {
             Image(systemName: "figure.run")
                 .font(.title3)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Paleta.carrera)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -291,7 +310,7 @@ struct FilaCarrera: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 3)
+        .tarjeta()
     }
 }
 
@@ -300,7 +319,7 @@ struct FilaResumenCarreras: View {
     let resumen: ResumenCarreras
 
     var body: some View {
-        HStack {
+        HStack(spacing: 0) {
             columna(Formato.numeroCorto(resumen.kilometros) + " km", "Distancia")
             Divider()
             columna("\(resumen.carreras)", resumen.carreras == 1 ? "Carrera" : "Carreras")
@@ -308,22 +327,14 @@ struct FilaResumenCarreras: View {
             columna(Formato.duracionLarga(resumen.duracion), "Tiempo")
             if let ritmo = resumen.ritmoMedioSegundosPorKm {
                 Divider()
-                columna(textoRitmo(ritmo), "Ritmo medio")
+                columna(textoRitmo(ritmo), "Ritmo")
             }
         }
-        .frame(height: 44)
+        .frame(height: 52)
     }
 
     private func columna(_ valor: String, _ titulo: String) -> some View {
-        VStack(spacing: 2) {
-            Text(valor)
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-            Text(titulo)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
+        CifraDestacada(valor: valor, etiqueta: titulo)
     }
 
     private func textoRitmo(_ segundosPorKm: Double) -> String {

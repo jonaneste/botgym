@@ -65,24 +65,49 @@ printf '%s\n' "$version" | head -1 | sed 's/^/  /'
 
 titulo "Buscando tu identidad de firma"
 
+equipos_de_xcode=$(defaults read com.apple.dt.Xcode IDEProvisioningTeamByIdentifier 2>/dev/null \
+    | sed -n 's/^[[:space:]]*teamID = \([A-Z0-9]\{10\}\);[[:space:]]*$/\1/p' | sort -u)
+
 equipo="${EQUIPO:-}"
 if [ -z "$equipo" ]; then
-    # En el nombre de la identidad, el Team ID va entre paréntesis al final:
-    #   "Apple Development: tu@correo.com (ABCDE12345)"
-    equipos=$(security find-identity -v -p codesigning 2>/dev/null \
-        | sed -n 's/.*(\([A-Z0-9]\{10\}\))".*/\1/p' | sort -u)
+    # Se lo preguntamos a Xcode, y NO al llavero, porque el Team ID que hay en
+    # el nombre del certificado no es el que acepta `xcodebuild`. Con una
+    # cuenta gratuita son dos valores distintos: el certificado se llama
+    #
+    #   "Apple Development: tu@correo.com (87583R6LZ9)"
+    #
+    # pero el equipo con el que se firma es el personal, "(Personal Team)", con
+    # otro identificador. Pasar el del certificado falla con
+    #
+    #   error: No Account for Team "87583R6LZ9".
+    #
+    # que suena a cuenta sin añadir y manda a mirar unos ajustes correctos.
+    equipos="$equipos_de_xcode"
+
+    # Si Xcode no ha guardado todavía sus equipos —cuenta recién añadida y sin
+    # compilar nunca— cae al llavero, que al menos da un valor con el que
+    # intentarlo. El certificado a secas y no la identidad: `find-identity`
+    # solo cuenta un certificado si encuentra su clave privada EN UN LLAVERO DE
+    # ARCHIVO, y desde Xcode 26 la clave va al llavero protegido por datos, que
+    # `security` no sabe mirar; con un certificado perfectamente válido
+    # responde «0 valid identities found».
+    if [ -z "$equipos" ]; then
+        equipos=$(security find-certificate -a -c "Apple Development" 2>/dev/null \
+            | sed -n 's/.*"labl"<blob>=".*(\([A-Z0-9]\{10\}\))".*/\1/p' | sort -u)
+        [ -n "$equipos" ] && gris "  (sacado del certificado: Xcode aún no ha guardado el equipo)"
+    fi
+
     numero=$(printf '%s' "$equipos" | grep -c . || true)
 
     if [ "$numero" -eq 0 ]; then
-        # Tener la cuenta añadida en Xcode NO crea el certificado: hay que
-        # pedirlo, o dejar que lo cree la primera compilación desde la interfaz.
         # Decir solo "añade tu Apple ID" mandaba a quien ya lo había añadido a
         # mirar una pantalla donde todo parecía correcto.
-        morir "Tu Apple ID está en Xcode, pero todavía no hay certificado de firma." \
-            "Añadir la cuenta no lo crea: hay que pedirlo una vez." \
+        morir "No hay ninguna cuenta de desarrollador en Xcode, ni certificado de firma." \
+            "Hacen falta las dos cosas, y añadir la cuenta no crea el certificado." \
             "" \
             "En Xcode (⌘ + , abre los ajustes):" \
-            "  Accounts → pincha tu Apple ID → botón «Manage Certificates…»" \
+            "  Accounts → botón «+» → «Apple ID» → entra con el tuyo" \
+            "  → pincha tu Apple ID → «Manage Certificates…»" \
             "  → botón «+» abajo a la izquierda → «Apple Development»" \
             "" \
             "Espera unos segundos a que aparezca en la lista, cierra, y vuelve a" \
@@ -141,6 +166,14 @@ for d in datos.get("result", {}).get("devices", []):
 
     if not identificador or tipo and tipo != "iphone":
         continue
+    # Los simuladores salen en la MISMA lista y tambien son "iPhone": con uno
+    # arrancado, esto elegia el simulador y la instalacion fallaba con un error
+    # de CoreSimulator que no decia nada del iPhone de verdad. Lo que los
+    # separa es `isProxiedDevice`/`reality`, no el nombre.
+    if (hardware.get("reality") or "").lower() == "simulated":
+        continue
+    if propiedades.get("isProxiedDevice") is True:
+        continue
     # Un aparato visto por wifi pero no accesible no sirve para instalar.
     if estado in ("unavailable",) or emparejado == "unpaired":
         continue
@@ -158,8 +191,10 @@ PY
     # Identifier es un UUID con el formato 8-4-4-4-12, que no se confunde con el
     # UDID del Hostname (8 hex, guion, 16 hex).
     if [ -z "$udid" ]; then
+        # `physical` al final de la linea es lo que descarta los simuladores,
+        # que aparecen en esta misma tabla como `simulated`.
         linea=$(xcrun devicectl list devices 2>/dev/null \
-            | grep -i 'iphone' | grep -iv 'unavailable' | head -1)
+            | grep -i 'iphone' | grep -i 'physical' | grep -iv 'unavailable' | head -1)
         if [ -n "$linea" ]; then
             udid=$(printf '%s' "$linea" \
                 | grep -oE '[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}' | head -1)
@@ -219,6 +254,27 @@ if ! xcodebuild build \
         rojo "  Ese identificador ya está cogido por otra cuenta de Apple."
         printf '  Vuelve a lanzarlo con uno tuyo:\n'
         printf '    BUNDLE=com.tunombre.entrenos %s\n' "$0"
+    elif grep -qiE 'Developer Mode disabled|previously reported preparation errors' "$salida"; then
+        # El modo de desarrollador es una verja del propio iPhone: no se puede
+        # abrir por cable, y el apartado de Ajustes solo aparece DESPUÉS de que
+        # una herramienta de desarrollo lo haya intentado. Si acaba de pasar,
+        # ya está ahí.
+        printf '\n'
+        rojo "  El iPhone tiene apagado el modo de desarrollador."
+        printf '  En el iPhone: Ajustes → Privacidad y seguridad → Modo de desarrollador.\n'
+        printf '  Te pedirá reiniciar, y al encenderse, el código para confirmarlo.\n'
+        printf '  Si no ves esa opción, baja al final de la lista: aparece desde que\n'
+        printf '  algo ha intentado conectarse, y acaba de pasar.\n'
+    elif grep -qiE 'No Account for Team' "$salida" && [ -n "$equipos_de_xcode" ]; then
+        # La cuenta está: lo que no cuadra es el equipo. Pasa con las cuentas
+        # gratuitas, donde el Team ID del nombre del certificado no es el del
+        # equipo personal con el que se firma.
+        printf '\n'
+        rojo "  Ese Team ID no es de ninguna cuenta de este Xcode."
+        printf '  Los que sí tiene:\n'
+        printf '%s' "$equipos_de_xcode" | sed 's/^/    /'
+        printf '  Vuelve a lanzarlo con uno de esos:\n'
+        printf '    EQUIPO=%s %s\n' "$(printf '%s' "$equipos_de_xcode" | head -1)" "$0"
     elif grep -qiE 'No signing certificate|no account|Select a development team' "$salida"; then
         printf '\n'
         rojo "  Falta tu Apple ID en Xcode."

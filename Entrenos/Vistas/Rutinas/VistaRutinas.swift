@@ -32,7 +32,12 @@ struct VistaRutinas: View {
                         } label: {
                             Label("Nueva rutina aquí", systemImage: "plus")
                                 .font(.subheadline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .tarjeta(relleno: 12)
                         }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
+                        .filaDesnuda(arriba: 4, abajo: 4)
                     } header: {
                         HStack {
                             Label(carpeta.nombre, systemImage: "folder")
@@ -51,22 +56,38 @@ struct VistaRutinas: View {
                     }
                 }
 
+                // Las tres acciones comparten una sola tarjeta: son del mismo
+                // tipo y separarlas repartiría tres bloques por el final de la
+                // pantalla sin decir nada más.
                 Section {
-                    Button {
-                        crearRutina(en: nil)
-                    } label: {
-                        Label("Nueva rutina", systemImage: "plus.circle.fill")
+                    VStack(spacing: 0) {
+                        accion("Nueva rutina", "plus.circle.fill") {
+                            crearRutina(en: nil)
+                        }
+                        Divider().padding(.leading, 32)
+                        accion("Nueva carpeta", "folder.badge.plus") {
+                            mostrarNuevaCarpeta = true
+                        }
+                        Divider().padding(.leading, 32)
+                        NavigationLink {
+                            VistaBibliotecaEjercicios()
+                        } label: {
+                            HStack {
+                                Label("Biblioteca de ejercicios", systemImage: "dumbbell")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
                     }
-                    Button {
-                        mostrarNuevaCarpeta = true
-                    } label: {
-                        Label("Nueva carpeta", systemImage: "folder.badge.plus")
-                    }
-                    NavigationLink {
-                        VistaBibliotecaEjercicios()
-                    } label: {
-                        Label("Biblioteca de ejercicios", systemImage: "dumbbell")
-                    }
+                    .padding(.horizontal, 16)
+                    .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 16))
+                    .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+                    .filaDesnuda(arriba: 12, abajo: 8)
                 }
 
                 if carpetas.isEmpty && rutinasSueltas.isEmpty {
@@ -77,6 +98,9 @@ struct VistaRutinas: View {
                     )
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Rutinas")
             .sheet(item: $rutinaAEditar) { rutina in
                 VistaEditorRutina(rutina: rutina)
@@ -119,28 +143,37 @@ struct VistaRutinas: View {
 
     private func filaRutina(_ rutina: Rutina) -> some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(rutina.nombre)
-                    .font(.body.weight(.medium))
+                    .font(.headline)
                 Text(rutina.resumen)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            Button {
-                controlador.empezar(desde: rutina)
-            } label: {
-                Text("Empezar")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
+            Spacer(minLength: 0)
+            // Con un entreno abierto no se puede empezar otro, pero cinco
+            // botones grises sin decir por qué no explican nada: parecen la
+            // app rota. El de la rutina en curso pasa a «En curso», que es
+            // la razón de que los demás estén apagados.
+            if esLaDelEntrenoActivo(rutina) {
+                Pastilla(texto: "En curso")
+            } else {
+                Button {
+                    controlador.empezar(desde: rutina)
+                } label: {
+                    Text("Empezar")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(controlador.hayEntrenoActivo)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(controlador.hayEntrenoActivo)
         }
-        .padding(.vertical, 4)
+        .tarjeta()
         .contentShape(.rect)
         .onTapGesture { rutinaAEditar = rutina }
+        .filaDesnuda(arriba: 4, abajo: 4)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 rutinaABorrar = rutina
@@ -152,8 +185,20 @@ struct VistaRutinas: View {
             } label: {
                 Label("Duplicar", systemImage: "doc.on.doc")
             }
-            .tint(.indigo)
+            .tint(Paleta.carpeta)
         }
+    }
+
+    /// Una acción de la tarjeta del final.
+    private func accion(_ titulo: String, _ icono: String, _ alPulsar: @escaping () -> Void) -> some View {
+        Button(action: alPulsar) {
+            Label(titulo, systemImage: icono)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 12)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
     }
 
     // MARK: - Acciones
@@ -162,6 +207,15 @@ struct VistaRutinas: View {
         rutinaABorrar = nil
         contexto.delete(rutina)
         try? contexto.save()
+    }
+
+    /// La rutina de la que salió el entreno que está abierto ahora mismo.
+    ///
+    /// Por identificador y no por nombre: dos rutinas pueden llamarse igual, y
+    /// renombrar una no debe desvincularla del entreno que salió de ella.
+    private func esLaDelEntrenoActivo(_ rutina: Rutina) -> Bool {
+        guard let entreno = controlador.entreno else { return false }
+        return entreno.idRutinaOrigen == rutina.idPublico
     }
 
     private func crearCarpeta() {
