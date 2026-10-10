@@ -49,11 +49,19 @@ struct ServicioExportacion {
         CacheCarreras.compartida.cargarSiHaceFalta()
         let carreras = CacheCarreras.compartida.carreras.map(CarreraExportada.init(de:))
 
+        // Los objetivos van con el grupo como clave cruda, igual que se
+        // persisten: el que lee el archivo no tiene el enum.
+        var objetivos: [String: Int] = [:]
+        for (grupo, series) in Ajustes.cargar(en: contexto).objetivosSemanales {
+            objetivos[grupo.rawValue] = series
+        }
+
         return ExportacionCompleta(
             ejercicios: ejercicios,
             carpetas: todasLasCarpetas,
             entrenos: entrenos,
-            carreras: carreras
+            carreras: carreras,
+            objetivosSemanales: objetivos
         )
     }
 

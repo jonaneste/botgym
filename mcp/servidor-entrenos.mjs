@@ -568,6 +568,16 @@ const HERRAMIENTAS = [
     },
   },
   {
+    name: 'objetivos',
+    description:
+      'Los objetivos de series semanales por grupo muscular que hay puestos en ' +
+      'la app, con lo hecho esta semana y la media de las ocho, y lo que falta ' +
+      'para cumplirlos. Es la mitad que no se puede deducir del historial: sin ' +
+      'esto se sabe cuántas series de pecho hay, pero no a cuántas se apuntaba. ' +
+      'Léelo antes de proponer una rutina para que cubra lo que va corto.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'propuestas_pendientes',
     description:
       'Qué propuestas hay en la carpeta esperando a que se importen en la app. ' +
@@ -893,6 +903,55 @@ const EJECUTORES = {
       siguientePaso:
         'En la app: Datos → Rutinas de Claude. Ahí sale la propuesta y se añade de un toque.',
     }
+  },
+
+  objetivos() {
+    const datos = cargarDatos()
+    const puestos = datos.objetivosSemanales || {}
+
+    const estaSemana = inicioSemana(new Date())
+    const clave = fechaLocalISO(estaSemana)
+    // Ocho semanas contando la actual, igual que la pestaña de Progreso.
+    const SEMANAS = 8
+    const desde = new Date(estaSemana)
+    desde.setDate(desde.getDate() - (SEMANAS - 1) * 7)
+
+    const deLaSemana = []
+    const deLasOcho = []
+    for (const entreno of datos.entrenos || []) {
+      if (claveSemana(entreno.fechaInicio) === clave) deLaSemana.push(entreno)
+      if (new Date(entreno.fechaInicio) >= desde) deLasOcho.push(entreno)
+    }
+    const ahora = seriesPorGrupo(deLaSemana)
+    const media = seriesPorGrupo(deLasOcho)
+
+    const grupos = []
+    const sinObjetivo = []
+    const todos = [
+      ...new Set([...Object.keys(puestos), ...Object.keys(ahora), ...Object.keys(media)]),
+    ].sort()
+
+    for (const grupo of todos) {
+      const series = ahora[grupo] || 0
+      const mediaSemanal = redondear((media[grupo] || 0) / SEMANAS)
+      // Un grupo sin objetivo no está «a cero»: no hay nada que cumplir, y
+      // decir que falla sería inventarse un objetivo que nadie puso.
+      if (puestos[grupo] === undefined) {
+        sinObjetivo.push({ grupo, estaSemana: series, mediaSemanal })
+        continue
+      }
+      const objetivo = puestos[grupo]
+      grupos.push({
+        grupo,
+        objetivo,
+        estaSemana: series,
+        mediaSemanal,
+        cumplido: series >= objetivo,
+        faltan: redondear(Math.max(objetivo - series, 0)),
+      })
+    }
+
+    return { semanaDesde: clave, semanasDeLaMedia: SEMANAS, grupos, sinObjetivo }
   },
 
   propuestas_pendientes() {

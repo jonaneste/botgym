@@ -81,6 +81,7 @@ claude mcp add entrenos -- node /ruta/a/botgym/mcp/servidor-entrenos.mjs
 | `rutinas` | Lo planificado, para comparar con lo que de verdad se hizo |
 | `carreras` | Carreras con ritmo y pulso, y resumen semanal |
 | `ejercicios` | La biblioteca: grupo muscular, material y tipo de registro |
+| `objetivos` | Tus objetivos semanales por grupo, con lo hecho y lo que falta |
 | `proponer_rutina` | **Escribe** una rutina en la carpeta, para importarla en la app |
 | `propuestas_pendientes` | Qué propuestas están esperando a importarse |
 

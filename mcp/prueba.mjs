@@ -145,6 +145,7 @@ function generarFixture() {
     ],
     entrenos,
     carreras,
+    objetivosSemanales: { pecho: 2, espalda: 20 },
   }
 }
 
@@ -227,7 +228,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 10, `se esperaban 10 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 11, `se esperaban 11 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -350,6 +351,47 @@ for (const entreno of ejemplo.entrenos) {
     }
   }
 }
+
+// ─── Objetivos semanales ─────────────────────────────────────────────────────
+// Es la mitad que no está en el historial: con las series se sabe lo que se
+// hizo, pero no a cuánto se apuntaba. El fixture pone pecho a 2 (que se cumple
+// de sobra) y espalda a 20 (que no), y deja sin objetivo los grupos que el
+// press banca toca de secundarios.
+
+const { respuestas: deObjetivos } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'objetivos'),
+])
+
+const objetivos = contenido(deObjetivos[1])
+comprobar(objetivos.semanasDeLaMedia === 8, 'la media no es de 8 semanas')
+
+const porGrupo = Object.fromEntries(objetivos.grupos.map((g) => [g.grupo, g]))
+comprobar(porGrupo.pecho !== undefined, 'pecho no sale entre los grupos con objetivo')
+comprobar(porGrupo.pecho?.objetivo === 2, 'no se lee el objetivo de pecho del archivo')
+comprobar(porGrupo.pecho?.cumplido === true, 'pecho tenía que salir cumplido')
+comprobar(porGrupo.pecho?.faltan === 0, 'un objetivo cumplido no puede tener series que falten')
+comprobar(porGrupo.espalda?.cumplido === false, 'espalda tenía que salir sin cumplir')
+comprobar(
+  porGrupo.espalda?.faltan === 20 - porGrupo.espalda?.estaSemana,
+  'las series que faltan no cuadran con el objetivo'
+)
+
+// Un grupo que se entrena pero no tiene objetivo no está «a cero»: va aparte,
+// porque decir que falla sería inventarse un objetivo que nadie puso.
+const nombresSinObjetivo = objetivos.sinObjetivo.map((g) => g.grupo)
+comprobar(
+  objetivos.grupos.every((g) => g.objetivo !== undefined),
+  'un grupo sin objetivo se ha colado entre los que lo tienen'
+)
+comprobar(
+  nombresSinObjetivo.includes('triceps'),
+  `los secundarios del press banca tenían que salir sin objetivo: ${nombresSinObjetivo.join(', ')}`
+)
+comprobar(
+  !nombresSinObjetivo.includes('pecho') && !nombresSinObjetivo.includes('espalda'),
+  'un grupo con objetivo sale además como si no lo tuviera'
+)
 
 // ─── El buzón de rutinas que Claude deja para la app ─────────────────────────
 // Lo que se escribe aquí acaba importándose en el teléfono, así que se

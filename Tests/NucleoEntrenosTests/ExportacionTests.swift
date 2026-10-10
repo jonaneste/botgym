@@ -156,6 +156,34 @@ final class SerializadorExportacionTests: XCTestCase {
         XCTAssertEqual(vuelta, original)
     }
 
+    func testLosObjetivosSemanalesVanYVuelven() throws {
+        let original = ExportacionCompleta(
+            generado: Date(timeIntervalSince1970: 1_790_000_000),
+            ejercicios: [], carpetas: [], entrenos: [],
+            objetivosSemanales: ["pecho": 12, "espalda": 14]
+        )
+        let vuelta = try SerializadorExportacion.leerJSON(SerializadorExportacion.json(original))
+        XCTAssertEqual(vuelta.objetivosSemanales, ["pecho": 12, "espalda": 14])
+    }
+
+    func testUnArchivoSinObjetivosSigueLeyendose() throws {
+        // Los objetivos se añadieron después de la versión 1: un archivo
+        // escrito antes no los lleva y tiene que seguir valiendo.
+        let json = """
+        {
+          "version": 1,
+          "generado": "2026-01-01T00:00:00Z",
+          "app": "Entrenos",
+          "ejercicios": [],
+          "carpetas": [],
+          "entrenos": []
+        }
+        """
+        let leido = try SerializadorExportacion.leerJSON(Data(json.utf8))
+        XCTAssertEqual(leido.objetivosSemanales, [:])
+        XCTAssertEqual(leido.carreras, [])
+    }
+
     func testDosExportacionesIgualesDanElMismoArchivo() throws {
         let exportacion = ExportacionCompleta(
             generado: Date(timeIntervalSince1970: 1_790_000_000),
