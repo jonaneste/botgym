@@ -62,11 +62,14 @@ struct GraficaEjercicio: View {
             AxisMarks(position: .leading) { valor in
                 AxisGridLine()
                 AxisTick()
-                // La unidad va en las marcas del eje y no en el título: un
-                // número suelto en una gráfica de pesos no dice si son kilos.
+                // La unidad va en el eje y no en el título: un número suelto
+                // en una gráfica de pesos no dice si son kilos. Pero solo en
+                // la marca de arriba: «4.250 kg» cuatro veces se comía el
+                // ancho de la gráfica en una pantalla de móvil, y con una vez
+                // ya se sabe de qué van las otras tres.
                 AxisValueLabel {
                     if let numero = valor.as(Double.self) {
-                        Text("\(Formato.numeroCorto(numero)) \(metrica.unidad)")
+                        Text(etiquetaY(numero, conUnidad: valor.index == valor.count - 1))
                             .font(.caption2)
                     }
                 }
@@ -74,6 +77,11 @@ struct GraficaEjercicio: View {
         }
         .accessibilityLabel("\(metrica.nombre) a lo largo del tiempo")
         .accessibilityValue(resumenAccesible)
+    }
+
+    private func etiquetaY(_ numero: Double, conUnidad: Bool) -> String {
+        let corto = Formato.numeroCorto(numero)
+        return conUnidad ? "\(corto) \(metrica.unidad)" : corto
     }
 
     /// Lo que oye VoiceOver. Una gráfica de líneas no le dice nada por sí
