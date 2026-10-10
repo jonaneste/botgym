@@ -71,6 +71,23 @@ if [ -z "$equipo" ]; then
     #   "Apple Development: tu@correo.com (ABCDE12345)"
     equipos=$(security find-identity -v -p codesigning 2>/dev/null \
         | sed -n 's/.*(\([A-Z0-9]\{10\}\))".*/\1/p' | sort -u)
+
+    # `find-identity` solo cuenta un certificado si encuentra su clave privada
+    # EN UN LLAVERO DE ARCHIVO. Desde Xcode 26 la clave va al llavero protegido
+    # por datos, que `security` no sabe mirar, así que con un certificado
+    # perfectamente válido responde «0 valid identities found». Sin esta
+    # segunda vuelta el script manda a crear un certificado que ya existe, y
+    # con firma gratuita hay que reinstalar cada semana: mordería cada vez.
+    #
+    # Buscar el certificado a secas sí lo encuentra. Que se pueda firmar con él
+    # lo dirá `xcodebuild`, que sí ve los dos llaveros; aquí solo hace falta el
+    # Team ID.
+    if [ -z "$equipos" ]; then
+        equipos=$(security find-certificate -a -c "Apple Development" 2>/dev/null \
+            | sed -n 's/.*"labl"<blob>=".*(\([A-Z0-9]\{10\}\))".*/\1/p' | sort -u)
+        [ -n "$equipos" ] && gris "  (la clave está en el llavero protegido por datos)"
+    fi
+
     numero=$(printf '%s' "$equipos" | grep -c . || true)
 
     if [ "$numero" -eq 0 ]; then
