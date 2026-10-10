@@ -22,7 +22,10 @@ struct VistaProgreso: View {
                 // La pestaña abría directamente con una gráfica de barras y
                 // ningún número: para saber cómo iba la semana había que leer
                 // el eje. Esto lo dice de una vez, que es lo que se viene a ver.
-                if !tendencia.isEmpty {
+                // Ocho semanas a cero no son una gráfica: son un marco con
+                // fechas y nada dentro, que parece que algo ha fallado. Hasta
+                // que haya una serie registrada, mejor no pintarla.
+                if tendencia.contains(where: { $0.series > 0 }) {
                     Section {
                         VStack(spacing: 14) {
                             HStack(spacing: 0) {
