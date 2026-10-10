@@ -5,7 +5,14 @@ consejos, sin subir nada a ningún servidor y sin pedir credenciales de nada.
 
 ```
 app Entrenos (iPhone) ──► entrenos.json en iCloud Drive ──► tu Mac ──► este MCP ──► Claude
+                     ◄── rutinas-de-claude/*.json ◄────────────────────────────────┘
 ```
+
+La carpeta va en las dos direcciones. Claude lee tu historial, y cuando le
+pides una rutina la deja escrita en `rutinas-de-claude/` dentro de esa misma
+carpeta: en el teléfono aparece en **Datos → Rutinas de Claude** y se añade de
+un toque, sin copiar ni pegar nada. Nada entra en la app hasta que lo
+confirmas en la pantalla de siempre, y el historial no se toca nunca.
 
 ## Qué hace falta
 
@@ -73,9 +80,39 @@ claude mcp add entrenos -- node /ruta/a/botgym/mcp/servidor-entrenos.mjs
 | `ultimos_entrenos` | Las últimas sesiones con series, RIR, notas y molestias |
 | `rutinas` | Lo planificado, para comparar con lo que de verdad se hizo |
 | `carreras` | Carreras con ritmo y pulso, y resumen semanal |
+| `ejercicios` | La biblioteca: grupo muscular, material y tipo de registro |
+| `proponer_rutina` | **Escribe** una rutina en la carpeta, para importarla en la app |
+| `propuestas_pendientes` | Qué propuestas están esperando a importarse |
 
 Son consultas estructuradas y no el archivo entero a propósito: así Claude
 puede preguntar «¿cómo va mi press banca?» sin tragarse dos años de series.
+
+### La única que escribe
+
+`proponer_rutina` es la única herramienta que no es de lectura, y lo único que
+hace es dejar un archivo en `rutinas-de-claude/`:
+
+- **No modifica la app.** Lo escrito no es una rutina todavía: es una
+  propuesta. Entra cuando la confirmas en el teléfono, en la pantalla de
+  importar de siempre, con sus ejercicios desconocidos y todo.
+- **Se valida aquí**, con los mismos límites que la app (series de 1 a 20,
+  descanso de 0 a 1800 s, rangos como `"8-10"` o `"30-45s"`). Un error se ve
+  en la conversación y no con el móvil en la mano.
+- **Dice qué ejercicios no tienes.** Uno que no esté en tu biblioteca la app lo
+  crea al importar, pero sin grupo muscular ni material, porque adivinarlos
+  falsearía el recuento semanal en silencio. La respuesta los lista para que
+  Claude te lo advierta antes.
+- **Para corregir una propuesta**, se vuelve a llamar con el mismo
+  `nombre_archivo` que devolvió `propuestas_pendientes`: así se reemplaza en
+  lugar de acumular dos.
+
+Al importarla, la app aparta el archivo a `rutinas-de-claude/importadas/` en
+vez de borrarlo, así que `propuestas_pendientes` deja de verla y el original
+sigue ahí.
+
+Si quieres el buzón en otra carpeta, pásala en `ENTRENOS_RUTINAS_DIR`. Por
+defecto es la de `entrenos.json`, que es la que la app ya tiene permiso para
+leer.
 
 ## Cómo pedirle consejo
 
@@ -92,6 +129,9 @@ Una vez conectado, basta con hablarle normal. Algunos arranques que funcionan:
 
 > Compara mis rutinas con lo que de verdad hago. ¿Hay ejercicios que me salto
 > siempre o series que nunca completo?
+
+> Mi hombro viene molestando. Hazme una rutina de empuje que lo cuide, con los
+> ejercicios que ya tengo en la app, y déjamela puesta para importar.
 
 ## Y las carreras, ¿qué?
 
@@ -121,6 +161,8 @@ decisión, no la mía.
 
 ## Privacidad
 
-Este servidor **lee un archivo local y nada más**: no hace peticiones de red,
-no guarda nada aparte de una caché en memoria, y no tiene credenciales de
-ningún servicio. Todo ocurre en tu Mac.
+Este servidor **no hace peticiones de red y no tiene credenciales de ningún
+servicio**. Lee el `entrenos.json` de tu carpeta y, con `proponer_rutina`,
+escribe archivos dentro de `rutinas-de-claude/` en esa misma carpeta: nada
+más, y nada fuera de ahí. El nombre del archivo se sanea, así que una ruta con
+`../` no escribe en otro sitio. Todo ocurre en tu Mac.

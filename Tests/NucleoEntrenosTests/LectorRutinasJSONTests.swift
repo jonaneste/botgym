@@ -268,6 +268,21 @@ final class LectorRutinasJSONTests: XCTestCase {
         XCTAssertNil(LectorRutinasJSON.enteroDe(3.5), "un decimal de verdad se rechaza")
     }
 
+    func testUnNumeroDisparatadoNoCierraLaApp() throws {
+        // `Int(1e300)` atrapa, y eso no se puede capturar: cierra la app. El
+        // archivo lo escribe cualquiera, así que el valor llega hasta aquí.
+        XCTAssertEqual(LectorRutinasJSON.enteroDe(1e300), 1_000_000_000_000_000)
+        XCTAssertEqual(LectorRutinasJSON.enteroDe(Double.infinity), 0)
+        XCTAssertNil(LectorRutinasJSON.enteroDe(Double.nan))
+
+        // Y recortado, lo rechaza la comprobación de rango con su mensaje.
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 1e300 }] }] }"
+        XCTAssertThrowsError(try LectorRutinasJSON.leer(json)) { error in
+            let fallo = error as? ErrorImportacion
+            XCTAssertEqual(fallo?.ruta, "rutinas[0].ejercicios[0].series")
+        }
+    }
+
     func testSeLimpianLosEspaciosDeLosNombres() throws {
         let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"  R  \", \"ejercicios\": [{ \"nombre\": \"  E  \", \"series\": 3 }] }] }"
         let rutina = try LectorRutinasJSON.leer(json).rutinas[0]

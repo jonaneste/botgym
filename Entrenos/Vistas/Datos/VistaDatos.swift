@@ -20,9 +20,13 @@ struct VistaDatos: View {
     @State private var pendientesDeSync = 0
     @State private var carpetaClaude: String?
     @State private var ultimaAuto: Date?
+    @State private var propuestas: [BuzonRutinas.Propuesta] = []
+    @State private var propuestaCargada: PropuestaCargada?
 
     var body: some View {
         List {
+            seccionBuzon
+
             seccionCarpetaClaude
 
             seccionExportar
@@ -44,12 +48,19 @@ struct VistaDatos: View {
             recontarPendientes()
             carpetaClaude = ExportadorAutomatico.compartido.nombreCarpeta
             ultimaAuto = ExportadorAutomatico.compartido.ultimaExportacion
+            refrescarBuzon()
         }
         .sheet(item: $archivoACompartir) { archivo in
             HojaCompartir(elementos: [archivo.url])
         }
         .sheet(isPresented: $mostrarImportarRutinas) {
             VistaImportarRutinas()
+        }
+        .sheet(item: $propuestaCargada) { cargada in
+            VistaImportarRutinas(textoInicial: cargada.texto) {
+                BuzonRutinas.compartido.apartar(cargada.propuesta)
+                refrescarBuzon()
+            }
         }
         .fileImporter(
             isPresented: $mostrarSelector,
@@ -171,6 +182,72 @@ struct VistaDatos: View {
                 titulo: "No se pudo exportar",
                 detalle: error.localizedDescription
             )
+        }
+    }
+
+    // MARK: - Lo que Claude deja en la carpeta
+
+    /// Las rutinas que Claude ha dejado por MCP, listas para añadirse.
+    ///
+    /// Va primera en la pantalla y solo existe cuando hay algo: una sección
+    /// permanente que casi siempre está vacía no es un aviso, es ruido.
+    @ViewBuilder
+    private var seccionBuzon: some View {
+        if !propuestas.isEmpty {
+            Section {
+                ForEach(propuestas) { propuesta in
+                    Button {
+                        abrir(propuesta)
+                    } label: {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(propuesta.resumen)
+                                    .foregroundStyle(.primary)
+                                Text(propuesta.detalle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .disabled(trabajando)
+                }
+            } header: {
+                HStack {
+                    Label("Rutinas de Claude", systemImage: "sparkles")
+                    Spacer()
+                    Text("\(propuestas.count)")
+                        .foregroundStyle(.secondary)
+                }
+            } footer: {
+                Text("Claude las ha dejado en tu carpeta. Toca una para ver qué trae antes de añadirla: nada entra en la app hasta que lo confirmes, y el historial no se toca nunca.")
+            }
+        }
+    }
+
+    private func refrescarBuzon() {
+        Task { propuestas = await BuzonRutinas.compartido.pendientes() }
+    }
+
+    /// Lee la propuesta y abre la pantalla de importar con ella dentro. La
+    /// lectura puede tardar si iCloud todavía no ha bajado el archivo, de ahí
+    /// el indicador de trabajo.
+    private func abrir(_ propuesta: BuzonRutinas.Propuesta) {
+        Task {
+            trabajando = true
+            defer { trabajando = false }
+            do {
+                let texto = try await BuzonRutinas.compartido.textoDe(propuesta)
+                propuestaCargada = PropuestaCargada(propuesta: propuesta, texto: texto)
+            } catch {
+                mensaje = MensajeDatos(
+                    titulo: "No se pudo leer la propuesta",
+                    detalle: error.localizedDescription
+                )
+            }
         }
     }
 
@@ -521,6 +598,14 @@ enum ModoSelector {
 }
 
 /// Aviso simple para las alertas de esta pantalla.
+/// Una propuesta con su JSON ya leído, para poder pasarla a `.sheet(item:)`.
+struct PropuestaCargada: Identifiable {
+    var propuesta: BuzonRutinas.Propuesta
+    var texto: String
+
+    var id: String { propuesta.id }
+}
+
 struct MensajeDatos: Identifiable {
     let id = UUID()
     let titulo: String

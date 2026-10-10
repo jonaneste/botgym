@@ -406,9 +406,16 @@ public enum LectorRutinasJSON {
 
     /// JSON no distingue entre 3 y 3.0, así que un entero puede llegar como
     /// `Double`. Un decimal de verdad se rechaza.
+    ///
+    /// El `Double` pasa por `LimitesEntrada`: `Int(unDouble)` atrapa y cierra
+    /// la app cuando el valor no cabe en `Int64` o es infinito, y esto lee un
+    /// archivo que escribe cualquiera. Recortado, el valor absurdo lo rechaza
+    /// después la comprobación de rango, con un mensaje que se puede leer.
     static func enteroDe(_ valor: Any) -> Int? {
         if let entero = valor as? Int { return entero }
-        if let numero = valor as? Double, numero == numero.rounded() { return Int(numero) }
+        if let numero = valor as? Double, numero == numero.rounded() {
+            return LimitesEntrada.entero(numero)
+        }
         if let texto = valor as? String { return Int(texto.trimmingCharacters(in: .whitespaces)) }
         return nil
     }

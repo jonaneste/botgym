@@ -8,7 +8,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -227,7 +227,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 7, `se esperaban 7 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 10, `se esperaban 10 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -349,6 +349,147 @@ for (const entreno of ejemplo.entrenos) {
       comprobar(c.peso === 40 && c.repeticiones === 15, `calentamiento del ejemplo mal formado: ${JSON.stringify(c)}`)
     }
   }
+}
+
+// ─── El buzón de rutinas que Claude deja para la app ─────────────────────────
+// Lo que se escribe aquí acaba importándose en el teléfono, así que se
+// comprueban las dos mitades: que un documento válido salga con la forma que
+// lee el importador, y que lo inválido se pare AQUÍ, con la ruta del problema
+// en el mensaje, y no con el móvil en la mano.
+
+const BUZON = join(carpetaTemporal, 'rutinas-de-claude')
+
+const rutinaValida = {
+  carpeta: 'Bloque otoño',
+  rutinas: [
+    {
+      nombre: 'Empuje A',
+      notas: 'Tres semanas',
+      ejercicios: [
+        { nombre: 'Press banca con barra', series: 4, reps: '6-8', rir: '2', descanso: 180 },
+        { nombre: 'Elevaciones laterales', series: 3, reps: '12-15', rir: 1, superserie: 'A' },
+        { nombre: 'Plancha', series: 3, reps: '30-45s' },
+      ],
+    },
+  ],
+}
+
+const { respuestas: delBuzon } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'propuestas_pendientes'),
+  llamar(3, 'ejercicios'),
+  llamar(4, 'ejercicios', { grupo: 'pecho' }),
+  llamar(5, 'proponer_rutina', rutinaValida),
+  llamar(6, 'propuestas_pendientes'),
+  // Mismo nombre de archivo: reemplaza en lugar de acumular otra propuesta.
+  llamar(7, 'proponer_rutina', { ...rutinaValida, nombre_archivo: 'empuje-a' }),
+  llamar(8, 'proponer_rutina', { ...rutinaValida, nombre_archivo: 'empuje-a.json' }),
+  // Un nombre con travesía de rutas no puede escribir fuera del buzón.
+  llamar(9, 'proponer_rutina', { ...rutinaValida, nombre_archivo: '../../fuera' }),
+  // Y los errores, uno por cada límite que comparte con la app.
+  llamar(10, 'proponer_rutina', { rutinas: [] }),
+  llamar(11, 'proponer_rutina', { rutinas: [{ nombre: 'A', ejercicios: [] }] }),
+  llamar(12, 'proponer_rutina', { rutinas: [{ ejercicios: [{ nombre: 'X', series: 3 }] }] }),
+  llamar(13, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 40 }] }],
+  }),
+  llamar(14, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 3, reps: '12-8' }] }],
+  }),
+  llamar(15, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 3, rir: '30-45s' }] }],
+  }),
+  llamar(16, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 3, descanso: 9999 }] }],
+  }),
+  llamar(17, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 2.5 }] }],
+  }),
+])
+
+const b = Object.fromEntries(delBuzon.map((r) => [r.id, r]))
+
+// Sin buzón todavía no hay nada pendiente, y eso no es un error.
+comprobar(b[2].result.isError !== true, 'propuestas_pendientes falla cuando no hay buzón')
+comprobar(contenido(b[2]).pendientes.length === 0, 'el buzón vacío no sale vacío')
+
+// La biblioteca de ejercicios, que es lo que hay que leer antes de proponer.
+const biblioteca = contenido(b[3])
+comprobar(Array.isArray(biblioteca) && biblioteca.length > 0, 'ejercicios no devuelve nada')
+comprobar(
+  biblioteca.every((e) => e.nombre && e.grupoPrincipal && e.material),
+  'algún ejercicio sale sin nombre, grupo o material'
+)
+const dePecho = contenido(b[4])
+comprobar(
+  dePecho.length > 0 &&
+    dePecho.every(
+      (e) => e.grupoPrincipal === 'pecho' || (e.gruposSecundarios || []).includes('pecho')
+    ),
+  'el filtro por grupo deja pasar ejercicios de otro grupo'
+)
+
+// La propuesta válida: respuesta con el archivo y el documento en disco.
+const propuesta = contenido(b[5])
+comprobar(b[5].result.isError !== true, 'una rutina válida se rechaza')
+comprobar(propuesta.archivo.endsWith('.json'), `nombre de archivo raro: ${propuesta.archivo}`)
+comprobar(propuesta.rutinas[0].seriesTotales === 10, 'seriesTotales mal sumadas')
+
+const escrito = JSON.parse(readFileSync(join(BUZON, propuesta.archivo), 'utf8'))
+comprobar(escrito.version === 1, 'el documento escrito no declara version 1')
+comprobar(escrito.carpeta === 'Bloque otoño', 'se pierde la carpeta de destino')
+comprobar(escrito.rutinas[0].notas === 'Tres semanas', 'se pierden las notas de la rutina')
+// El RIR numérico se escribe como texto, que es lo que lee el importador.
+comprobar(escrito.rutinas[0].ejercicios[1].rir === '1', 'el RIR numérico no se pasa a texto')
+comprobar(escrito.rutinas[0].ejercicios[2].reps === '30-45s', 'se pierden los segundos del rango')
+// Lo que no se dijo no se inventa: sin descanso, la app pone el suyo.
+comprobar(
+  escrito.rutinas[0].ejercicios[2].descanso === undefined,
+  'se escribe un descanso que nadie pidió'
+)
+
+comprobar(contenido(b[6]).pendientes.length === 1, 'la propuesta escrita no sale como pendiente')
+comprobar(
+  contenido(b[6]).pendientes[0].rutinas[0] === 'Empuje A',
+  'la propuesta pendiente no dice qué rutina lleva'
+)
+
+// Reemplazar: «empuje-a» y «empuje-a.json» son el mismo archivo.
+comprobar(contenido(b[7]).archivo === 'empuje-a.json', 'nombre_archivo no se respeta')
+comprobar(contenido(b[8]).archivo === 'empuje-a.json', 'el .json del nombre se duplica')
+
+// La travesía de rutas se limpia, y nada se escribe fuera del buzón.
+comprobar(
+  !contenido(b[9]).archivo.includes('/') && !contenido(b[9]).archivo.includes('..'),
+  `nombre de archivo sin sanear: ${contenido(b[9]).archivo}`
+)
+comprobar(
+  !existsSync(join(carpetaTemporal, 'fuera.json')) &&
+    !existsSync(join(carpetaTemporal, '..', 'fuera.json')),
+  'una propuesta escribió fuera del buzón'
+)
+comprobar(
+  readdirSync(BUZON).every((n) => n.endsWith('.json')),
+  'el buzón tiene archivos que no son .json'
+)
+
+// Y los límites, cada uno con la ruta del problema en el mensaje.
+const mensaje = (id) => b[id].result.content[0].text
+for (const [id, trozo] of [
+  [10, 'rutinas'],
+  [11, 'ejercicios'],
+  [12, 'nombre'],
+  [13, 'series'],
+  [14, 'reps'],
+  [15, 'rir'],
+  [16, 'descanso'],
+  [17, 'series'],
+]) {
+  comprobar(b[id].result.isError === true, `la propuesta ${id} tenía que fallar y no falló`)
+  comprobar(
+    mensaje(id).includes(trozo),
+    `el error ${id} no menciona «${trozo}»: ${mensaje(id)}`
+  )
 }
 
 // ─── Resultado ───────────────────────────────────────────────────────────────
