@@ -14,6 +14,8 @@ build.log
 # Lo deja Herramientas/instalar-en-iphone.sh: son los DerivedData de la
 # compilacion firmada, y pasan de los cien megas.
 .build-iphone/
+# Y lo que deja compilar para el simulador, igual de pesado.
+.build-sim/
 
 # Swift Package Manager
 .build/
