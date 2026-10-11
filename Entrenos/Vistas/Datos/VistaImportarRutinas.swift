@@ -18,7 +18,7 @@ struct VistaImportarRutinas: View {
     /// revisión. Se leen al abrir la pantalla, no en el cuerpo de la vista:
     /// listar un directorio de iCloud en cada redibujado es ir al disco
     /// decenas de veces por segundo.
-    @State private var propuestas: [ExportadorAutomatico.Propuesta] = []
+    @State private var bandeja = ExportadorAutomatico.Bandeja()
     /// La que se ha cargado en el cuadro de texto, para poder borrar el
     /// archivo solo si la importación llega a buen puerto.
     @State private var propuestaCargada: ExportadorAutomatico.Propuesta?
@@ -51,7 +51,7 @@ struct VistaImportarRutinas: View {
                 cargarArchivo(salida)
             }
             .onAppear {
-                propuestas = ExportadorAutomatico.compartido.propuestasPendientes()
+                bandeja = ExportadorAutomatico.compartido.propuestasPendientes()
             }
         }
     }
@@ -63,9 +63,9 @@ struct VistaImportarRutinas: View {
             // Lo primero de la pantalla cuando hay algo que revisar: si Claude
             // te ha dejado una rutina, pedirte que la copies y la pegues sería
             // absurdo teniendo el archivo al lado.
-            if !propuestas.isEmpty {
+            if !bandeja.listas.isEmpty || bandeja.descargando > 0 {
                 Section {
-                    ForEach(propuestas) { propuesta in
+                    ForEach(bandeja.listas) { propuesta in
                         Button {
                             texto = propuesta.json
                             propuestaCargada = propuesta
@@ -95,14 +95,25 @@ struct VistaImportarRutinas: View {
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
-                                propuestas.removeAll { $0.id == propuesta.id }
+                                bandeja.listas.removeAll { $0.id == propuesta.id }
                             } label: {
                                 Label("Descartar", systemImage: "trash")
                             }
                         }
                     }
+
+                    if bandeja.descargando > 0 {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text(bandeja.descargando == 1
+                                 ? "Una propuesta bajando de iCloud"
+                                 : "\(bandeja.descargando) propuestas bajando de iCloud")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 } header: {
-                    Text(propuestas.count == 1 ? "Propuesta de Claude" : "Propuestas de Claude")
+                    Text(bandeja.listas.count == 1 ? "Propuesta de Claude" : "Propuestas de Claude")
                 } footer: {
                     Text("Tócala para cargarla aquí y revisarla. Nada entra en la app hasta que la aceptes.")
                 }
@@ -332,7 +343,7 @@ struct VistaImportarRutinas: View {
         // la propuesta tiene que seguir ahí.
         if let propuestaCargada {
             ExportadorAutomatico.compartido.descartarPropuesta(propuestaCargada)
-            propuestas.removeAll { $0.id == propuestaCargada.id }
+            bandeja.listas.removeAll { $0.id == propuestaCargada.id }
             self.propuestaCargada = nil
         }
     }

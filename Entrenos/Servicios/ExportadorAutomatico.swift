@@ -152,42 +152,81 @@ final class ExportadorAutomatico {
         let rutinas: [String]
     }
 
-    /// Lee las propuestas pendientes, de más reciente a más antigua.
+    /// Lo que hay ahora mismo en la carpeta de propuestas.
+    struct Bandeja {
+        /// Listas para revisar, de más reciente a más antigua.
+        var listas: [Propuesta] = []
+        /// Cuántas están todavía bajando de iCloud. Se cuentan para poder
+        /// decirlo: si no, la pantalla sale vacía justo después de que Claude
+        /// diga que ha escrito una, y parece que no funciona.
+        var descargando: Int = 0
+    }
+
+    /// Lee las propuestas pendientes.
     ///
     /// Es la otra mitad del puente con Claude: la app escribe `entrenos.json`
     /// para que lo lea, y Claude deja aquí las rutinas que propone. No se
     /// importa nada solo: esto únicamente las encuentra, y la pantalla de
     /// importar las enseña para que las aceptes. Una rutina que entrara sola
     /// podría cambiar tus objetivos sin que te enteres.
-    func propuestasPendientes() -> [Propuesta] {
-        guard let carpeta = resolverCarpeta() else { return [] }
+    func propuestasPendientes() -> Bandeja {
+        guard let carpeta = resolverCarpeta() else { return Bandeja() }
         // Como todo lo que toca esa URL, dentro del ámbito de seguridad: sin
         // esto, listar el directorio falla con el error 257.
-        guard carpeta.startAccessingSecurityScopedResource() else { return [] }
+        guard carpeta.startAccessingSecurityScopedResource() else { return Bandeja() }
         defer { carpeta.stopAccessingSecurityScopedResource() }
 
         let directorio = carpeta.appendingPathComponent(Self.carpetaPropuestas, isDirectory: true)
+        // SIN `skipsHiddenFiles`: un archivo de iCloud que todavía no se ha
+        // bajado a este iPhone no existe con su nombre, sino como un
+        // marcador oculto «.loquesea.json.icloud». Saltándose los ocultos, una
+        // propuesta recién escrita desde el Mac sencillamente no aparecía, y
+        // el usuario no tenía forma de saber que estaba de camino.
         let contenido = (try? FileManager.default.contentsOfDirectory(
             at: directorio,
             includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
+            options: []
         )) ?? []
 
-        return contenido
-            .filter { $0.pathExtension.lowercased() == "json" }
-            .compactMap { url -> Propuesta? in
-                guard let texto = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-                let fecha = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
-                    .contentModificationDate ?? .distantPast
-                return Propuesta(
+        var bandeja = Bandeja()
+        for url in contenido {
+            let nombre = url.lastPathComponent
+
+            if nombre.hasSuffix(".icloud") && nombre.hasPrefix(".") {
+                // Se pide la descarga y se cuenta. En la próxima visita a la
+                // pantalla ya estará, que es cuando se vuelve a leer.
+                let real = directorio.appendingPathComponent(
+                    String(nombre.dropFirst().dropLast(".icloud".count))
+                )
+                if real.pathExtension.lowercased() == "json" {
+                    try? FileManager.default.startDownloadingUbiquitousItem(at: real)
+                    bandeja.descargando += 1
+                }
+                continue
+            }
+
+            guard url.pathExtension.lowercased() == "json" else { continue }
+            guard let texto = try? String(contentsOf: url, encoding: .utf8) else {
+                // Está pero no se deja leer: casi siempre es que aún baja.
+                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+                bandeja.descargando += 1
+                continue
+            }
+            let fecha = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            bandeja.listas.append(
+                Propuesta(
                     id: url,
-                    nombreArchivo: url.lastPathComponent,
+                    nombreArchivo: nombre,
                     fecha: fecha,
                     json: texto,
                     rutinas: Self.nombresDeRutinas(en: texto)
                 )
-            }
-            .sorted { $0.fecha > $1.fecha }
+            )
+        }
+
+        bandeja.listas.sort { $0.fecha > $1.fecha }
+        return bandeja
     }
 
     /// Saca los nombres de las rutinas sin validar el resto: aquí solo hace
