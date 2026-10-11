@@ -60,6 +60,47 @@ public struct SeriesDeGrupo: Equatable, Sendable, Identifiable {
         guard let objetivo, objetivo > 0 else { return nil }
         return max(0, Int((Double(objetivo) - series).rounded(.up)))
     }
+
+    /// Cómo va el grupo **teniendo en cuenta cuánta semana queda**.
+    ///
+    /// Sin esto, la interfaz pintaba de rojo todo lo que estuviera por debajo
+    /// del 60 % del objetivo, así que el lunes la pantalla entera salía en rojo
+    /// aunque la semana fuese perfectamente bien. Un aviso que salta siempre no
+    /// avisa de nada.
+    ///
+    /// - Parameter fraccionDeSemana: parte de la semana ya transcurrida, de 0 a
+    ///   1, tal como la da `CalendarioEntrenos.fraccionTranscurridaDeSemana`.
+    public func ritmo(fraccionDeSemana: Double) -> RitmoSemanal {
+        guard let progreso else { return .sinObjetivo }
+        if cumplido { return .cumplido }
+
+        let transcurrido = min(1, max(0, fraccionDeSemana))
+
+        // Un día de margen antes de considerar que vas por detrás: el lunes a
+        // primera hora no se va corto de nada, queda la semana entera.
+        let margen = 1.0 / 7.0
+        if progreso >= transcurrido - margen { return .alDia }
+
+        // Y por detrás hay dos situaciones distintas: la que se arregla
+        // apretando, y la que ya no da. El corte está en si lo que falta cabe
+        // en lo que queda de semana yendo al doble del ritmo medio.
+        let falta = 1 - progreso
+        let queda = 1 - transcurrido
+        return falta <= queda * 2 ? .corto : .muyCorto
+    }
+}
+
+/// Cómo va un grupo frente a su objetivo semanal, a estas alturas de la semana.
+public enum RitmoSemanal: Equatable, Sendable {
+    /// No hay objetivo configurado: no hay nada que juzgar.
+    case sinObjetivo
+    case cumplido
+    /// Al ritmo necesario, o por delante.
+    case alDia
+    /// Por detrás, pero aún cabe en lo que queda de semana.
+    case corto
+    /// Por detrás de lo que queda de semana da de sí.
+    case muyCorto
 }
 
 /// Volumen y recuento de series por grupo muscular.

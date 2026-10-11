@@ -187,6 +187,72 @@ final class ServicioVolumenTests: XCTestCase {
         XCTAssertEqual(grupo.faltan, 2)
     }
 
+    // MARK: - Ritmo dentro de la semana
+
+    /// El lunes a las 00:00 es 0; el jueves a mediodía, media semana.
+    func testLaFraccionDeSemanaVaDeCeroAUno() {
+        let lunes = CalendarioEntrenos.inicioDeSemana(de: fecha(5), calendario: calendario)
+        XCTAssertEqual(
+            CalendarioEntrenos.fraccionTranscurridaDeSemana(lunes, calendario: calendario),
+            0, accuracy: 0.0001
+        )
+        let domingoNoche = calendario.date(byAdding: .hour, value: -1, to:
+            CalendarioEntrenos.inicioDeSemanaSiguiente(de: fecha(5), calendario: calendario))!
+        XCTAssertGreaterThan(
+            CalendarioEntrenos.fraccionTranscurridaDeSemana(domingoNoche, calendario: calendario),
+            0.99
+        )
+    }
+
+    func testElLunesSinNadaHechoNoVaCorto() {
+        // El fallo que esto arregla: antes 0 de 12 era rojo el lunes, y la
+        // pantalla entera avisaba de un problema que no existía.
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 0, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0), .alDia)
+    }
+
+    func testAMitadDeSemanaConLaMitadHechaVaAlDia() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 6, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.5), .alDia)
+    }
+
+    func testIrPorDelanteTambienEsAlDia() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 10, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.3), .alDia)
+    }
+
+    func testAMediadosSinNadaHechoVaCortoPeroAunCabe() {
+        // Miércoles con 0 de 12: falta todo, pero quedan cuatro días.
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 0, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 3.0 / 7.0), .corto)
+    }
+
+    func testElSabadoConCasiNadaHechoYaNoDa() {
+        // Queda un 20 % de semana y falta el 75 % del objetivo: no cabe ni
+        // yendo al doble del ritmo medio.
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 3, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.8), .muyCorto)
+    }
+
+    func testCumplidoMandaSobreElRitmo() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 12, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.1), .cumplido)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 1), .cumplido)
+    }
+
+    func testSinObjetivoNoSeJuzgaElRitmo() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 4, objetivo: nil)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.9), .sinObjetivo)
+        let objetivoCero = SeriesDeGrupo(grupo: .pecho, series: 4, objetivo: 0)
+        XCTAssertEqual(objetivoCero.ritmo(fraccionDeSemana: 0.9), .sinObjetivo)
+    }
+
+    func testLaFraccionFueraDeRangoNoRompeElJuicio() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 6, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: -5), .alDia)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 42), .muyCorto)
+    }
+
     // MARK: - Tendencia por semanas
 
     func testLaTendenciaDevuelveUnaEntradaPorSemanaIncluidasLasVacias() {

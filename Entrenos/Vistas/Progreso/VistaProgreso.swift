@@ -10,6 +10,9 @@ struct VistaProgreso: View {
     @State private var tendencia: [SeriesDeSemana] = []
     @State private var ejercicios: [(ejercicio: Ejercicio, ultimaVez: Date)] = []
     @State private var busqueda = ""
+    /// Se fija al recargar y no se lee en el cuerpo de la vista: así la lista
+    /// no cambia de color a mitad de un redibujado.
+    @State private var fraccionDeSemana: Double = 1
 
     var body: some View {
         NavigationStack {
@@ -28,7 +31,7 @@ struct VistaProgreso: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(seriesSemanales) { grupo in
-                            FilaSeriesGrupo(datos: grupo)
+                            FilaSeriesGrupo(datos: grupo, fraccionDeSemana: fraccionDeSemana)
                         }
                     }
                 } header: {
@@ -41,7 +44,7 @@ struct VistaProgreso: View {
                         .font(.caption)
                     }
                 } footer: {
-                    Text("Los grupos secundarios cuentan como media serie: un press de banca suma 1 a pecho y 0,5 a tríceps.")
+                    Text("Los grupos secundarios cuentan como media serie: un press de banca suma 1 a pecho y 0,5 a tríceps. El aviso mira cuánta semana queda, así que el lunes no sale en rojo nada.")
                 }
 
                 Section("Ejercicios") {
@@ -90,6 +93,7 @@ struct VistaProgreso: View {
             objetivos: cargados.objetivosSemanales
         )
         tendencia = repositorio.tendenciaSemanal(semanas: 8)
+        fraccionDeSemana = CalendarioEntrenos.fraccionTranscurridaDeSemana(Date())
         ejercicios = repositorio.ejerciciosConHistorial()
     }
 }
@@ -97,6 +101,12 @@ struct VistaProgreso: View {
 /// Fila de un grupo muscular con su progreso semanal.
 struct FilaSeriesGrupo: View {
     let datos: SeriesDeGrupo
+    /// Parte de la semana transcurrida, para juzgar el ritmo. Se pasa desde
+    /// fuera y no se lee de `Date()` aquí dentro para que la fila siga siendo
+    /// una función de sus datos y se pueda previsualizar cualquier día.
+    var fraccionDeSemana: Double = 1
+
+    private var ritmo: RitmoSemanal { datos.ritmo(fraccionDeSemana: fraccionDeSemana) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -108,8 +118,8 @@ struct FilaSeriesGrupo: View {
                 // los daltónicos más comunes, así que el objetivo cumplido
                 // lleva además una marca. La cifra ya va siempre, que es lo
                 // que de verdad informa.
-                if datos.cumplido {
-                    Image(systemName: "checkmark.circle.fill")
+                if let simbolo {
+                    Image(systemName: simbolo)
                         .font(.caption)
                         .foregroundStyle(color)
                         .accessibilityHidden(true)
@@ -138,10 +148,17 @@ struct FilaSeriesGrupo: View {
         guard let objetivo = datos.objetivo else {
             return "\(series) series esta semana"
         }
-        if datos.cumplido {
-            return "\(series) de \(objetivo) series. Objetivo cumplido."
+        let base = "\(series) de \(objetivo) series."
+        switch ritmo {
+        case .sinObjetivo, .alDia:
+            return "\(base) Vas al día, faltan \(datos.faltan ?? 0)."
+        case .cumplido:
+            return "\(base) Objetivo cumplido."
+        case .corto:
+            return "\(base) Vas corto: faltan \(datos.faltan ?? 0)."
+        case .muyCorto:
+            return "\(base) Quedan \(datos.faltan ?? 0) y poca semana."
         }
-        return "\(series) de \(objetivo) series. Faltan \(datos.faltan ?? 0)."
     }
 
     private var texto: String {
@@ -152,9 +169,26 @@ struct FilaSeriesGrupo: View {
         return series
     }
 
+    /// El color dice si hay algo que hacer, no cuánto falta: lo segundo ya lo
+    /// dice la cifra. Ir al día no se pinta de ningún color de aviso.
     private var color: Color {
-        guard let progreso = datos.progreso else { return .secondary }
-        if datos.cumplido { return .green }
-        return progreso >= 0.6 ? .orange : .red
+        switch ritmo {
+        case .sinObjetivo: return .secondary
+        case .cumplido: return .green
+        case .alDia: return .primary
+        case .corto: return .orange
+        case .muyCorto: return .red
+        }
+    }
+
+    /// Una forma además del color, porque rojo, naranja y verde son justo los
+    /// que peor se distinguen con los daltonismos más comunes.
+    private var simbolo: String? {
+        switch ritmo {
+        case .sinObjetivo, .alDia: return nil
+        case .cumplido: return "checkmark.circle.fill"
+        case .corto: return "clock"
+        case .muyCorto: return "exclamationmark.triangle.fill"
+        }
     }
 }
