@@ -123,6 +123,37 @@ function contarSeries(entreno) {
 }
 
 /**
+ * Series hechas que no se pueden repartir por músculo.
+ *
+ * Existe para que `series` y `seriesPorGrupo` cuadren. Sin esto, un ejercicio
+ * sin clasificar sumaba al total y no a ningún grupo, y la diferencia no se
+ * explicaba en ningún sitio: quien leyera los dos números a la vez concluiría
+ * que falta volumen donde no falta, o se inventaría a qué grupo asignarlo.
+ */
+function contarSeriesSinClasificar(entrenos) {
+  let total = 0
+  for (const entreno of entrenos) {
+    for (const ejercicio of entreno.ejercicios || []) {
+      if (!GRUPOS_QUE_NO_CUENTAN.has(ejercicio.grupoPrincipal)) continue
+      total += seriesEfectivas(ejercicio).length
+    }
+  }
+  return total
+}
+
+/** Nombres de los ejercicios sin clasificar que aparecen en estos entrenos. */
+function ejerciciosSinClasificar(entrenos) {
+  const nombres = new Set()
+  for (const entreno of entrenos) {
+    for (const ejercicio of entreno.ejercicios || []) {
+      if (!GRUPOS_QUE_NO_CUENTAN.has(ejercicio.grupoPrincipal)) continue
+      if (seriesEfectivas(ejercicio).length > 0) nombres.add(ejercicio.nombre)
+    }
+  }
+  return [...nombres].sort()
+}
+
+/**
  * Series por grupo muscular: el principal suma 1 y cada secundario 0,5.
  *
  * Los grupos de `GRUPOS_QUE_NO_CUENTAN` se omiten, igual que hace
@@ -192,7 +223,10 @@ const HERRAMIENTAS = [
     description:
       'Visión de conjunto de todo el historial: cuántos entrenos, desde cuándo, ' +
       'volumen total, ejercicios distintos y carreras. Empieza por aquí para ' +
-      'situarte antes de pedir detalle.',
+      'situarte antes de pedir detalle. Si «ejerciciosSinClasificar» no está ' +
+      'vacío, esos ejercicios no tienen grupo muscular asignado y sus series no ' +
+      'entran en ningún reparto por músculo: dilo antes de juzgar el equilibrio ' +
+      'entre grupos, y no adivines a qué grupo pertenecen.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -200,7 +234,10 @@ const HERRAMIENTAS = [
     description:
       'Semana a semana: entrenos, series, volumen, series por grupo muscular y ' +
       'kilómetros corridos. Es la vista para juzgar si el volumen sube, baja o ' +
-      'está desequilibrado entre grupos.',
+      'está desequilibrado entre grupos. «series» es el total de la semana y ' +
+      '«seriesPorGrupo» lo reparte por músculo, contando 1 el grupo principal y ' +
+      '0,5 cada secundario; por eso el reparto no suma el total. Lo que falta ' +
+      'por no tener grupo asignado va aparte, en «seriesSinClasificar».',
     inputSchema: {
       type: 'object',
       properties: {
@@ -321,6 +358,11 @@ const EJECUTORES = {
       volumenTotalKg: redondear(entrenos.reduce((s, e) => s + volumenDeEntreno(e), 0), 0),
       ejerciciosDistintos: nombres.size,
       ejerciciosEnBiblioteca: (datos.ejercicios || []).length,
+      // Un aviso, no una estadística: mientras haya ejercicios sin grupo, el
+      // reparto por músculo está incompleto y conviene decirlo antes de
+      // sacar conclusiones de él.
+      seriesSinClasificar: contarSeriesSinClasificar(entrenos),
+      ejerciciosSinClasificar: ejerciciosSinClasificar(entrenos),
       rutinas: (datos.carpetas || []).reduce((s, c) => s + (c.rutinas || []).length, 0),
       carreras: carreras.length,
       kilometrosTotales: redondear(carreras.reduce((s, c) => s + c.distanciaKm, 0)),
@@ -353,6 +395,8 @@ const EJECUTORES = {
       series: entrenos.reduce((s, e) => s + contarSeries(e), 0),
       volumenKg: redondear(entrenos.reduce((s, e) => s + volumenDeEntreno(e), 0), 0),
       seriesPorGrupo: seriesPorGrupo(entrenos),
+      // Las que `seriesPorGrupo` no reparte, para que los números cuadren.
+      seriesSinClasificar: contarSeriesSinClasificar(entrenos),
       carreras: carreras.length,
       kilometros: redondear(carreras.reduce((s, c) => s + c.distanciaKm, 0)),
     }))

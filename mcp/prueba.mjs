@@ -254,6 +254,15 @@ comprobar(general.ejerciciosDistintos === 3, `ejerciciosDistintos = ${general.ej
 // Series efectivas: por entreno, 4 de press + 4 de laterales + 2 de la prensa
 // sin clasificar = 10; el calentamiento no cuenta. Tres entrenos → 30.
 comprobar(general.seriesTotales === 30, `seriesTotales = ${general.seriesTotales}, esperado 30`)
+// El aviso de datos incompletos: 3 entrenos x 2 series de la prensa sin grupo.
+comprobar(
+  general.seriesSinClasificar === 6,
+  `seriesSinClasificar = ${general.seriesSinClasificar}, esperado 6`
+)
+comprobar(
+  JSON.stringify(general.ejerciciosSinClasificar) === JSON.stringify(['Prensa inclinada 45']),
+  `ejerciciosSinClasificar = ${JSON.stringify(general.ejerciciosSinClasificar)}`
+)
 
 // resumen_semanal: 4 semanas, y los secundarios cuentan 0,5.
 const semanal = contenido(por[5])
@@ -272,6 +281,16 @@ comprobar(
 comprobar(
   Object.values(grupos).reduce((a, b) => a + b, 0) === 4 + 2 + 2 + 4,
   `el reparto por grupo suma ${Object.values(grupos).reduce((a, b) => a + b, 0)}, esperado 12`
+)
+// Y la diferencia con el total se declara, en vez de quedar sin explicar: 10
+// series en la semana, de las que 2 son de la prensa sin clasificar.
+comprobar(
+  conDatos[0].seriesSinClasificar === 2,
+  `seriesSinClasificar = ${conDatos[0].seriesSinClasificar}, esperado 2`
+)
+comprobar(
+  conDatos[0].series === 10,
+  `series de la semana = ${conDatos[0].series}, esperado 10`
 )
 
 // El calentamiento de 40 kg × 15 no debe aparecer en el historial.
