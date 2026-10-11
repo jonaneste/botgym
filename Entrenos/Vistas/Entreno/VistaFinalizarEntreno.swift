@@ -108,8 +108,8 @@ struct VistaFinalizarEntreno: View {
                 Section {
                     Button {
                         controlador.finalizar(
-                            molestiaHombro: anotarHombro ? Int(molestiaHombro) : nil,
-                            molestiaRodilla: anotarRodilla ? Int(molestiaRodilla) : nil,
+                            molestiaHombro: anotarHombro ? LimitesEntrada.entero(molestiaHombro) : nil,
+                            molestiaRodilla: anotarRodilla ? LimitesEntrada.entero(molestiaRodilla) : nil,
                             notas: notas,
                             ajustes: ajustes
                         )
@@ -147,7 +147,7 @@ struct VistaFinalizarEntreno: View {
         switch batido.tipo {
         case .peso, .unRM: valor = Formato.peso(batido.valor)
         case .volumenSesion: valor = Formato.volumen(batido.valor)
-        case .tiempo: valor = "\(Int(batido.valor)) s"
+        case .tiempo: valor = "\(LimitesEntrada.entero(batido.valor)) s"
         }
         guard let anterior = batido.anterior else {
             return "\(batido.tipo.nombre): \(valor) — el primero"
@@ -156,32 +156,30 @@ struct VistaFinalizarEntreno: View {
         switch batido.tipo {
         case .peso, .unRM: textoAnterior = Formato.peso(anterior)
         case .volumenSesion: textoAnterior = Formato.volumen(anterior)
-        case .tiempo: textoAnterior = "\(Int(anterior)) s"
+        case .tiempo: textoAnterior = "\(LimitesEntrada.entero(anterior)) s"
         }
         return "\(batido.tipo.nombre): \(valor), antes \(textoAnterior)"
     }
 
     private func deslizadorMolestia(valor: Binding<Double>, etiqueta: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // El color sale de `Paleta.molestia`, que es la que usa el detalle del
+        // entreno para el mismo número: aquí había una escala propia con
+        // `.green`, `.yellow`, `.orange` y `.red` fijos, así que un 5 se veía
+        // amarillo al anotarlo y naranja al releerlo, y esos colores literales
+        // no responden a «Aumentar contraste».
+        let nivel = LimitesEntrada.entero(valor.wrappedValue)
+        let color = Paleta.molestia(nivel)
+        return VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(etiqueta)
                 Spacer()
-                Text("\(Int(valor.wrappedValue))")
+                Text("\(nivel)")
                     .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundStyle(colorMolestia(valor.wrappedValue))
+                    .foregroundStyle(color)
                     .monospacedDigit()
             }
             Slider(value: valor, in: 0...10, step: 1)
-                .tint(colorMolestia(valor.wrappedValue))
-        }
-    }
-
-    private func colorMolestia(_ valor: Double) -> Color {
-        switch valor {
-        case 0..<3: return .green
-        case 3..<6: return .yellow
-        case 6..<8: return .orange
-        default: return .red
+                .tint(color)
         }
     }
 }

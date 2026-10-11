@@ -32,6 +32,7 @@ fi
 
 paso "El núcleo no depende de frameworks de Apple" ./Herramientas/verificar-nucleo.sh
 paso "Los #Predicate solo capturan identificadores simples" ./Herramientas/verificar-predicados.py
+paso "Ningún Double se convierte a Int sin acotar" ./Herramientas/verificar-enteros.py
 
 if command -v swift >/dev/null 2>&1; then
     paso "Tests del núcleo" swift test

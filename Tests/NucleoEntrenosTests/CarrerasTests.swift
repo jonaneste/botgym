@@ -52,6 +52,7 @@ final class CarreraTests: XCTestCase {
         let resumen = ServicioCarreras.resumenSemanal(carreras, semanaDe: fecha(7), calendario: calendario)
         // 3000 s / 10 km = 300 s/km.
         XCTAssertEqual(try XCTUnwrap(resumen.ritmoMedioSegundosPorKm), 300, accuracy: 0.01)
+        XCTAssertEqual(resumen.ritmoTexto, "5:00")
     }
 
     func testSemanaSinCorrerDaResumenACero() {
@@ -66,6 +67,31 @@ final class CarreraTests: XCTestCase {
         let semanas = ServicioCarreras.kilometrosPorSemana(carreras, semanas: 3, hasta: fecha(7), calendario: calendario)
         XCTAssertEqual(semanas.count, 3)
         XCTAssertEqual(semanas.map { $0.kilometros }, [0, 0, 5])
+    }
+
+    func testUnRitmoImposibleNoCierraLaApp() {
+        // Una distancia ridícula pero no nula da un ritmo infinito al dividir.
+        // El resumen semanal lo formateaba con `Int(_:)`, que ATRAPA con un
+        // valor no finito, así que la app se cerraba nada más abrir el
+        // historial y no había forma de llegar al dato culpable desde la
+        // interfaz.
+        let carrera = Carrera(
+            id: "a",
+            fechaInicio: fecha(5),
+            duracion: 1800,
+            distanciaMetros: .leastNonzeroMagnitude
+        )
+        let resumen = ServicioCarreras.resumenSemanal([carrera], semanaDe: fecha(7), calendario: calendario)
+        XCTAssertNil(carrera.ritmoTexto)
+        XCTAssertNil(resumen.ritmoTexto)
+    }
+
+    func testElFormatoDelRitmoEsElMismoEnLosDosSitios() {
+        XCTAssertEqual(Carrera.textoRitmo(312), "5:12")
+        XCTAssertEqual(Carrera.textoRitmo(312, conUnidad: true), "5:12 /km")
+        XCTAssertNil(Carrera.textoRitmo(.infinity))
+        XCTAssertNil(Carrera.textoRitmo(.nan))
+        XCTAssertNil(Carrera.textoRitmo(0))
     }
 }
 
@@ -169,5 +195,37 @@ final class InterpreteHealthTests: XCTestCase {
         entrada.atributos["uuid"] = "ABC-123"
         let carrera = try XCTUnwrap(InterpreteHealth.carrera(de: entrada))
         XCTAssertEqual(carrera.id, "ABC-123")
+    }
+
+    func testUnaDuracionQueNoEsFinitaSeRechaza() {
+        // El archivo lo escribe otra app y lo elige el usuario: `Double("inf")`
+        // y `Double("1e400")` se interpretan sin queja, y la comprobación de
+        // que era positiva es CIERTA para el infinito.
+        XCTAssertNil(InterpreteHealth.duracionSegundos(valor: "inf", unidad: "min"))
+        XCTAssertNil(InterpreteHealth.duracionSegundos(valor: "1e400", unidad: "min"))
+        XCTAssertNil(InterpreteHealth.duracionSegundos(valor: "nan", unidad: "min"))
+        // Y el cambio de unidad desborda aunque el número de partida no lo
+        // fuera: 1e307 horas no caben en un `Double`.
+        XCTAssertNil(InterpreteHealth.duracionSegundos(valor: "1e307", unidad: "h"))
+        XCTAssertNil(InterpreteHealth.carrera(de: registro(duracion: "inf")))
+    }
+
+    func testUnaDistanciaQueNoEsFinitaCuentaComoSinDistancia() throws {
+        let entrada = registro(estadisticas: [
+            ["type": "HKQuantityTypeIdentifierDistanceWalkingRunning", "sum": "1e400", "unit": "km"],
+        ])
+        let carrera = try XCTUnwrap(InterpreteHealth.carrera(de: entrada))
+        XCTAssertEqual(carrera.distanciaMetros, 0, accuracy: 0.001)
+        XCTAssertNil(carrera.ritmoTexto)
+        XCTAssertEqual(InterpreteHealth.enMetros(.infinity, unidad: "km"), 0, accuracy: 0.001)
+        XCTAssertEqual(InterpreteHealth.enMetros(-5, unidad: "km"), 0, accuracy: 0.001)
+    }
+
+    func testUnPulsoQueNoEsFinitoSeDescarta() throws {
+        let entrada = registro(estadisticas: [
+            ["type": "HKQuantityTypeIdentifierHeartRate", "average": "inf", "unit": "count/min"],
+        ])
+        let carrera = try XCTUnwrap(InterpreteHealth.carrera(de: entrada))
+        XCTAssertNil(carrera.pulsoMedio)
     }
 }

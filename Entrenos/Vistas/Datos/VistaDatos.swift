@@ -400,7 +400,7 @@ struct VistaDatos: View {
                     met: EstimadorEnergia.metValido(ajustes.metFuerza)
                 ) {
                     Label(
-                        "Una sesión de 75 min saldría a \(Int(ejemplo)) kcal",
+                        "Una sesión de 75 min saldría a \(LimitesEntrada.entero(ejemplo)) kcal",
                         systemImage: "flame"
                     )
                     .font(.caption)

@@ -78,6 +78,9 @@ jobs:
       - name: Los predicados solo capturan identificadores simples
         run: ./Herramientas/verificar-predicados.py
 
+      - name: Ningún Double se convierte a Int sin acotar
+        run: ./Herramientas/verificar-enteros.py
+
       - name: Tests
         run: swift test
 

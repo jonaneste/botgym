@@ -40,9 +40,15 @@ enum Formato {
 
     // MARK: - Duraciones
 
+    // Las tres convierten con `LimitesEntrada.entero` y no con `Int(_:)`:
+    // `max(0, x)` no protege de un infinito —`inf >= 0` es cierto— y estas
+    // funciones formatean también la duración de una carrera, que viene de un
+    // archivo de Salud que escribe otra app. `Int(inf)` atrapa, y una trampa
+    // en Swift cierra la app sin posibilidad de capturarla.
+
     /// Cronómetro del entreno: "1:23:45" o "12:05".
     static func cronometro(_ segundos: TimeInterval) -> String {
-        let total = Int(max(0, segundos.rounded()))
+        let total = LimitesEntrada.entero(max(0, segundos.rounded()))
         let h = total / 3600
         let m = (total % 3600) / 60
         let s = total % 60
@@ -54,13 +60,13 @@ enum Formato {
 
     /// Cuenta atrás del descanso: "1:30".
     static func cuentaAtras(_ segundos: TimeInterval) -> String {
-        let total = Int(max(0, segundos.rounded(.up)))
+        let total = LimitesEntrada.entero(max(0, segundos.rounded(.up)))
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     /// Duración en prosa para el historial: "1 h 12 min", "48 min".
     static func duracionLarga(_ segundos: TimeInterval) -> String {
-        let total = Int(max(0, segundos.rounded()))
+        let total = LimitesEntrada.entero(max(0, segundos.rounded()))
         let h = total / 3600
         let m = (total % 3600) / 60
         if h > 0 && m > 0 { return "\(h) h \(m) min" }

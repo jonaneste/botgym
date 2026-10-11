@@ -302,7 +302,7 @@ struct FilaCarrera: View {
                     if let pulso = carrera.pulsoMedio {
                         HStack(spacing: 3) {
                             Image(systemName: "heart.fill")
-                            Text("\(Int(pulso.rounded()))")
+                            Text("\(LimitesEntrada.entero(pulso))")
                         }
                     }
                 }
@@ -325,9 +325,9 @@ struct FilaResumenCarreras: View {
             columna("\(resumen.carreras)", resumen.carreras == 1 ? "Carrera" : "Carreras")
             Divider()
             columna(Formato.duracionLarga(resumen.duracion), "Tiempo")
-            if let ritmo = resumen.ritmoMedioSegundosPorKm {
+            if let ritmo = resumen.ritmoTexto {
                 Divider()
-                columna(textoRitmo(ritmo), "Ritmo")
+                columna(ritmo, "Ritmo")
             }
         }
         .frame(height: 52)
@@ -335,10 +335,5 @@ struct FilaResumenCarreras: View {
 
     private func columna(_ valor: String, _ titulo: String) -> some View {
         CifraDestacada(valor: valor, etiqueta: titulo)
-    }
-
-    private func textoRitmo(_ segundosPorKm: Double) -> String {
-        let total = Int(segundosPorKm.rounded())
-        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
