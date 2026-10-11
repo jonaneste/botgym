@@ -12,6 +12,13 @@ struct FilaSerie: View {
     let ajustes: Ajustes
 
     @Environment(ControladorEntreno.self) private var controlador
+    @Environment(\.dynamicTypeSize) private var tamañoTexto
+    @Environment(\.colorScheme) private var esquemaColor
+
+    /// El tamaño de la casilla de completada crece con el ajuste de texto del
+    /// sistema. Con `.system(size: 30)` a pelo se quedaba igual de pequeña
+    /// aunque el usuario pidiera texto grande, y es la acción que más se usa.
+    @ScaledMetric(relativeTo: .title) private var ladoCasilla: CGFloat = 30
 
     private var tipo: TipoRegistro { ejercicio.tipoRegistro }
 
@@ -27,7 +34,14 @@ struct FilaSerie: View {
             casillaCompletada
         }
         .padding(.vertical, 6)
-        .listRowBackground(serie.completada ? Color.green.opacity(0.12) : nil)
+        // 0,12 de verde sobre blanco se ve; sobre el fondo oscuro no, y el
+        // tinte de fila entera es la pista que permite contar de un vistazo
+        // cuántas series llevas. En oscuro hace falta más cuerpo.
+        .listRowBackground(
+            serie.completada
+                ? Color.green.opacity(esquemaColor == .dark ? 0.22 : 0.12)
+                : nil
+        )
     }
 
     // MARK: - Piezas
@@ -55,48 +69,74 @@ struct FilaSerie: View {
         return previas + 1
     }
 
+    /// Peso × repeticiones y el RIR.
+    ///
+    /// En una sola fila mientras caben. Los tres campos tienen anchos mínimos
+    /// (62 + 56 + 46) que suman 164 pt, y con el número de serie y la casilla
+    /// la fila pide unos 294 pt: entra de sobra a tamaño normal, pero en los
+    /// tamaños de accesibilidad los campos usan `.title3`, que crece, y como un
+    /// `HStack` no parte líneas el resultado era recortar o empujar la casilla
+    /// de completada fuera de la pantalla. Ahí se pasa a dos filas.
+    @ViewBuilder
     private var campos: some View {
-        HStack(spacing: 8) {
-            // Peso
-            CampoDecimal(marcador: "kg", valor: Binding(
-                get: { serie.peso },
-                set: { serie.peso = $0 }
+        if tamañoTexto.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    campoPeso
+                    Text("×").foregroundStyle(.secondary)
+                    campoRepeticiones
+                }
+                campoRIR
+            }
+        } else {
+            HStack(spacing: 8) {
+                campoPeso
+                Text("×").foregroundStyle(.secondary)
+                campoRepeticiones
+                campoRIR
+            }
+        }
+    }
+
+    private var campoPeso: some View {
+        CampoDecimal(marcador: "kg", valor: Binding(
+            get: { serie.peso },
+            set: { serie.peso = $0 }
+        ))
+        .frame(minWidth: 62)
+        .padding(.vertical, 8)
+        .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private var campoRepeticiones: some View {
+        if tipo.esTiempo {
+            CampoEntero(marcador: "s", valor: Binding(
+                get: { serie.segundos ?? 0 },
+                set: { serie.segundos = $0 }
             ))
-            .frame(minWidth: 62)
+            .frame(minWidth: 56)
             .padding(.vertical, 8)
             .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
-
-            Text("×")
-                .foregroundStyle(.secondary)
-
-            // Repeticiones o segundos
-            if tipo.esTiempo {
-                CampoEntero(marcador: "s", valor: Binding(
-                    get: { serie.segundos ?? 0 },
-                    set: { serie.segundos = $0 }
-                ))
-                .frame(minWidth: 56)
-                .padding(.vertical, 8)
-                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
-            } else {
-                CampoEntero(marcador: "reps", valor: Binding(
-                    get: { serie.repeticiones },
-                    set: { serie.repeticiones = $0 }
-                ))
-                .frame(minWidth: 56)
-                .padding(.vertical, 8)
-                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
-            }
-
-            // RIR
-            CampoEnteroOpcional(marcador: "RIR", valor: Binding(
-                get: { serie.rir },
-                set: { serie.rir = $0 }
+        } else {
+            CampoEntero(marcador: "reps", valor: Binding(
+                get: { serie.repeticiones },
+                set: { serie.repeticiones = $0 }
             ))
-            .frame(minWidth: 46)
+            .frame(minWidth: 56)
             .padding(.vertical, 8)
-            .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 10))
+            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
         }
+    }
+
+    private var campoRIR: some View {
+        CampoEnteroOpcional(marcador: "RIR", valor: Binding(
+            get: { serie.rir },
+            set: { serie.rir = $0 }
+        ))
+        .frame(minWidth: 46)
+        .padding(.vertical, 8)
+        .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 10))
     }
 
     @ViewBuilder
@@ -112,16 +152,23 @@ struct FilaSerie: View {
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)
-                .padding(.vertical, 4)
+                // 44 pt de alto, no los ~24 que daban `.caption` y 4 de
+                // relleno. Es el gesto que más se repite con el móvil en el
+                // banco —copiar la serie anterior de un toque— y era el blanco
+                // más pequeño de la pantalla, por debajo incluso del mínimo
+                // absoluto de 28 pt que pide la guía de Apple.
+                .frame(minHeight: 44, alignment: .leading)
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Copia el peso y las repeticiones de la última vez")
         } else {
+            // La misma altura que el botón, para que la fila no cambie de
+            // tamaño entre la primera vez y las siguientes.
             Text("Primera vez con este ejercicio")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
-                .padding(.vertical, 4)
+                .frame(minHeight: 44, alignment: .leading)
         }
     }
 
@@ -130,9 +177,9 @@ struct FilaSerie: View {
             controlador.alternarCompletada(serie, de: ejercicio, ajustes: ajustes)
         } label: {
             Image(systemName: serie.completada ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 30))
+                .font(.system(size: ladoCasilla))
                 .foregroundStyle(serie.completada ? Color.green : Color.secondary)
-                .frame(width: 48, height: 48)
+                .frame(minWidth: 48, minHeight: 48)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)

@@ -104,6 +104,16 @@ struct FilaSeriesGrupo: View {
                 Text(datos.grupo.nombre)
                     .font(.subheadline)
                 Spacer()
+                // El rojo/naranja/verde es justo el par que peor distinguen
+                // los daltónicos más comunes, así que el objetivo cumplido
+                // lleva además una marca. La cifra ya va siempre, que es lo
+                // que de verdad informa.
+                if datos.cumplido {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(color)
+                        .accessibilityHidden(true)
+                }
                 Text(texto)
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .monospacedDigit()
@@ -116,6 +126,22 @@ struct FilaSeriesGrupo: View {
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(datos.grupo.nombre)
+        .accessibilityValue(textoAccesible)
+    }
+
+    /// Lo que lee VoiceOver: sin esto leía el nombre, la cifra y la barra como
+    /// tres elementos sueltos, y «8 / 12» no dice de qué.
+    private var textoAccesible: String {
+        let series = Formato.numeroCorto(datos.series)
+        guard let objetivo = datos.objetivo else {
+            return "\(series) series esta semana"
+        }
+        if datos.cumplido {
+            return "\(series) de \(objetivo) series. Objetivo cumplido."
+        }
+        return "\(series) de \(objetivo) series. Faltan \(datos.faltan ?? 0)."
     }
 
     private var texto: String {
