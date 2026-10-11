@@ -105,11 +105,23 @@ final class GrupoMuscularTests: XCTestCase {
         }
     }
 
-    func testTodosLosGruposTienenRegion() {
+    func testTodosLosGruposTienenRegionMenosElQueNoEsUnGrupo() {
         // Si se añade un grupo nuevo y se olvida clasificarlo, el switch de
-        // `region` no compila. Este test documenta la intención.
-        let regiones = Set(GrupoMuscular.allCases.map(\.region))
+        // `region` no compila. Este test documenta la intención, y además que
+        // la única excepción es «sin clasificar».
+        for grupo in GrupoMuscular.clasificados {
+            XCTAssertNotNil(grupo.region, "\(grupo.rawValue) sin región")
+        }
+        XCTAssertNil(GrupoMuscular.sinClasificar.region)
+        let regiones = Set(GrupoMuscular.allCases.compactMap(\.region))
         XCTAssertEqual(regiones.count, RegionCorporal.allCases.count)
+    }
+
+    func testSinClasificarNoSeOfreceComoGrupo() {
+        // De esta lista salen los selectores y los objetivos semanales: poner
+        // un objetivo de «sin clasificar» no querría decir nada.
+        XCTAssertFalse(GrupoMuscular.clasificados.contains(.sinClasificar))
+        XCTAssertEqual(GrupoMuscular.clasificados.count, GrupoMuscular.allCases.count - 1)
     }
 
     func testMaterialesTienenNombreEIcono() {

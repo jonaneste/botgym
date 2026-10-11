@@ -31,17 +31,27 @@ struct VistaEditorEjercicio: View {
                         .textInputAutocapitalization(.sentences)
                 }
 
-                Section("Grupo muscular principal") {
+                Section {
                     Picker("Principal", selection: $grupoPrincipal) {
                         ForEach(GrupoMuscular.allCases, id: \.self) { grupo in
                             Text(grupo.nombre).tag(grupo)
                         }
                     }
                     .pickerStyle(.navigationLink)
+                } header: {
+                    Text("Grupo muscular principal")
+                } footer: {
+                    if grupoPrincipal == .sinClasificar {
+                        Text("Mientras siga sin clasificar, sus series no cuentan en el recuento semanal de ningún músculo.")
+                    }
                 }
 
                 Section {
-                    ForEach(GrupoMuscular.allCases, id: \.self) { grupo in
+                    // `clasificados` y no `allCases`: un grupo secundario «sin
+                    // clasificar» no quiere decir nada. En el principal sí
+                    // sale, porque es el valor que trae lo importado y hay que
+                    // poder verlo seleccionado.
+                    ForEach(GrupoMuscular.clasificados, id: \.self) { grupo in
                         if grupo != grupoPrincipal {
                             Button {
                                 if gruposSecundarios.contains(grupo) {

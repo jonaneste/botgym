@@ -198,7 +198,7 @@ struct VistaImportarRutinas: View {
                 }
                 .buttonStyle(.borderedProminent)
             } footer: {
-                Text("Los ejercicios nuevos se crean sin grupo muscular ni material: no se adivinan a partir del nombre, porque una suposición mala falsearía el recuento semanal en silencio. Quedan marcados para que los completes.")
+                Text("Los ejercicios nuevos se crean sin grupo muscular ni material: no se adivinan a partir del nombre, porque una suposición mala falsearía el recuento semanal en silencio. Quedan en «Sin clasificar», arriba en la biblioteca, y sus series no cuentan para ningún músculo hasta que les pongas el grupo.")
             }
         }
     }
@@ -252,7 +252,7 @@ struct VistaImportarRutinas: View {
                     .foregroundStyle(.secondary)
             }
             if resultado.ejerciciosCreados > 0 {
-                Text("Se han creado \(resultado.ejerciciosCreados) ejercicios nuevos. Revisa su grupo muscular y material en la biblioteca.")
+                Text("Se han creado \(resultado.ejerciciosCreados) ejercicios nuevos, sin grupo muscular. Están arriba en la biblioteca, en «Sin clasificar»: hasta que se lo pongas, sus series no cuentan en el recuento semanal.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

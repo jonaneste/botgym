@@ -22,6 +22,14 @@ public enum GrupoMuscular: String, Codable, CaseIterable, Sendable {
     case gemelo
     case core
     case lumbar
+    /// El grupo que no es un grupo: un ejercicio que entró al importar una
+    /// rutina y todavía no se ha completado.
+    ///
+    /// Existe para no tener que adivinarlo. Con cualquier grupo real, sus
+    /// series se sumarían al recuento semanal de un músculo que no se ha
+    /// entrenado, y eso no se ve: la cuenta sale igual de creíble. Así salen
+    /// aparte, en su propia fila, hasta que se les ponga el grupo de verdad.
+    case sinClasificar
 
     public var nombre: String {
         switch self {
@@ -41,11 +49,16 @@ public enum GrupoMuscular: String, Codable, CaseIterable, Sendable {
         case .gemelo: return "Gemelo"
         case .core: return "Core"
         case .lumbar: return "Lumbar"
+        case .sinClasificar: return "Sin clasificar"
         }
     }
 
     /// Agrupación amplia, para resúmenes de alto nivel.
-    public var region: RegionCorporal {
+    ///
+    /// `nil` en «sin clasificar», que no pertenece a ninguna región. Así queda
+    /// fuera de los objetivos semanales y de cualquier resumen por región sin
+    /// tener que acordarse de excluirlo en cada sitio.
+    public var region: RegionCorporal? {
         switch self {
         case .pecho, .espalda, .dorsal, .trapecio, .lumbar, .core:
             return .torso
@@ -55,8 +68,14 @@ public enum GrupoMuscular: String, Codable, CaseIterable, Sendable {
             return .brazo
         case .cuadriceps, .isquios, .gluteo, .gemelo:
             return .pierna
+        case .sinClasificar:
+            return nil
         }
     }
+
+    /// Los grupos que se pueden elegir y a los que se les puede poner un
+    /// objetivo. Es `allCases` sin «sin clasificar».
+    public static let clasificados: [GrupoMuscular] = allCases.filter { $0 != .sinClasificar }
 }
 
 public enum RegionCorporal: String, Codable, CaseIterable, Sendable {

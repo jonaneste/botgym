@@ -13,8 +13,8 @@ struct VistaBibliotecaEjercicios: View {
 
     var body: some View {
         List {
-            ForEach(porRegion, id: \.region) { seccion in
-                Section(seccion.region.nombre) {
+            ForEach(secciones) { seccion in
+                Section {
                     ForEach(seccion.ejercicios) { ejercicio in
                         Button {
                             ejercicioAEditar = ejercicio
@@ -29,6 +29,12 @@ struct VistaBibliotecaEjercicios: View {
                                 Label("Borrar", systemImage: "trash")
                             }
                         }
+                    }
+                } header: {
+                    Text(seccion.titulo)
+                } footer: {
+                    if let aviso = seccion.aviso {
+                        Text(aviso)
                     }
                 }
             }
@@ -83,16 +89,49 @@ struct VistaBibliotecaEjercicios: View {
         return ejercicios.filter { $0.nombreNormalizado.contains(texto) }
     }
 
-    private var porRegion: [SeccionRegion] {
-        let agrupados = Dictionary(grouping: filtrados) { $0.grupoPrincipal.region }
-        return RegionCorporal.allCases.compactMap { region in
-            guard let lista = agrupados[region], !lista.isEmpty else { return nil }
-            return SeccionRegion(region: region, ejercicios: lista.sorted { $0.nombre < $1.nombre })
+    /// Las secciones de la lista: primero los que no tienen grupo, luego las
+    /// regiones del cuerpo.
+    ///
+    /// Los sin clasificar van aparte y arriba porque son los únicos que piden
+    /// algo: mientras sigan así, sus series no cuentan para ningún músculo. Y
+    /// van en su propia sección y no dentro de una región porque no pertenecen
+    /// a ninguna: agrupando solo por región desaparecerían de la biblioteca,
+    /// que es justo donde hay que ir a arreglarlos.
+    private var secciones: [SeccionEjercicios] {
+        let lista = filtrados
+        var resultado: [SeccionEjercicios] = []
+
+        let sinGrupo = lista.filter { $0.grupoPrincipal == .sinClasificar }
+        if !sinGrupo.isEmpty {
+            resultado.append(
+                SeccionEjercicios(
+                    id: GrupoMuscular.sinClasificar.rawValue,
+                    titulo: "Sin clasificar",
+                    aviso: "Entraron al importar una rutina y no tienen grupo muscular, así que sus series no cuentan en el recuento semanal. Toca uno para completarlo.",
+                    ejercicios: sinGrupo.sorted { $0.nombre < $1.nombre }
+                )
+            )
         }
+
+        let agrupados = Dictionary(grouping: lista) { $0.grupoPrincipal.region }
+        for region in RegionCorporal.allCases {
+            guard let deLaRegion = agrupados[region], !deLaRegion.isEmpty else { continue }
+            resultado.append(
+                SeccionEjercicios(
+                    id: region.rawValue,
+                    titulo: region.nombre,
+                    aviso: nil,
+                    ejercicios: deLaRegion.sorted { $0.nombre < $1.nombre }
+                )
+            )
+        }
+        return resultado
     }
 }
 
-struct SeccionRegion {
-    let region: RegionCorporal
+struct SeccionEjercicios: Identifiable {
+    let id: String
+    let titulo: String
+    let aviso: String?
     let ejercicios: [Ejercicio]
 }

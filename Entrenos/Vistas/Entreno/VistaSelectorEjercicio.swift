@@ -136,7 +136,14 @@ struct FilaEjercicio: View {
 
             Spacer()
 
-            if ejercicio.esPersonalizado {
+            // El aviso gana al icono de «lo hiciste tú»: uno es un dato de
+            // color y el otro es algo que hay que arreglar.
+            if ejercicio.grupoPrincipal == .sinClasificar {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Paleta.aviso)
+                    .accessibilityLabel("Sin grupo muscular")
+            } else if ejercicio.esPersonalizado {
                 Image(systemName: "person.crop.circle")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
