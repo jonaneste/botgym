@@ -19,11 +19,41 @@ struct VistaFinalizarEntreno: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Resumen") {
-                    filaResumen("Duración", Formato.duracionLarga(entreno.duracion), "stopwatch")
-                    filaResumen("Series completadas", "\(entreno.seriesCompletadas)", "checklist")
-                    filaResumen("Volumen total", Formato.volumen(entreno.volumenTotal), "scalemass")
-                    filaResumen("Ejercicios", "\(entreno.ejercicios.count)", "figure.strengthtraining.traditional")
+                // Es la última pantalla del entreno, y la última impresión es
+                // la que queda. Las cuatro cifras van grandes y juntas, como un
+                // marcador, en vez de cuatro filas de etiqueta y valor donde la
+                // etiqueta pesaba más que el número.
+                Section {
+                    VStack(spacing: 14) {
+                        Text("Entreno terminado")
+                            .font(.headline)
+                        HStack(spacing: 0) {
+                            CifraDestacada(
+                                valor: Formato.duracionLarga(entreno.duracion),
+                                etiqueta: "Duración"
+                            )
+                            Divider().frame(height: 28)
+                            CifraDestacada(
+                                valor: "\(entreno.seriesCompletadas)",
+                                etiqueta: entreno.seriesCompletadas == 1 ? "Serie" : "Series",
+                                color: Paleta.logrado
+                            )
+                        }
+                        HStack(spacing: 0) {
+                            CifraDestacada(
+                                valor: Formato.volumen(entreno.volumenTotal),
+                                etiqueta: "Volumen"
+                            )
+                            Divider().frame(height: 28)
+                            CifraDestacada(
+                                valor: "\(entreno.ejercicios.count)",
+                                etiqueta: entreno.ejercicios.count == 1 ? "Ejercicio" : "Ejercicios"
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color(.secondarySystemGroupedBackground))
                 }
 
                 if !todosLosRecords.isEmpty {
@@ -31,18 +61,27 @@ struct VistaFinalizarEntreno: View {
                         ForEach(todosLosRecords) { entrada in
                             HStack(alignment: .top, spacing: 10) {
                                 Image(systemName: "trophy.fill")
-                                    .foregroundStyle(.yellow)
+                                    .font(.title3)
+                                    .foregroundStyle(Paleta.record)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(entrada.nombreEjercicio)
-                                        .font(.subheadline.weight(.medium))
+                                        .font(.subheadline.weight(.semibold))
                                     Text(textoRecord(entrada.batido))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
+                            .padding(.vertical, 2)
                         }
+                        .listRowBackground(Paleta.record.opacity(0.12))
                     } header: {
-                        Text(todosLosRecords.count == 1 ? "Récord batido" : "Récords batidos")
+                        Label(
+                            todosLosRecords.count == 1 ? "Récord batido" : "Récords batidos",
+                            systemImage: "sparkles"
+                        )
+                        .foregroundStyle(Paleta.record)
+                        .textCase(nil)
+                        .font(.subheadline.weight(.semibold))
                     }
                 }
 
@@ -69,8 +108,8 @@ struct VistaFinalizarEntreno: View {
                 Section {
                     Button {
                         controlador.finalizar(
-                            molestiaHombro: anotarHombro ? Int(molestiaHombro) : nil,
-                            molestiaRodilla: anotarRodilla ? Int(molestiaRodilla) : nil,
+                            molestiaHombro: anotarHombro ? LimitesEntrada.entero(molestiaHombro) : nil,
+                            molestiaRodilla: anotarRodilla ? LimitesEntrada.entero(molestiaRodilla) : nil,
                             notas: notas,
                             ajustes: ajustes
                         )
@@ -108,7 +147,7 @@ struct VistaFinalizarEntreno: View {
         switch batido.tipo {
         case .peso, .unRM: valor = Formato.peso(batido.valor)
         case .volumenSesion: valor = Formato.volumen(batido.valor)
-        case .tiempo: valor = "\(Int(batido.valor)) s"
+        case .tiempo: valor = "\(LimitesEntrada.entero(batido.valor)) s"
         }
         guard let anterior = batido.anterior else {
             return "\(batido.tipo.nombre): \(valor) — el primero"
@@ -117,43 +156,30 @@ struct VistaFinalizarEntreno: View {
         switch batido.tipo {
         case .peso, .unRM: textoAnterior = Formato.peso(anterior)
         case .volumenSesion: textoAnterior = Formato.volumen(anterior)
-        case .tiempo: textoAnterior = "\(Int(anterior)) s"
+        case .tiempo: textoAnterior = "\(LimitesEntrada.entero(anterior)) s"
         }
         return "\(batido.tipo.nombre): \(valor), antes \(textoAnterior)"
     }
 
-    private func filaResumen(_ titulo: String, _ valor: String, _ icono: String) -> some View {
-        HStack {
-            Label(titulo, systemImage: icono)
-            Spacer()
-            Text(valor)
-                .font(.system(.body, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-        }
-    }
-
     private func deslizadorMolestia(valor: Binding<Double>, etiqueta: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // El color sale de `Paleta.molestia`, que es la que usa el detalle del
+        // entreno para el mismo número: aquí había una escala propia con
+        // `.green`, `.yellow`, `.orange` y `.red` fijos, así que un 5 se veía
+        // amarillo al anotarlo y naranja al releerlo, y esos colores literales
+        // no responden a «Aumentar contraste».
+        let nivel = LimitesEntrada.entero(valor.wrappedValue)
+        let color = Paleta.molestia(nivel)
+        return VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(etiqueta)
                 Spacer()
-                Text("\(Int(valor.wrappedValue))")
+                Text("\(nivel)")
                     .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundStyle(colorMolestia(valor.wrappedValue))
+                    .foregroundStyle(color)
                     .monospacedDigit()
             }
             Slider(value: valor, in: 0...10, step: 1)
-                .tint(colorMolestia(valor.wrappedValue))
-        }
-    }
-
-    private func colorMolestia(_ valor: Double) -> Color {
-        switch valor {
-        case 0..<3: return .green
-        case 3..<6: return .yellow
-        case 6..<8: return .orange
-        default: return .red
+                .tint(color)
         }
     }
 }

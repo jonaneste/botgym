@@ -58,7 +58,7 @@ public struct SeriesDeGrupo: Equatable, Sendable, Identifiable {
     /// Series que faltan para el objetivo, redondeadas hacia arriba.
     public var faltan: Int? {
         guard let objetivo, objetivo > 0 else { return nil }
-        return max(0, Int((Double(objetivo) - series).rounded(.up)))
+        return max(0, LimitesEntrada.entero((Double(objetivo) - series).rounded(.up)))
     }
 }
 

@@ -33,7 +33,7 @@ struct AvisoRecord: Identifiable, Equatable {
         case .volumenSesion:
             return Formato.volumen(valor)
         case .tiempo:
-            return "\(Int(valor)) s"
+            return "\(LimitesEntrada.entero(valor)) s"
         }
     }
 }

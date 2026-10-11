@@ -67,7 +67,7 @@ struct VistaObjetivosSemanales: View {
     }
 
     private func gruposDe(_ region: RegionCorporal) -> [GrupoMuscular] {
-        GrupoMuscular.allCases.filter { $0.region == region }
+        GrupoMuscular.clasificados.filter { $0.region == region }
     }
 
     private func aplicarPlanSugerido() {

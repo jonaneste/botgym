@@ -59,8 +59,53 @@ struct GraficaEjercicio: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading)
+            AxisMarks(position: .leading) { valor in
+                AxisGridLine()
+                AxisTick()
+                // La unidad va en el eje y no en el título: un número suelto
+                // en una gráfica de pesos no dice si son kilos. Pero solo en
+                // la marca de arriba: «4.250 kg» cuatro veces se comía el
+                // ancho de la gráfica en una pantalla de móvil, y con una vez
+                // ya se sabe de qué van las otras tres.
+                AxisValueLabel {
+                    if let numero = valor.as(Double.self) {
+                        Text(etiquetaY(numero, conUnidad: valor.index == valor.count - 1))
+                            .font(.caption2)
+                    }
+                }
+            }
         }
+        .accessibilityLabel("\(metrica.nombre) a lo largo del tiempo")
+        .accessibilityValue(resumenAccesible)
+    }
+
+    private func etiquetaY(_ numero: Double, conUnidad: Bool) -> String {
+        let corto = Formato.numeroCorto(numero)
+        return conUnidad ? "\(corto) \(metrica.unidad)" : corto
+    }
+
+    /// Lo que oye VoiceOver. Una gráfica de líneas no le dice nada por sí
+    /// sola, así que se resume el recorrido: de cuánto a cuánto y en cuántas
+    /// sesiones.
+    private var resumenAccesible: String {
+        let valores = puntosConValor.map(valor(de:))
+        guard let primero = valores.first, let ultimo = valores.last else {
+            return "Sin datos todavía"
+        }
+        let sesiones = valores.count
+        let unidad = metrica.unidad
+        if sesiones == 1 {
+            return "Una sesión, \(Formato.numeroCorto(ultimo)) \(unidad)"
+        }
+        let tendencia: String
+        if ultimo > primero {
+            tendencia = "subiendo"
+        } else if ultimo < primero {
+            tendencia = "bajando"
+        } else {
+            tendencia = "igual"
+        }
+        return "\(sesiones) sesiones, de \(Formato.numeroCorto(primero)) a \(Formato.numeroCorto(ultimo)) \(unidad), \(tendencia)"
     }
 
     /// Puntos que tienen valor para esta métrica. El 1RM no existe en los

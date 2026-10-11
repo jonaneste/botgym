@@ -64,7 +64,10 @@ final class ExportadorAutomatico {
 
     /// Resuelve el bookmark guardado. Devuelve `nil` si no hay carpeta o si el
     /// permiso ya no vale, por ejemplo porque el usuario la borró.
-    private func resolverCarpeta() -> URL? {
+    ///
+    /// No es privado porque `BuzonRutinas` lee de la misma carpeta: el
+    /// bookmark se guarda aquí y no tiene sentido tener dos.
+    func resolverCarpeta() -> URL? {
         guard let datos = UserDefaults.standard.data(forKey: claveBookmark) else { return nil }
         var caducado = false
         guard let url = try? URL(

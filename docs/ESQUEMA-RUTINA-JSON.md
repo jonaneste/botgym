@@ -11,6 +11,12 @@ variaciones.
 La idea es que puedas pedirle a una IA una rutina y pegarla en la app sin
 tocar nada. Pégale a la IA este documento entero y te devolverá algo válido.
 
+Y si tienes conectado el servidor MCP de `mcp/`, no hace falta ni pegar: con
+`proponer_rutina`, Claude escribe este mismo JSON en la carpeta compartida y
+en el teléfono sale en **Datos → Rutinas de Claude**, listo para añadirse de
+un toque. El servidor valida con los límites de aquí antes de escribir, así
+que el error se ve en la conversación y no en el móvil.
+
 ## Ejemplo mínimo
 
 ```json

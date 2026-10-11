@@ -47,6 +47,13 @@ repeticiones, así que hereda cualquier valor absurdo. Usa
 `LimitesEntrada.entero(_:)`, y recorta la entrada en el campo con
 `LimitesEntrada.peso(_:)`.
 
+El otro sitio por donde entra un número imposible es el archivo de export de
+Salud: lo escribe otra app, y `Double("inf")` y `Double("1e400")` se
+interpretan sin queja. Se rechaza al leerlo, en `InterpreteHealth`, y además
+nada que se pinte convierte a pelo.
+`Herramientas/verificar-enteros.py` marca las formas en las que este fallo se
+ha escrito siempre; está verificado reintroduciendo los errores originales.
+
 **No mutes una relación de SwiftData mientras la iteras.** Copia a un `Array`
 ordenado primero y borra después. Al revés, el recorrido se corrompe a mitad.
 
@@ -92,6 +99,7 @@ swift test                              # tests del núcleo, sin simulador
 node mcp/prueba.mjs                     # protocolo y agregados del MCP
 ./Herramientas/verificar-nucleo.sh
 ./Herramientas/verificar-predicados.py
+./Herramientas/verificar-enteros.py
 ```
 
 **Sin Xcode, CI es el único compilador del proyecto.** El desarrollo se ha

@@ -8,7 +8,14 @@
  */
 
 import { spawn } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -145,6 +152,18 @@ function generarFixture() {
     ],
     entrenos,
     carreras,
+    ajustes: {
+      objetivosSemanales: { pecho: 2, espalda: 20 },
+      incrementoBarra: 2.5,
+      incrementoPolea: 2.5,
+      incrementoMaquina: 2.5,
+      incrementoTiempo: 5,
+      mancuernasDisponibles: [10, 12, 14, 16, 18, 20, 22.5],
+      rirPorDefectoMin: 1,
+      rirPorDefectoMax: 2,
+      descansoPorDefectoSegundos: 90,
+      pesoCorporal: 78.5,
+    },
   }
 }
 
@@ -227,7 +246,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 7, `se esperaban 7 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 12, `se esperaban 12 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -350,6 +369,292 @@ for (const entreno of ejemplo.entrenos) {
     }
   }
 }
+
+// ─── Objetivos semanales ─────────────────────────────────────────────────────
+// Es la mitad que no está en el historial: con las series se sabe lo que se
+// hizo, pero no a cuánto se apuntaba. El fixture pone pecho a 2 (que se cumple
+// de sobra) y espalda a 20 (que no), y deja sin objetivo los grupos que el
+// press banca toca de secundarios.
+
+const { respuestas: deObjetivos } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'objetivos'),
+])
+
+const objetivos = contenido(deObjetivos[1])
+comprobar(objetivos.semanasDeLaMedia === 8, 'la media no es de 8 semanas')
+
+const porGrupo = Object.fromEntries(objetivos.grupos.map((g) => [g.grupo, g]))
+comprobar(porGrupo.pecho !== undefined, 'pecho no sale entre los grupos con objetivo')
+comprobar(porGrupo.pecho?.objetivo === 2, 'no se lee el objetivo de pecho del archivo')
+comprobar(porGrupo.pecho?.cumplido === true, 'pecho tenía que salir cumplido')
+comprobar(porGrupo.pecho?.faltan === 0, 'un objetivo cumplido no puede tener series que falten')
+comprobar(porGrupo.espalda?.cumplido === false, 'espalda tenía que salir sin cumplir')
+comprobar(
+  porGrupo.espalda?.faltan === 20 - porGrupo.espalda?.estaSemana,
+  'las series que faltan no cuadran con el objetivo'
+)
+
+// Un grupo que se entrena pero no tiene objetivo no está «a cero»: va aparte,
+// porque decir que falla sería inventarse un objetivo que nadie puso.
+const nombresSinObjetivo = objetivos.sinObjetivo.map((g) => g.grupo)
+comprobar(
+  objetivos.grupos.every((g) => g.objetivo !== undefined),
+  'un grupo sin objetivo se ha colado entre los que lo tienen'
+)
+comprobar(
+  nombresSinObjetivo.includes('triceps'),
+  `los secundarios del press banca tenían que salir sin objetivo: ${nombresSinObjetivo.join(', ')}`
+)
+comprobar(
+  !nombresSinObjetivo.includes('pecho') && !nombresSinObjetivo.includes('espalda'),
+  'un grupo con objetivo sale además como si no lo tuviera'
+)
+
+// ─── Ajustes del gimnasio ────────────────────────────────────────────────────
+// «Sube a 22,5» solo es un consejo correcto si esa mancuerna existe, y el
+// salto no es el mismo en barra que en polea. Nada de eso se puede deducir del
+// historial, así que viaja en el volcado.
+
+const { respuestas: deAjustes } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'ajustes'),
+])
+
+const ajustes = contenido(deAjustes[1])
+comprobar(ajustes.disponible === true, 'los ajustes del fixture no se leen')
+comprobar(ajustes.incrementos?.barraKg === 2.5, 'no se lee el incremento de barra')
+comprobar(ajustes.incrementos?.tiempoSegundos === 5, 'no se lee el incremento de tiempo')
+comprobar(
+  ajustes.mancuernasDisponiblesKg?.includes(22.5),
+  'las mancuernas disponibles no llegan al consejo'
+)
+comprobar(ajustes.rirPorDefecto?.max === 2, 'no se lee el RIR por defecto')
+comprobar(ajustes.descansoPorDefectoSegundos === 90, 'no se lee el descanso por defecto')
+comprobar(ajustes.pesoCorporalKg === 78.5, 'no se lee el peso corporal')
+comprobar(ajustes.objetivosSemanales?.espalda === 20, 'los objetivos no salen también en ajustes')
+
+// Un archivo de una versión anterior no los lleva, y entonces hay que decirlo:
+// un cero aquí se leería como que el salto de la barra es cero.
+const archivoViejo = join(carpetaTemporal, 'antiguo.json')
+const { ajustes: _sinUsar, ...datosViejos } = generarFixture()
+writeFileSync(archivoViejo, JSON.stringify(datosViejos, null, 2), 'utf8')
+
+const { respuestas: deAjustesViejos } = await hablarConElServidor(
+  [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+    llamar(2, 'ajustes'),
+  ],
+  { ENTRENOS_JSON: archivoViejo }
+)
+
+const ajustesViejos = contenido(deAjustesViejos[1])
+comprobar(ajustesViejos.disponible === false, 'un archivo sin ajustes tenía que decir que no los tiene')
+comprobar(
+  typeof ajustesViejos.nota === 'string' && ajustesViejos.nota.includes('Volcar'),
+  'la nota no dice qué hacer para tener los ajustes'
+)
+comprobar(
+  ajustesViejos.incrementos === undefined,
+  'un archivo sin ajustes no puede devolver incrementos inventados'
+)
+
+// ─── El buzón de rutinas que Claude deja para la app ─────────────────────────
+// Lo que se escribe aquí acaba importándose en el teléfono, así que se
+// comprueban las dos mitades: que un documento válido salga con la forma que
+// lee el importador, y que lo inválido se pare AQUÍ, con la ruta del problema
+// en el mensaje, y no con el móvil en la mano.
+
+const BUZON = join(carpetaTemporal, 'rutinas-de-claude')
+
+const rutinaValida = {
+  carpeta: 'Bloque otoño',
+  rutinas: [
+    {
+      nombre: 'Empuje A',
+      notas: 'Tres semanas',
+      ejercicios: [
+        { nombre: 'Press banca con barra', series: 4, reps: '6-8', rir: '2', descanso: 180 },
+        { nombre: 'Elevaciones laterales', series: 3, reps: '12-15', rir: 1, superserie: 'A' },
+        { nombre: 'Plancha', series: 3, reps: '30-45s' },
+      ],
+    },
+  ],
+}
+
+const { respuestas: delBuzon } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'propuestas_pendientes'),
+  llamar(3, 'ejercicios'),
+  llamar(4, 'ejercicios', { grupo: 'pecho' }),
+  llamar(5, 'proponer_rutina', rutinaValida),
+  llamar(6, 'propuestas_pendientes'),
+  // Mismo nombre de archivo: reemplaza en lugar de acumular otra propuesta.
+  llamar(7, 'proponer_rutina', { ...rutinaValida, nombre_archivo: 'empuje-a' }),
+  llamar(8, 'proponer_rutina', { ...rutinaValida, nombre_archivo: 'empuje-a.json' }),
+  // Un nombre con travesía de rutas no puede escribir fuera del buzón.
+  llamar(9, 'proponer_rutina', { ...rutinaValida, nombre_archivo: '../../fuera' }),
+  // Y los errores, uno por cada límite que comparte con la app.
+  llamar(10, 'proponer_rutina', { rutinas: [] }),
+  llamar(11, 'proponer_rutina', { rutinas: [{ nombre: 'A', ejercicios: [] }] }),
+  llamar(12, 'proponer_rutina', { rutinas: [{ ejercicios: [{ nombre: 'X', series: 3 }] }] }),
+  llamar(13, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 40 }] }],
+  }),
+  llamar(14, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 3, reps: '12-8' }] }],
+  }),
+  llamar(15, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 3, rir: '30-45s' }] }],
+  }),
+  llamar(16, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 3, descanso: 9999 }] }],
+  }),
+  llamar(17, 'proponer_rutina', {
+    rutinas: [{ nombre: 'A', ejercicios: [{ nombre: 'X', series: 2.5 }] }],
+  }),
+])
+
+const b = Object.fromEntries(delBuzon.map((r) => [r.id, r]))
+
+// Sin buzón todavía no hay nada pendiente, y eso no es un error.
+comprobar(b[2].result.isError !== true, 'propuestas_pendientes falla cuando no hay buzón')
+comprobar(contenido(b[2]).pendientes.length === 0, 'el buzón vacío no sale vacío')
+
+// La biblioteca de ejercicios, que es lo que hay que leer antes de proponer.
+const biblioteca = contenido(b[3])
+comprobar(Array.isArray(biblioteca) && biblioteca.length > 0, 'ejercicios no devuelve nada')
+comprobar(
+  biblioteca.every((e) => e.nombre && e.grupoPrincipal && e.material),
+  'algún ejercicio sale sin nombre, grupo o material'
+)
+const dePecho = contenido(b[4])
+comprobar(
+  dePecho.length > 0 &&
+    dePecho.every(
+      (e) => e.grupoPrincipal === 'pecho' || (e.gruposSecundarios || []).includes('pecho')
+    ),
+  'el filtro por grupo deja pasar ejercicios de otro grupo'
+)
+
+// La propuesta válida: respuesta con el archivo y el documento en disco.
+const propuesta = contenido(b[5])
+comprobar(b[5].result.isError !== true, 'una rutina válida se rechaza')
+comprobar(propuesta.archivo.endsWith('.json'), `nombre de archivo raro: ${propuesta.archivo}`)
+comprobar(propuesta.rutinas[0].seriesTotales === 10, 'seriesTotales mal sumadas')
+
+const escrito = JSON.parse(readFileSync(join(BUZON, propuesta.archivo), 'utf8'))
+comprobar(escrito.version === 1, 'el documento escrito no declara version 1')
+comprobar(escrito.carpeta === 'Bloque otoño', 'se pierde la carpeta de destino')
+comprobar(escrito.rutinas[0].notas === 'Tres semanas', 'se pierden las notas de la rutina')
+// El RIR numérico se escribe como texto, que es lo que lee el importador.
+comprobar(escrito.rutinas[0].ejercicios[1].rir === '1', 'el RIR numérico no se pasa a texto')
+comprobar(escrito.rutinas[0].ejercicios[2].reps === '30-45s', 'se pierden los segundos del rango')
+// Lo que no se dijo no se inventa: sin descanso, la app pone el suyo.
+comprobar(
+  escrito.rutinas[0].ejercicios[2].descanso === undefined,
+  'se escribe un descanso que nadie pidió'
+)
+
+comprobar(contenido(b[6]).pendientes.length === 1, 'la propuesta escrita no sale como pendiente')
+comprobar(
+  contenido(b[6]).pendientes[0].rutinas[0] === 'Empuje A',
+  'la propuesta pendiente no dice qué rutina lleva'
+)
+
+// Reemplazar: «empuje-a» y «empuje-a.json» son el mismo archivo.
+comprobar(contenido(b[7]).archivo === 'empuje-a.json', 'nombre_archivo no se respeta')
+comprobar(contenido(b[8]).archivo === 'empuje-a.json', 'el .json del nombre se duplica')
+
+// La travesía de rutas se limpia, y nada se escribe fuera del buzón.
+comprobar(
+  !contenido(b[9]).archivo.includes('/') && !contenido(b[9]).archivo.includes('..'),
+  `nombre de archivo sin sanear: ${contenido(b[9]).archivo}`
+)
+comprobar(
+  !existsSync(join(carpetaTemporal, 'fuera.json')) &&
+    !existsSync(join(carpetaTemporal, '..', 'fuera.json')),
+  'una propuesta escribió fuera del buzón'
+)
+comprobar(
+  readdirSync(BUZON).every((n) => n.endsWith('.json')),
+  'el buzón tiene archivos que no son .json'
+)
+
+// Y los límites, cada uno con la ruta del problema en el mensaje.
+const mensaje = (id) => b[id].result.content[0].text
+for (const [id, trozo] of [
+  [10, 'rutinas'],
+  [11, 'ejercicios'],
+  [12, 'nombre'],
+  [13, 'series'],
+  [14, 'reps'],
+  [15, 'rir'],
+  [16, 'descanso'],
+  [17, 'series'],
+]) {
+  comprobar(b[id].result.isError === true, `la propuesta ${id} tenía que fallar y no falló`)
+  comprobar(
+    mensaje(id).includes(trozo),
+    `el error ${id} no menciona «${trozo}»: ${mensaje(id)}`
+  )
+}
+
+// ─── La otra carpeta del buzón ───────────────────────────────────────────────
+// Una versión anterior de la app leía de «propuestas», y en el teléfono de
+// quien la tenga instalada esa carpeta ya existe con cosas dentro. Lo que hay
+// ahí tiene que verse igual, y reemplazar un archivo de ahí tiene que
+// reescribirlo donde está: escribirlo en la otra carpeta dejaría el original y
+// la app ofrecería las dos.
+
+const OTRO_BUZON = join(carpetaTemporal, 'propuestas')
+mkdirSync(OTRO_BUZON, { recursive: true })
+writeFileSync(
+  join(OTRO_BUZON, 'vieja.json'),
+  JSON.stringify({
+    version: 1,
+    carpeta: 'Bloque viejo',
+    rutinas: [{ nombre: 'Tirón B', ejercicios: [{ nombre: 'Remo con barra', series: 4 }] }],
+  }),
+  'utf8'
+)
+writeFileSync(join(OTRO_BUZON, 'roto.json'), '{ esto no es JSON', 'utf8')
+
+const { respuestas: delOtroBuzon } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'propuestas_pendientes'),
+  // Reemplazar la que está en la otra carpeta.
+  llamar(3, 'proponer_rutina', { ...rutinaValida, nombre_archivo: 'vieja' }),
+])
+const o = Object.fromEntries(delOtroBuzon.map((r) => [r.id, r]))
+
+const pendientes = contenido(o[2]).pendientes
+const vieja = pendientes.find((p) => p.archivo === 'vieja.json')
+comprobar(vieja !== undefined, 'una propuesta en «propuestas» no sale como pendiente')
+comprobar(vieja?.subcarpeta === 'propuestas', 'la propuesta no dice de qué carpeta sale')
+comprobar(vieja?.rutinas[0] === 'Tirón B', 'no se lee la rutina de la otra carpeta')
+comprobar(
+  pendientes.some((p) => p.subcarpeta === 'rutinas-de-claude'),
+  'al mirar las dos carpetas se perdió la del acuerdo'
+)
+const roto = pendientes.find((p) => p.archivo === 'roto.json')
+comprobar(roto?.ilegible !== undefined, 'un archivo ilegible desaparece de la lista')
+comprobar(
+  pendientes.map((p) => p.archivo).join() ===
+    [...pendientes.map((p) => p.archivo)].sort((a, b) => a.localeCompare(b)).join(),
+  'las pendientes de las dos carpetas no salen ordenadas'
+)
+
+comprobar(contenido(o[3]).archivo === 'vieja.json', 'nombre_archivo no se respeta')
+comprobar(
+  !existsSync(join(BUZON, 'vieja.json')),
+  'reemplazar una propuesta de «propuestas» la duplicó en la otra carpeta'
+)
+comprobar(
+  JSON.parse(readFileSync(join(OTRO_BUZON, 'vieja.json'), 'utf8')).rutinas[0].nombre ===
+    'Empuje A',
+  'la propuesta de «propuestas» no se reemplazó donde estaba'
+)
 
 // ─── Resultado ───────────────────────────────────────────────────────────────
 

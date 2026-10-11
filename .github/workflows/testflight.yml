@@ -1,0 +1,147 @@
+name: Subir a TestFlight
+
+# El repositorio se desarrolla desde Linux, sin SDK de iOS y sin llaveros, así
+# que este runner de macOS es el único sitio donde se puede firmar una build de
+# distribución. No se dispara en cada push: archivar, exportar y subir tarda
+# bastante más que compilar, y cada subida gasta un número de build en App Store
+# Connect que no se puede reutilizar.
+on:
+  workflow_dispatch:
+    inputs:
+      notas:
+        description: 'Qué probar en esta versión (se ve en TestFlight)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  # Dos subidas a la vez se pelearían por el número de build.
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Archivar, firmar y subir
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      # Si falta un secreto, el error de xcodebuild llega veinte minutos más
+      # tarde y no dice cuál. Mejor fallar en el primer paso diciendo el nombre.
+      - name: Los secretos están puestos
+        env:
+          CLAVE_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          EMISOR_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          CLAVE_P8: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          EQUIPO: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          faltan=()
+          [ -n "$CLAVE_ID" ] || faltan+=(APP_STORE_CONNECT_KEY_ID)
+          [ -n "$EMISOR_ID" ] || faltan+=(APP_STORE_CONNECT_ISSUER_ID)
+          [ -n "$CLAVE_P8" ] || faltan+=(APP_STORE_CONNECT_PRIVATE_KEY)
+          [ -n "$EQUIPO" ] || faltan+=(APPLE_TEAM_ID)
+          if [ ${#faltan[@]} -gt 0 ]; then
+            echo "Faltan estos secretos del repositorio: ${faltan[*]}" >&2
+            echo "docs/TESTFLIGHT.md explica de dónde sale cada uno." >&2
+            exit 1
+          fi
+
+      # altool busca la clave por nombre en ~/.appstoreconnect/private_keys, y
+      # xcodebuild la quiere por ruta absoluta. Un único fichero sirve a los dos.
+      - name: Clave de App Store Connect
+        env:
+          CLAVE_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          CLAVE_P8: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          ruta="$HOME/.appstoreconnect/private_keys/AuthKey_${CLAVE_ID}.p8"
+          printf '%s\n' "$CLAVE_P8" > "$ruta"
+          chmod 600 "$ruta"
+          echo "RUTA_CLAVE=$ruta" >> "$GITHUB_ENV"
+
+      - name: Archivar
+        env:
+          EQUIPO: ${{ secrets.APPLE_TEAM_ID }}
+          CLAVE_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          EMISOR_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        # -allowProvisioningUpdates con la clave de API deja que Xcode cree por
+        # su cuenta el certificado de distribución y el perfil, así que no hace
+        # falta exportar un .p12 del Mac ni guardarlo como secreto.
+        # El número de build sale del contador del run: App Store Connect
+        # rechaza una build repetida, y así sube solo y sin tocar el proyecto.
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Entrenos.xcodeproj \
+            -scheme Entrenos \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Entrenos.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUTA_CLAVE" \
+            -authenticationKeyID "$CLAVE_ID" \
+            -authenticationKeyIssuerID "$EMISOR_ID" \
+            DEVELOPMENT_TEAM="$EQUIPO" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            | tee archivar.log
+
+      - name: Exportar el .ipa
+        env:
+          EQUIPO: ${{ secrets.APPLE_TEAM_ID }}
+          CLAVE_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          EMISOR_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          # El plist vive en el repo para poder revisarlo; lo único que
+          # cambia por entorno es el identificador del equipo.
+          cp Herramientas/ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -replace teamID -string "$EQUIPO" "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Entrenos.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUTA_CLAVE" \
+            -authenticationKeyID "$CLAVE_ID" \
+            -authenticationKeyIssuerID "$EMISOR_ID" \
+            | tee exportar.log
+
+      - name: Subir a App Store Connect
+        env:
+          CLAVE_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          EMISOR_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          ipa=$(ls "$RUNNER_TEMP/export"/*.ipa | head -1)
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$ipa" \
+            --apiKey "$CLAVE_ID" \
+            --apiIssuer "$EMISOR_ID"
+
+      - name: Qué probar
+        if: success()
+        env:
+          NOTAS: ${{ inputs.notas }}
+        run: |
+          {
+            echo "### Build ${{ github.run_number }} subida"
+            echo
+            echo "Procesar la build en App Store Connect tarda unos minutos."
+            echo "Cuando acabe aparece en TestFlight en el iPhone."
+            [ -n "$NOTAS" ] && { echo; echo "Qué probar: $NOTAS"; } || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Sin estos logs, un fallo de firma en el runner no se puede diagnosticar
+      # desde un contenedor Linux sin Xcode.
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-testflight
+          path: |
+            archivar.log
+            exportar.log
+          if-no-files-found: ignore

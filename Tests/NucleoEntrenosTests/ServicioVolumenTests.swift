@@ -54,6 +54,36 @@ final class ServicioVolumenTests: XCTestCase {
 
     // MARK: - Series por grupo
 
+    /// El fallo que esto cierra: un ejercicio importado nacía con grupo
+    /// `.core`, así que sus series engordaban el core de cada semana y la
+    /// cuenta salía igual de creíble. Ahora nace sin clasificar, y eso se ve.
+    func testLoQueNoTieneGrupoNoEngordaOtro() throws {
+        let series = [
+            serie(fecha(5), .pecho),
+            serie(fecha(5), .sinClasificar),
+            serie(fecha(5), .sinClasificar),
+        ]
+        let cuenta = ServicioVolumen.seriesPorGrupo(series)
+        XCTAssertEqual(try XCTUnwrap(cuenta[.pecho]), 1, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(cuenta[.sinClasificar]), 2, accuracy: 0.0001)
+        XCTAssertNil(cuenta[.core])
+    }
+
+    func testLoQueNoTieneGrupoSaleEnSuPropiaFila() throws {
+        // En su propia fila y no escondido: la semana dice que hay dos series
+        // que no están contando para nada, que es lo que hay que arreglar.
+        let filas = ServicioVolumen.seriesSemanales(
+            [serie(fecha(5), .sinClasificar), serie(fecha(6), .sinClasificar)],
+            semanaDe: fecha(7),
+            objetivos: [.pecho: 12],
+            calendario: calendario
+        )
+        let suya = try XCTUnwrap(filas.first { $0.grupo == .sinClasificar })
+        XCTAssertEqual(suya.series, 2, accuracy: 0.0001)
+        XCTAssertNil(suya.objetivo)
+        XCTAssertEqual(try XCTUnwrap(filas.first { $0.grupo == .pecho }).series, 0, accuracy: 0.0001)
+    }
+
     func testElGrupoPrincipalSumaUnaSerieEntera() throws {
         let series = [serie(fecha(5), .pecho), serie(fecha(5), .pecho)]
         let cuenta = ServicioVolumen.seriesPorGrupo(series)

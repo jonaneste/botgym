@@ -44,11 +44,24 @@ public struct Carrera: Codable, Equatable, Sendable, Identifiable {
 
     /// Ritmo como "5:12 /km".
     public var ritmoTexto: String? {
-        guard let ritmo = ritmoSegundosPorKm, ritmo.isFinite else { return nil }
+        guard let ritmo = ritmoSegundosPorKm else { return nil }
+        return Carrera.textoRitmo(ritmo, conUnidad: true)
+    }
+
+    /// Un ritmo en segundos por kilómetro, como "5:12".
+    ///
+    /// Lo comparten la carrera y el resumen semanal. El del resumen estaba
+    /// duplicado en la vista y convertía con `Int(_:)` a pelo, sin comprobar
+    /// que el número fuese finito: una distancia absurda —un milímetro mal
+    /// importado— da un ritmo infinito, y esa conversión **atrapa**, o sea
+    /// cierra la app nada más abrir el historial.
+    public static func textoRitmo(_ segundosPorKm: Double, conUnidad: Bool = false) -> String? {
+        guard segundosPorKm.isFinite, segundosPorKm > 0 else { return nil }
         // Se redondea ANTES de dividir, no después: con 359,6 s/km, dividir
         // primero da 5 minutos y 60 segundos, o sea "5:60 /km".
-        let total = LimitesEntrada.entero(ritmo)
-        return String(format: "%d:%02d /km", total / 60, total % 60)
+        let total = LimitesEntrada.entero(segundosPorKm)
+        let texto = String(format: "%d:%02d", total / 60, total % 60)
+        return conUnidad ? texto + " /km" : texto
     }
 
     /// Velocidad media en km/h.
@@ -76,6 +89,12 @@ public struct ResumenCarreras: Equatable, Sendable {
     public var ritmoMedioSegundosPorKm: Double? {
         guard kilometros > 0, duracion > 0 else { return nil }
         return duracion / kilometros
+    }
+
+    /// El ritmo medio ya formateado, como "5:12".
+    public var ritmoTexto: String? {
+        guard let ritmo = ritmoMedioSegundosPorKm else { return nil }
+        return Carrera.textoRitmo(ritmo)
     }
 }
 

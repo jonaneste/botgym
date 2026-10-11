@@ -35,10 +35,11 @@ struct VistaEntrenoInicio: View {
                 } label: {
                     Label("Empezar entreno vacío", systemImage: "plus.circle.fill")
                         .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .frame(maxWidth: .infinity, minHeight: 48)
                 }
                 .buttonStyle(.borderedProminent)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .controlSize(.large)
+                .filaDesnuda(arriba: 8, abajo: 8)
             }
 
             ForEach(carpetas) { carpeta in
@@ -68,30 +69,42 @@ struct VistaEntrenoInicio: View {
                 )
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Entrenar")
     }
 
+    /// Una rutina, como tarjeta con su botón de empezar.
+    ///
+    /// Era una fila de lista con una flecha pequeña a la derecha: lo mismo que
+    /// un ajuste cualquiera, cuando es la acción con la que arranca todo lo
+    /// que hace la app. El disco de play va a la derecha y grande porque es
+    /// donde cae el pulgar sosteniendo el móvil con una mano.
     private func filaRutina(_ rutina: Rutina) -> some View {
         Button {
             controlador.empezar(desde: rutina)
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(rutina.nombre)
-                        .font(.body.weight(.medium))
+                        .font(.headline)
                         .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
                     Text(rutina.resumen)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 Image(systemName: "play.circle.fill")
-                    .font(.title2)
+                    .font(.system(size: 34))
                     .foregroundStyle(.tint)
             }
-            .padding(.vertical, 6)
+            .tarjeta()
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .filaDesnuda(arriba: 4, abajo: 4)
     }
 }

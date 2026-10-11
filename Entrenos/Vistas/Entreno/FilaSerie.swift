@@ -26,8 +26,25 @@ struct FilaSerie: View {
 
             casillaCompletada
         }
-        .padding(.vertical, 6)
-        .listRowBackground(serie.completada ? Color.green.opacity(0.12) : nil)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(fondo, in: .rect(cornerRadius: 14))
+        // El filo verde marca la serie hecha por el borde entero y no solo
+        // por el color de fondo, que con poca luz en el gimnasio casi no se
+        // distingue del gris.
+        .overlay {
+            if serie.completada {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Paleta.logrado.opacity(0.45), lineWidth: 1)
+            }
+        }
+        .animation(.spring(duration: 0.3), value: serie.completada)
+    }
+
+    private var fondo: Color {
+        serie.completada
+            ? Paleta.logrado.opacity(0.14)
+            : Color(.secondarySystemGroupedBackground)
     }
 
     // MARK: - Piezas
@@ -35,15 +52,23 @@ struct FilaSerie: View {
     private var indiceSerie: some View {
         Group {
             if serie.esCalentamiento {
-                Image(systemName: "flame")
-                    .foregroundStyle(.orange)
+                Image(systemName: "flame.fill")
+                    .font(.footnote)
+                    .foregroundStyle(Paleta.calentamiento)
             } else {
                 Text("\(numeroSerieEfectiva)")
-                    .font(.system(.body, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(serie.completada ? Paleta.logrado : .secondary)
             }
         }
-        .frame(width: 26)
+        .frame(width: 30, height: 30)
+        .background(
+            Circle().fill(
+                serie.esCalentamiento
+                    ? Paleta.calentamiento.opacity(0.16)
+                    : Color(.tertiarySystemFill)
+            )
+        )
     }
 
     /// Número que se muestra: las de calentamiento no cuentan.
@@ -117,12 +142,10 @@ struct FilaSerie: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Copia el peso y las repeticiones de la última vez")
-        } else {
-            Text("Primera vez con este ejercicio")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.vertical, 4)
         }
+        // Sin serie anterior no se escribe nada: la cabecera del ejercicio ya
+        // lleva su pastilla de «Primera vez», y repetirlo en cada fila eran
+        // cuatro líneas idénticas diciendo lo mismo.
     }
 
     private var casillaCompletada: some View {
@@ -130,8 +153,9 @@ struct FilaSerie: View {
             controlador.alternarCompletada(serie, de: ejercicio, ajustes: ajustes)
         } label: {
             Image(systemName: serie.completada ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 30))
-                .foregroundStyle(serie.completada ? Color.green : Color.secondary)
+                .font(.system(size: 32))
+                .foregroundStyle(serie.completada ? Paleta.logrado : Color.secondary)
+                .symbolEffect(.bounce, value: serie.completada)
                 .frame(width: 48, height: 48)
                 .contentShape(.rect)
         }

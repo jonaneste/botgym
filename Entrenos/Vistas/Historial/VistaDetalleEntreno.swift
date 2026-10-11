@@ -10,50 +10,49 @@ struct VistaDetalleEntreno: View {
 
     var body: some View {
         List {
-            Section {
-                resumen
-            }
+            resumen
 
             ForEach(gruposVisuales) { grupo in
-                Section {
-                    ForEach(grupo.ejercicios) { ejercicio in
-                        bloqueEjercicio(ejercicio)
-                    }
-                } header: {
-                    if grupo.esSuperserie {
-                        Label("Superserie", systemImage: "link")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tint)
-                    }
+                // La etiqueta de superserie va como fila y no como cabecera de
+                // sección: con la lista en estilo llano, una cabecera se queda
+                // pegada arriba al desplazar y se lee como si todo lo de
+                // debajo fuese superserie.
+                if grupo.esSuperserie {
+                    Label("Superserie", systemImage: "link")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .filaDesnuda(arriba: 14, abajo: 0)
+                }
+
+                ForEach(grupo.ejercicios) { ejercicio in
+                    bloqueEjercicio(ejercicio)
                 }
             }
 
             if entreno.molestiaHombro != nil || entreno.molestiaRodilla != nil {
                 Section("Molestia articular") {
-                    if let hombro = entreno.molestiaHombro {
-                        filaMolestia("Hombro", hombro)
+                    VStack(spacing: 10) {
+                        if let hombro = entreno.molestiaHombro {
+                            filaMolestia("Hombro", hombro)
+                        }
+                        if let rodilla = entreno.molestiaRodilla {
+                            filaMolestia("Rodilla", rodilla)
+                        }
                     }
-                    if let rodilla = entreno.molestiaRodilla {
-                        filaMolestia("Rodilla", rodilla)
-                    }
+                    .tarjeta()
+                    .filaDesnuda(arriba: 4, abajo: 4)
                 }
             }
 
             Section("Notas") {
-                if editando {
-                    TextField("Notas del entreno", text: Binding(
-                        get: { entreno.notas },
-                        set: { entreno.notas = $0 }
-                    ), axis: .vertical)
-                    .lineLimit(2...8)
-                } else if entreno.notas.isEmpty {
-                    Text("Sin notas")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(entreno.notas)
-                }
+                notas
+                    .tarjeta()
+                    .filaDesnuda(arriba: 4, abajo: 28)
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(entreno.nombre)
         .navigationBarTitleDisplayMode(.inline)
         .conBotonHecho()
@@ -71,19 +70,27 @@ struct VistaDetalleEntreno: View {
     // MARK: - Resumen
 
     private var resumen: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("\(Formato.fechaLarga(entreno.fechaInicio)) · \(Formato.hora(entreno.fechaInicio))")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            HStack {
-                columna("Duración", Formato.duracionLarga(entreno.duracionFinal ?? 0))
-                Divider()
-                columna("Series", "\(entreno.seriesCompletadas)")
-                Divider()
-                columna("Volumen", Formato.volumen(entreno.volumenTotal))
+            HStack(spacing: 0) {
+                CifraDestacada(
+                    valor: Formato.duracionLarga(entreno.duracionFinal ?? 0),
+                    etiqueta: "Duración"
+                )
+                divisor
+                CifraDestacada(
+                    valor: "\(entreno.seriesCompletadas)",
+                    etiqueta: "Series"
+                )
+                divisor
+                CifraDestacada(
+                    valor: Formato.volumen(entreno.volumenTotal),
+                    etiqueta: "Volumen"
+                )
             }
-            .frame(height: 42)
 
             if let origen = entreno.nombreRutinaOrigen, origen != entreno.nombre {
                 Label("Desde la rutina «\(origen)»", systemImage: "list.bullet.rectangle")
@@ -91,19 +98,32 @@ struct VistaDetalleEntreno: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .tarjeta()
+        .filaDesnuda(arriba: 10, abajo: 4)
     }
 
-    private func columna(_ titulo: String, _ valor: String) -> some View {
-        VStack(spacing: 2) {
-            Text(valor)
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-            Text(titulo)
-                .font(.caption2)
+    private var divisor: some View {
+        Divider().frame(height: 28)
+    }
+
+    @ViewBuilder
+    private var notas: some View {
+        if editando {
+            TextField("Notas del entreno", text: Binding(
+                get: { entreno.notas },
+                set: { entreno.notas = $0 }
+            ), axis: .vertical)
+            .lineLimit(2...8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if entreno.notas.isEmpty {
+            Text("Sin notas")
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(entreno.notas)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func filaMolestia(_ zona: String, _ valor: Int) -> some View {
@@ -112,18 +132,72 @@ struct VistaDetalleEntreno: View {
             Spacer()
             Text("\(valor)/10")
                 .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(valor >= 7 ? .red : (valor >= 4 ? .orange : .green))
+                .foregroundStyle(Paleta.molestia(valor))
         }
     }
 
     // MARK: - Ejercicio
 
+    /// En lectura, el ejercicio y sus series comparten una tarjeta: son un
+    /// bloque que se lee de arriba abajo. Editando no pueden, porque cada
+    /// serie necesita ser su propia fila de `List` para conservar el gesto de
+    /// deslizar para borrar, que solo existe dentro de una lista.
     @ViewBuilder
     private func bloqueEjercicio(_ ejercicio: EjercicioEntreno) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        if editando {
+            cabeceraEjercicio(ejercicio)
+                .tarjeta()
+                .filaDesnuda(arriba: 10, abajo: 4)
+
+            ForEach(ejercicio.seriesOrdenadas) { serie in
+                filaSerieEditable(serie, ejercicio: ejercicio)
+                    .tarjeta(relleno: 12, radio: 12)
+                    .filaDesnuda(arriba: 2, abajo: 2)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            borrar(serie, de: ejercicio)
+                        } label: {
+                            Label("Borrar", systemImage: "trash")
+                        }
+                    }
+            }
+        } else {
+            tarjetaEjercicio(ejercicio)
+                .filaDesnuda(arriba: 6, abajo: 2)
+        }
+    }
+
+    private func tarjetaEjercicio(_ ejercicio: EjercicioEntreno) -> some View {
+        let series = ejercicio.seriesOrdenadas
+        return VStack(spacing: 0) {
+            cabeceraEjercicio(ejercicio)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+            if !series.isEmpty {
+                Divider()
+            }
+
+            ForEach(series) { serie in
+                filaSerieLectura(serie, ejercicio: ejercicio)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                // El separador se salta la última serie, y se mete 48 puntos
+                // para que arranque donde arranca el texto y no debajo del
+                // número de serie.
+                if serie.idPublico != series.last?.idPublico {
+                    Divider().padding(.leading, 48)
+                }
+            }
+        }
+        .tarjeta(relleno: 0)
+    }
+
+    private func cabeceraEjercicio(_ ejercicio: EjercicioEntreno) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
             Text(ejercicio.nombreEjercicio)
                 .font(.headline)
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Text("\(ejercicio.seriesEfectivas.count) series")
                 Text("·")
                 Text(Formato.volumen(ejercicio.volumen))
@@ -137,27 +211,19 @@ struct VistaDetalleEntreno: View {
                     .padding(.top, 2)
             }
         }
-        .padding(.vertical, 2)
-
-        ForEach(ejercicio.seriesOrdenadas) { serie in
-            if editando {
-                filaSerieEditable(serie, ejercicio: ejercicio)
-            } else {
-                filaSerieLectura(serie, ejercicio: ejercicio)
-            }
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func filaSerieLectura(_ serie: SerieRegistrada, ejercicio: EjercicioEntreno) -> some View {
         HStack(spacing: 10) {
             if serie.esCalentamiento {
-                Image(systemName: "flame")
+                Image(systemName: "flame.fill")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Paleta.calentamiento)
                     .frame(width: 22)
             } else {
                 Text("\(serie.orden + 1)")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(.secondary)
                     .frame(width: 22)
             }
@@ -168,14 +234,12 @@ struct VistaDetalleEntreno: View {
                 segundos: serie.segundos,
                 tipo: ejercicio.tipoRegistro
             ))
-            .font(.system(.body, design: .rounded))
+            .font(.system(.body, design: .rounded, weight: .medium))
 
             Spacer()
 
             if let rir = serie.rir {
-                Text("RIR \(rir)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Pastilla(texto: "RIR \(rir)", color: .secondary)
             }
         }
     }
@@ -183,7 +247,7 @@ struct VistaDetalleEntreno: View {
     private func filaSerieEditable(_ serie: SerieRegistrada, ejercicio: EjercicioEntreno) -> some View {
         HStack(spacing: 8) {
             Text("\(serie.orden + 1)")
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
 
@@ -219,16 +283,16 @@ struct VistaDetalleEntreno: View {
             .padding(.vertical, 6)
             .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 8))
         }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                let restantes = ejercicio.seriesOrdenadas.filter { $0 !== serie }
-                contexto.delete(serie)
-                for (indice, otra) in restantes.enumerated() { otra.orden = indice }
-                try? contexto.save()
-            } label: {
-                Label("Borrar", systemImage: "trash")
-            }
-        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Las series que quedan se copian a un array antes de borrar: mutar la
+    /// relación mientras se recorre corrompe el recorrido a mitad.
+    private func borrar(_ serie: SerieRegistrada, de ejercicio: EjercicioEntreno) {
+        let restantes = ejercicio.seriesOrdenadas.filter { $0 !== serie }
+        contexto.delete(serie)
+        for (indice, otra) in restantes.enumerated() { otra.orden = indice }
+        try? contexto.save()
     }
 
     // MARK: - Superseries

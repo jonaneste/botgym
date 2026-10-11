@@ -93,13 +93,25 @@ public enum InterpreteHealth {
     }
 
     /// Duración en segundos. El export la da casi siempre en minutos.
+    ///
+    /// El archivo lo escribe otra app y lo elige el usuario, así que aquí
+    /// entra cualquier cosa: `Double("1e400")` y `Double("inf")` se
+    /// interpretan sin queja y `numero >= 0` es **cierto** para el infinito.
+    /// Un infinito no se queda en un dato raro: el historial lo formatea, la
+    /// conversión a `Int` de ahí atrapa y la app se cierra al abrir la
+    /// pestaña, una y otra vez.
     static func duracionSegundos(valor: String?, unidad: String?) -> TimeInterval? {
-        guard let valor, let numero = Double(valor), numero >= 0 else { return nil }
+        guard let valor, let numero = Double(valor), numero.isFinite, numero >= 0 else { return nil }
+        let segundos: TimeInterval
         switch (unidad ?? "min").lowercased() {
-        case "s", "sec", "second", "seconds": return numero
-        case "h", "hr", "hour", "hours": return numero * 3600
-        default: return numero * 60   // min
+        case "s", "sec", "second", "seconds": segundos = numero
+        case "h", "hr", "hour", "hours": segundos = numero * 3600
+        default: segundos = numero * 60   // min
         }
+        // Y se vuelve a comprobar: el producto desborda a infinito aunque el
+        // número de partida fuese finito.
+        guard segundos.isFinite else { return nil }
+        return segundos
     }
 
     /// Distancia en metros, mirando primero las estadísticas y luego los
@@ -118,17 +130,28 @@ public enum InterpreteHealth {
     }
 
     static func enMetros(_ valor: Double, unidad: String?) -> Double {
+        let metros: Double
         switch (unidad ?? "km").lowercased() {
-        case "m", "metros", "meter", "meters": return valor
-        case "mi", "mile", "miles": return valor * 1609.344
-        case "yd", "yard", "yards": return valor * 0.9144
-        default: return valor * 1000   // km
+        case "m", "metros", "meter", "meters": metros = valor
+        case "mi", "mile", "miles": metros = valor * 1609.344
+        case "yd", "yard", "yards": metros = valor * 0.9144
+        default: metros = valor * 1000   // km
         }
+        // Una distancia que no es finita, o negativa, se trata como «no hay
+        // distancia», que es lo que ya significa el cero. Dejarla pasar daba
+        // un ritmo infinito, y una distancia diminuta —un milímetro— también.
+        guard metros.isFinite, metros >= 0 else { return 0 }
+        return metros
     }
 
+    /// Una estadística del registro, como el pulso medio o las calorías.
+    ///
+    /// Se descarta lo que no sea finito por lo mismo que la duración: el pulso
+    /// se pinta con una conversión a `Int`, y las calorías viajan al JSON de
+    /// exportación, que `JSONEncoder` rechaza si no son finitas.
     static func estadistica(_ registro: RegistroEntrenoHealth, tipo: String, clave: String) -> Double? {
         for estadistica in registro.estadisticas where estadistica["type"] == tipo {
-            if let valor = estadistica[clave], let numero = Double(valor) {
+            if let valor = estadistica[clave], let numero = Double(valor), numero.isFinite {
                 return numero
             }
         }
