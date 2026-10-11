@@ -16,7 +16,7 @@
 
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 const VERSION = '1.2.0'
 const PESO_SECUNDARIO = 0.5
@@ -183,6 +183,13 @@ function textoSerie(serie, tipo) {
 
 const NOMBRE_BUZON = 'rutinas-de-claude'
 
+// Se mira también «propuestas», porque hubo una versión de la app que leía de
+// ahí, y una carpeta ya creada con rutinas dentro no puede quedarse muda. El
+// nombre es un acuerdo que nada comprueba, así que el lado que lee admite los
+// dos y el que escribe usa solo el primero, igual que `nombresAdmitidos` en
+// `Entrenos/Servicios/BuzonRutinas.swift`.
+const NOMBRES_BUZON = [NOMBRE_BUZON, 'propuestas']
+
 const LIMITES = { version: 1, maxSeries: 20, maxDescanso: 1800, maxObjetivo: 1000 }
 
 /** Carpeta donde la app busca lo que deja Claude. */
@@ -204,6 +211,50 @@ function carpetaBuzon() {
     'No sé en qué carpeta dejar la rutina. Es la misma donde la app escribe ' +
       'entrenos.json: pásala en ENTRENOS_JSON, o en ENTRENOS_RUTINAS_DIR si es otra.'
   )
+}
+
+/** Las carpetas donde puede haber propuestas esperando. */
+function carpetasBuzon() {
+  const escritura = carpetaBuzon()
+  // Con `ENTRENOS_RUTINAS_DIR` puesto no hay un segundo nombre que derivar: la
+  // carpeta vino dada entera, y no su padre.
+  if (process.env.ENTRENOS_RUTINAS_DIR) return [escritura]
+  const padre = dirname(escritura)
+  return NOMBRES_BUZON.map((nombre) => join(padre, nombre))
+}
+
+/**
+ * Donde se escribe una propuesta. La del acuerdo, salvo que `nombre_archivo`
+ * esté reemplazando uno que ya está en la otra carpeta admitida: escribirlo en
+ * la primera dejaría el original donde estaba y la app ofrecería los dos.
+ */
+function carpetaDondeEscribir(archivo) {
+  const carpetas = carpetasBuzon()
+  const yaEstaba = carpetas.find((carpeta) => {
+    try {
+      statSync(join(carpeta, archivo))
+      return true
+    } catch {
+      return false
+    }
+  })
+  return yaEstaba ?? carpetas[0]
+}
+
+/** Qué trae una propuesta que espera en el buzón, sin tener que abrirla. */
+function describirPendiente(carpeta, archivo) {
+  const subcarpeta = basename(carpeta)
+  try {
+    const documento = JSON.parse(readFileSync(join(carpeta, archivo), 'utf8'))
+    return {
+      archivo,
+      subcarpeta,
+      carpetaDestino: documento.carpeta ?? null,
+      rutinas: (documento.rutinas || []).map((r) => r.nombre),
+    }
+  } catch (error) {
+    return { archivo, subcarpeta, ilegible: error.message }
+  }
 }
 
 /** Los datos, o `null` si todavía no hay archivo. */
@@ -884,10 +935,10 @@ const EJECUTORES = {
 
   proponer_rutina({ rutinas, carpeta, nombre_archivo } = {}) {
     const documento = validarPropuesta({ rutinas, carpeta })
-    const destino = carpetaBuzon()
+    const archivo = nombreDeArchivo(nombre_archivo, documento.rutinas)
+    const destino = carpetaDondeEscribir(archivo)
     mkdirSync(destino, { recursive: true })
 
-    const archivo = nombreDeArchivo(nombre_archivo, documento.rutinas)
     writeFileSync(join(destino, archivo), `${JSON.stringify(documento, null, 2)}\n`, 'utf8')
 
     // Un nombre que la app no conoce no se descarta: lo crea al importar, pero
@@ -997,32 +1048,23 @@ const EJECUTORES = {
   },
 
   propuestas_pendientes() {
-    const destino = carpetaBuzon()
-    let archivos
-    try {
-      archivos = readdirSync(destino)
-    } catch {
-      // Sin buzón todavía no hay nada pendiente, que no es un error.
-      return { carpeta: destino, pendientes: [] }
-    }
-
-    const pendientes = archivos
-      .filter((nombre) => nombre.toLowerCase().endsWith('.json'))
-      .sort()
-      .map((nombre) => {
+    const carpetas = carpetasBuzon()
+    const pendientes = carpetas
+      .flatMap((carpeta) => {
+        let archivos
         try {
-          const documento = JSON.parse(readFileSync(join(destino, nombre), 'utf8'))
-          return {
-            archivo: nombre,
-            carpetaDestino: documento.carpeta ?? null,
-            rutinas: (documento.rutinas || []).map((r) => r.nombre),
-          }
-        } catch (error) {
-          return { archivo: nombre, ilegible: error.message }
+          archivos = readdirSync(carpeta)
+        } catch {
+          // Sin buzón todavía no hay nada pendiente, que no es un error.
+          return []
         }
+        return archivos
+          .filter((nombre) => nombre.toLowerCase().endsWith('.json'))
+          .map((nombre) => describirPendiente(carpeta, nombre))
       })
+      .sort((a, b) => a.archivo.localeCompare(b.archivo))
 
-    return { carpeta: destino, pendientes }
+    return { carpeta: carpetas[0], pendientes }
   },
 }
 

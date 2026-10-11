@@ -116,6 +116,12 @@ Si quieres el buzón en otra carpeta, pásala en `ENTRENOS_RUTINAS_DIR`. Por
 defecto es la de `entrenos.json`, que es la que la app ya tiene permiso para
 leer.
 
+También se lee `propuestas/`, porque una versión anterior de la app miraba ahí
+y en el teléfono de quien la tenga instalada esa carpeta ya existe con cosas
+dentro. Lo que hay en ella sale igual en `propuestas_pendientes` —con su
+`subcarpeta` en la respuesta— y reemplazar uno de esos archivos lo reescribe
+donde está. Lo nuevo se escribe siempre en `rutinas-de-claude/`.
+
 ## Cómo pedirle consejo
 
 Una vez conectado, basta con hablarle normal. Algunos arranques que funcionan:

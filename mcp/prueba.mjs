@@ -8,7 +8,14 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -592,6 +599,62 @@ for (const [id, trozo] of [
     `el error ${id} no menciona «${trozo}»: ${mensaje(id)}`
   )
 }
+
+// ─── La otra carpeta del buzón ───────────────────────────────────────────────
+// Una versión anterior de la app leía de «propuestas», y en el teléfono de
+// quien la tenga instalada esa carpeta ya existe con cosas dentro. Lo que hay
+// ahí tiene que verse igual, y reemplazar un archivo de ahí tiene que
+// reescribirlo donde está: escribirlo en la otra carpeta dejaría el original y
+// la app ofrecería las dos.
+
+const OTRO_BUZON = join(carpetaTemporal, 'propuestas')
+mkdirSync(OTRO_BUZON, { recursive: true })
+writeFileSync(
+  join(OTRO_BUZON, 'vieja.json'),
+  JSON.stringify({
+    version: 1,
+    carpeta: 'Bloque viejo',
+    rutinas: [{ nombre: 'Tirón B', ejercicios: [{ nombre: 'Remo con barra', series: 4 }] }],
+  }),
+  'utf8'
+)
+writeFileSync(join(OTRO_BUZON, 'roto.json'), '{ esto no es JSON', 'utf8')
+
+const { respuestas: delOtroBuzon } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'propuestas_pendientes'),
+  // Reemplazar la que está en la otra carpeta.
+  llamar(3, 'proponer_rutina', { ...rutinaValida, nombre_archivo: 'vieja' }),
+])
+const o = Object.fromEntries(delOtroBuzon.map((r) => [r.id, r]))
+
+const pendientes = contenido(o[2]).pendientes
+const vieja = pendientes.find((p) => p.archivo === 'vieja.json')
+comprobar(vieja !== undefined, 'una propuesta en «propuestas» no sale como pendiente')
+comprobar(vieja?.subcarpeta === 'propuestas', 'la propuesta no dice de qué carpeta sale')
+comprobar(vieja?.rutinas[0] === 'Tirón B', 'no se lee la rutina de la otra carpeta')
+comprobar(
+  pendientes.some((p) => p.subcarpeta === 'rutinas-de-claude'),
+  'al mirar las dos carpetas se perdió la del acuerdo'
+)
+const roto = pendientes.find((p) => p.archivo === 'roto.json')
+comprobar(roto?.ilegible !== undefined, 'un archivo ilegible desaparece de la lista')
+comprobar(
+  pendientes.map((p) => p.archivo).join() ===
+    [...pendientes.map((p) => p.archivo)].sort((a, b) => a.localeCompare(b)).join(),
+  'las pendientes de las dos carpetas no salen ordenadas'
+)
+
+comprobar(contenido(o[3]).archivo === 'vieja.json', 'nombre_archivo no se respeta')
+comprobar(
+  !existsSync(join(BUZON, 'vieja.json')),
+  'reemplazar una propuesta de «propuestas» la duplicó en la otra carpeta'
+)
+comprobar(
+  JSON.parse(readFileSync(join(OTRO_BUZON, 'vieja.json'), 'utf8')).rutinas[0].nombre ===
+    'Empuje A',
+  'la propuesta de «propuestas» no se reemplazó donde estaba'
+)
 
 // ─── Resultado ───────────────────────────────────────────────────────────────
 

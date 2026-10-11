@@ -16,9 +16,13 @@ import Foundation
 final class BuzonRutinas {
     static let compartido = BuzonRutinas()
 
-    /// Subcarpeta donde escribe el servidor MCP. El nombre está acordado con
-    /// `mcp/servidor-entrenos.mjs`: cambiarlo aquí lo rompe allí.
-    static let nombreSubcarpeta = "rutinas-de-claude"
+    /// Subcarpetas donde se buscan propuestas. La primera es la del acuerdo con
+    /// `mcp/servidor-entrenos.mjs`, que es donde escribe: cambiarla aquí lo
+    /// rompe allí. La segunda se admite porque una versión anterior miraba ahí,
+    /// y en un teléfono que la tuviera esa carpeta ya existe con rutinas
+    /// dentro. El nombre no lo comprueba nadie, así que el lado que lee perdona
+    /// los dos.
+    static let nombresAdmitidos = ["rutinas-de-claude", "propuestas"]
 
     /// Donde van las propuestas ya importadas, en lugar de borrarlas.
     static let nombreImportadas = "importadas"
@@ -27,18 +31,38 @@ final class BuzonRutinas {
 
     /// Una propuesta pendiente de importar.
     struct Propuesta: Identifiable, Equatable {
-        /// El nombre del archivo, único dentro de la carpeta.
-        var id: String
+        /// El nombre del archivo, único dentro de su subcarpeta.
+        var archivo: String
         /// Los nombres de las rutinas que trae, para poder decir qué es sin
         /// abrirla.
         var rutinas: [String]
         var carpetaDestino: String?
+        /// De qué subcarpeta salió, para leerla y apartarla en la suya.
+        var subcarpeta: String
+        /// `true` mientras iCloud no haya traído el archivo al teléfono: el
+        /// hueco ya está en la carpeta, pero su contenido todavía no.
+        var sinDescargar: Bool = false
+
+        /// Lleva la subcarpeta porque el mismo nombre de archivo puede estar en
+        /// las dos, y dos filas con la misma identidad desaparecen de un
+        /// `ForEach` sin decir nada.
+        var id: String { "\(subcarpeta)/\(archivo)" }
 
         var resumen: String {
-            rutinas.isEmpty ? id : rutinas.joined(separator: ", ")
+            guard rutinas.isEmpty else { return rutinas.joined(separator: ", ") }
+            // Sin el «.json», que en una fila de la app no dice nada.
+            var nombre = archivo
+            if nombre.lowercased().hasSuffix(".json") { nombre.removeLast(5) }
+            return nombre
         }
 
         var detalle: String {
+            // Decir «0 rutinas» sería mentira, y además la mentira que peor
+            // cae: Claude acaba de decir que ha escrito una. Lo que hay que
+            // decir mientras iCloud no la baje es que viene de camino.
+            if rutinas.isEmpty {
+                return sinDescargar ? "Bajando de iCloud" : "Tócala para verla"
+            }
             let cuantas = rutinas.count == 1 ? "1 rutina" : "\(rutinas.count) rutinas"
             guard let carpetaDestino else { return cuantas }
             return "\(cuantas) · carpeta «\(carpetaDestino)»"
@@ -61,13 +85,17 @@ final class BuzonRutinas {
         guard carpeta.startAccessingSecurityScopedResource() else { return [] }
         defer { carpeta.stopAccessingSecurityScopedResource() }
 
-        let buzon = carpeta.appendingPathComponent(Self.nombreSubcarpeta, isDirectory: true)
+        let buzones = Self.nombresAdmitidos.map {
+            (nombre: $0, url: carpeta.appendingPathComponent($0, isDirectory: true))
+        }
         return await Task.detached(priority: .userInitiated) {
-            Self.listar(en: buzon)
+            buzones
+                .flatMap { Self.listar(en: $0.url, subcarpeta: $0.nombre) }
+                .sorted { $0.archivo < $1.archivo }
         }.value
     }
 
-    nonisolated private static func listar(en buzon: URL) -> [Propuesta] {
+    nonisolated private static func listar(en buzon: URL, subcarpeta: String) -> [Propuesta] {
         let contenido = (try? FileManager.default.contentsOfDirectory(
             at: buzon,
             includingPropertiesForKeys: nil,
@@ -77,11 +105,22 @@ final class BuzonRutinas {
         var propuestas: [Propuesta] = []
         var vistos: Set<String> = []
         for url in contenido {
-            guard let nombre = nombreVisible(url.lastPathComponent) else { continue }
+            let enDisco = url.lastPathComponent
+            guard let nombre = nombreVisible(enDisco) else { continue }
             guard vistos.insert(nombre).inserted else { continue }
-            propuestas.append(describir(nombre: nombre, en: buzon))
+            // El nombre en disco es lo único que distingue «todavía no ha
+            // bajado» de «ha bajado y no se entiende»: el hueco de iCloud
+            // acaba en «.icloud» y el archivo de verdad no.
+            propuestas.append(
+                describir(
+                    nombre: nombre,
+                    en: buzon,
+                    subcarpeta: subcarpeta,
+                    hueco: enDisco.hasSuffix(".icloud")
+                )
+            )
         }
-        return propuestas.sorted { $0.id < $1.id }
+        return propuestas
     }
 
     /// El nombre real de un archivo que iCloud todavía no ha descargado se
@@ -102,21 +141,33 @@ final class BuzonRutinas {
     /// Si no se puede leer —porque iCloud no lo ha bajado todavía—, la
     /// propuesta sale con el nombre del archivo y nada más, en lugar de
     /// desaparecer de la lista.
-    nonisolated private static func describir(nombre: String, en buzon: URL) -> Propuesta {
+    nonisolated private static func describir(
+        nombre: String,
+        en buzon: URL,
+        subcarpeta: String,
+        hueco: Bool
+    ) -> Propuesta {
         let url = buzon.appendingPathComponent(nombre)
         guard
             let datos = try? Data(contentsOf: url),
             let raiz = (try? JSONSerialization.jsonObject(with: datos)) as? [String: Any]
         else {
-            return Propuesta(id: nombre, rutinas: [], carpetaDestino: nil)
+            return Propuesta(
+                archivo: nombre,
+                rutinas: [],
+                carpetaDestino: nil,
+                subcarpeta: subcarpeta,
+                sinDescargar: hueco
+            )
         }
         let rutinas = (raiz["rutinas"] as? [Any] ?? []).compactMap { elemento in
             (elemento as? [String: Any])?["nombre"] as? String
         }
         return Propuesta(
-            id: nombre,
+            archivo: nombre,
             rutinas: rutinas,
-            carpetaDestino: raiz["carpeta"] as? String
+            carpetaDestino: raiz["carpeta"] as? String,
+            subcarpeta: subcarpeta
         )
     }
 
@@ -138,8 +189,8 @@ final class BuzonRutinas {
         defer { carpeta.stopAccessingSecurityScopedResource() }
 
         let destino = carpeta
-            .appendingPathComponent(Self.nombreSubcarpeta, isDirectory: true)
-            .appendingPathComponent(propuesta.id)
+            .appendingPathComponent(propuesta.subcarpeta, isDirectory: true)
+            .appendingPathComponent(propuesta.archivo)
 
         return try await Task.detached(priority: .userInitiated) {
             try Self.leerCoordinado(destino)
@@ -185,12 +236,13 @@ final class BuzonRutinas {
         guard carpeta.startAccessingSecurityScopedResource() else { return }
         defer { carpeta.stopAccessingSecurityScopedResource() }
 
-        let buzon = carpeta.appendingPathComponent(Self.nombreSubcarpeta, isDirectory: true)
-        let origen = buzon.appendingPathComponent(propuesta.id)
+        let buzon = carpeta.appendingPathComponent(propuesta.subcarpeta, isDirectory: true)
+        let origen = buzon.appendingPathComponent(propuesta.archivo)
         let archivadas = buzon.appendingPathComponent(Self.nombreImportadas, isDirectory: true)
         try? FileManager.default.createDirectory(at: archivadas, withIntermediateDirectories: true)
 
-        let destino = archivadas.appendingPathComponent("\(Self.marcaDeTiempo())-\(propuesta.id)")
+        let destino = archivadas
+            .appendingPathComponent("\(Self.marcaDeTiempo())-\(propuesta.archivo)")
         do {
             try FileManager.default.moveItem(at: origen, to: destino)
         } catch {
