@@ -323,6 +323,24 @@ const HERRAMIENTAS = [
                     descanso: { type: 'integer', minimum: 0, maximum: 1800 },
                     notas: { type: 'string' },
                     superserie: { type: 'string', description: 'Etiqueta: "A", "B"…' },
+                    grupo: {
+                      type: 'string',
+                      description:
+                        'Grupo muscular, SOLO para un ejercicio que no exista todavía. Sin ' +
+                        'esto nace sin clasificar y no cuenta para las series semanales. ' +
+                        'Valores: pecho, espalda, dorsal, trapecio, hombroAnterior, ' +
+                        'hombroLateral, hombroPosterior, biceps, triceps, antebrazo, ' +
+                        'cuadriceps, isquios, gluteo, gemelo, core, lumbar.',
+                    },
+                    gruposSecundarios: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Los que trabaja de forma secundaria. Cuentan media serie.',
+                    },
+                    material: {
+                      type: 'string',
+                      enum: ['barra', 'mancuerna', 'polea', 'maquina', 'peso', 'otro'],
+                    },
                   },
                   required: ['nombre', 'series'],
                   additionalProperties: false,
@@ -485,10 +503,16 @@ const EJECUTORES = {
         totalEjercicios++
         const sitio = `${donde}.ejercicios[${j}]`
         const canonico = porNombre.get(normalizar(ej?.nombre || ''))
-        if (!canonico) {
+        if (!canonico && !ej?.grupo) {
+          // Se puede proponer un ejercicio que no exista, pero entonces hay
+          // que decir de qué grupo es: creado sin grupo no suma a las series
+          // semanales de nada, y el recuento sale mal en silencio.
           desconocidos.add(ej?.nombre ?? '(sin nombre)')
-          problemas.push(`${sitio}.nombre: «${ej?.nombre}» no está en tu biblioteca.`)
-        } else if (canonico !== ej.nombre) {
+          problemas.push(
+            `${sitio}.nombre: «${ej?.nombre}» no está en tu biblioteca. Si es ` +
+              'a propósito, añade "grupo" (y "material") para que se cree bien.'
+          )
+        } else if (canonico && canonico !== ej.nombre) {
           // Se corrige en silencio a la grafía de la app: el importador busca
           // ignorando acentos, pero el archivo queda más claro con el nombre
           // tal y como está guardado.

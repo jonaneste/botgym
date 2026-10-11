@@ -282,12 +282,31 @@ const { respuestas, errores } = await hablarConElServidor([
     ],
   }),
   llamar(23, 'propuestas_pendientes'),
+  // Un ejercicio que no existe PERO con grupo declarado sí se puede proponer:
+  // así se crea bien y cuenta para las series semanales.
+  llamar(24, 'proponer_rutina', {
+    rutinas: [
+      {
+        nombre: 'Con uno nuevo',
+        ejercicios: [
+          {
+            nombre: 'Búlgaras',
+            series: 4,
+            reps: '6-8',
+            grupo: 'cuadriceps',
+            gruposSecundarios: ['gluteo'],
+            material: 'mancuerna',
+          },
+        ],
+      },
+    ],
+  }),
 ])
 
 const por = Object.fromEntries(respuestas.map((r) => [r.id, r]))
 
 // Una notificación no se responde: 14 mensajes, 13 respuestas.
-comprobar(respuestas.length === 23, `se esperaban 23 respuestas, llegaron ${respuestas.length}`)
+comprobar(respuestas.length === 24, `se esperaban 24 respuestas, llegaron ${respuestas.length}`)
 comprobar(
   respuestas.every((r) => r.jsonrpc === '2.0'),
   'alguna respuesta no lleva jsonrpc 2.0'
@@ -558,6 +577,20 @@ comprobar(despues.pendientes === 2, `pendientes después = ${despues.pendientes}
 comprobar(
   despues.propuestas.every((p) => Array.isArray(p.rutinas) && p.rutinas.length === 1),
   'una propuesta pendiente no resume sus rutinas'
+)
+
+// Un ejercicio nuevo con grupo declarado pasa, y el grupo llega al archivo.
+comprobar(por[24].result?.isError !== true, 'un ejercicio nuevo con grupo se rechaza')
+const conNuevo = contenido(por[24])
+const docNuevo = JSON.parse(readFileSync(conNuevo.archivo, 'utf8'))
+comprobar(
+  docNuevo.rutinas[0].ejercicios[0].grupo === 'cuadriceps',
+  'el grupo del ejercicio nuevo no llega al archivo'
+)
+// Y sin grupo sigue rechazándose, que es el caso que protege el recuento.
+comprobar(
+  (por[20].result?.content?.[0]?.text || '').includes('grupo'),
+  'el error de ejercicio inexistente no sugiere declarar el grupo'
 )
 
 // ─── Resultado ───────────────────────────────────────────────────────────────
