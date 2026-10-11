@@ -32,6 +32,9 @@ struct VistaEditorEjercicio: View {
                 }
 
                 Section("Grupo muscular principal") {
+                    // Aquí sí entra `sinClasificar`: es el valor con el que
+                    // nacen los ejercicios importados, y un Picker cuya
+                    // selección no está entre sus opciones sale en blanco.
                     Picker("Principal", selection: $grupoPrincipal) {
                         ForEach(GrupoMuscular.allCases, id: \.self) { grupo in
                             Text(grupo.nombre).tag(grupo)
@@ -41,7 +44,8 @@ struct VistaEditorEjercicio: View {
                 }
 
                 Section {
-                    ForEach(GrupoMuscular.allCases, id: \.self) { grupo in
+                    // De secundario no tiene sentido: no suma nada.
+                    ForEach(GrupoMuscular.allCases.filter(\.cuentaEnVolumen), id: \.self) { grupo in
                         if grupo != grupoPrincipal {
                             Button {
                                 if gruposSecundarios.contains(grupo) {

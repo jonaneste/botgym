@@ -22,6 +22,13 @@ public enum GrupoMuscular: String, Codable, CaseIterable, Sendable {
     case gemelo
     case core
     case lumbar
+    /// Un ejercicio que todavía no se ha clasificado. No es un músculo: no
+    /// suma series en ningún recuento. Lo lleva lo que entra por importación
+    /// sin grupo declarado, para que el usuario lo complete a mano.
+    ///
+    /// Va al final a propósito: el orden de declaración es el que usan las
+    /// listas de la interfaz y el recuento semanal.
+    case sinClasificar
 
     public var nombre: String {
         switch self {
@@ -41,8 +48,16 @@ public enum GrupoMuscular: String, Codable, CaseIterable, Sendable {
         case .gemelo: return "Gemelo"
         case .core: return "Core"
         case .lumbar: return "Lumbar"
+        case .sinClasificar: return "Sin clasificar"
         }
     }
+
+    /// `false` para lo que no es un músculo y por tanto no puede sumar series.
+    ///
+    /// Un ejercicio sin clasificar no se reparte entre grupos ni se mete en
+    /// uno cualquiera: contarlo como core hacía que una sesión de pierna
+    /// importada subiera el recuento de core en silencio.
+    public var cuentaEnVolumen: Bool { self != .sinClasificar }
 
     /// Agrupación amplia, para resúmenes de alto nivel.
     public var region: RegionCorporal {
@@ -55,6 +70,8 @@ public enum GrupoMuscular: String, Codable, CaseIterable, Sendable {
             return .brazo
         case .cuadriceps, .isquios, .gluteo, .gemelo:
             return .pierna
+        case .sinClasificar:
+            return .sinClasificar
         }
     }
 }
@@ -64,6 +81,9 @@ public enum RegionCorporal: String, Codable, CaseIterable, Sendable {
     case hombro
     case brazo
     case pierna
+    /// Región de los grupos que no son músculo. Existe para que `region` siga
+    /// sin ser opcional y la biblioteca pueda agrupar lo pendiente de revisar.
+    case sinClasificar
 
     public var nombre: String {
         switch self {
@@ -71,6 +91,7 @@ public enum RegionCorporal: String, Codable, CaseIterable, Sendable {
         case .hombro: return "Hombro"
         case .brazo: return "Brazo"
         case .pierna: return "Pierna"
+        case .sinClasificar: return "Sin clasificar"
         }
     }
 }

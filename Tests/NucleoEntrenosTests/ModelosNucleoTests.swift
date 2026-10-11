@@ -112,6 +112,31 @@ final class GrupoMuscularTests: XCTestCase {
         XCTAssertEqual(regiones.count, RegionCorporal.allCases.count)
     }
 
+    func testSinClasificarEsElUnicoGrupoQueNoCuenta() {
+        let queNoCuentan = GrupoMuscular.allCases.filter { !$0.cuentaEnVolumen }
+        XCTAssertEqual(queNoCuentan, [.sinClasificar])
+    }
+
+    func testUnGrupoDesconocidoNoSeParsea() {
+        // Los enums se persisten como String crudo. Un valor que esta versión
+        // no conoce tiene que dar nil para que quien lee pueda decidir, no
+        // colarse como un grupo real.
+        XCTAssertNil(GrupoMuscular(rawValue: "pectoral"))
+        XCTAssertNil(GrupoMuscular(rawValue: ""))
+        XCTAssertEqual(GrupoMuscular(rawValue: "sinClasificar"), .sinClasificar)
+    }
+
+    func testDecodificarUnGrupoDesconocidoFallaSinRomperElProceso() throws {
+        // Lanza un error normal y recuperable; no atrapa.
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(GrupoMuscular.self, from: Data(#""pectoral""#.utf8))
+        )
+        XCTAssertEqual(
+            try JSONDecoder().decode(GrupoMuscular.self, from: Data(#""sinClasificar""#.utf8)),
+            .sinClasificar
+        )
+    }
+
     func testMaterialesTienenNombreEIcono() {
         for material in Material.allCases {
             XCTAssertFalse(material.nombre.isEmpty, "\(material.rawValue) sin nombre")

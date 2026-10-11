@@ -21,6 +21,11 @@ import { join } from 'node:path'
 const VERSION = '1.0.0'
 const PESO_SECUNDARIO = 0.5
 
+// Grupos que la app exporta pero que no son un músculo, así que no pueden
+// sumar series: un bucket «sinClasificar» en el recuento se leería como un
+// grupo más y falsearía el reparto que esta herramienta sirve a Claude.
+const GRUPOS_QUE_NO_CUENTAN = new Set(['sinClasificar'])
+
 // ─── Localizar el archivo ────────────────────────────────────────────────────
 
 function rutasCandidatas() {
@@ -117,7 +122,12 @@ function contarSeries(entreno) {
   return (entreno.ejercicios || []).reduce((suma, e) => suma + seriesEfectivas(e).length, 0)
 }
 
-/** Series por grupo muscular: el principal suma 1 y cada secundario 0,5. */
+/**
+ * Series por grupo muscular: el principal suma 1 y cada secundario 0,5.
+ *
+ * Los grupos de `GRUPOS_QUE_NO_CUENTAN` se omiten, igual que hace
+ * `ServicioVolumen` en la app.
+ */
 function seriesPorGrupo(entrenos) {
   const cuenta = {}
   for (const entreno of entrenos) {
@@ -125,10 +135,13 @@ function seriesPorGrupo(entrenos) {
       const n = seriesEfectivas(ejercicio).length
       if (n === 0) continue
       const principal = ejercicio.grupoPrincipal
-      if (principal) cuenta[principal] = (cuenta[principal] || 0) + n
+      if (principal && !GRUPOS_QUE_NO_CUENTAN.has(principal)) {
+        cuenta[principal] = (cuenta[principal] || 0) + n
+      }
       const secundarios = new Set(ejercicio.gruposSecundarios || [])
       secundarios.delete(principal)
       for (const grupo of secundarios) {
+        if (GRUPOS_QUE_NO_CUENTAN.has(grupo)) continue
         cuenta[grupo] = (cuenta[grupo] || 0) + n * PESO_SECUNDARIO
       }
     }

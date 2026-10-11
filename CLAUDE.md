@@ -125,7 +125,11 @@ Apple Salud. Y no se piden ni se guardan credenciales de Zepp en ningún sitio.
 **No se inventan datos de salud.** La estimación de calorías está apagada por
 defecto y sin peso corporal no estima nada. Un ejercicio creado al importar una
 rutina no adivina grupo muscular ni material: una suposición mala falsearía el
-recuento semanal en silencio.
+recuento semanal en silencio. Nace con `GrupoMuscular.sinClasificar`, que es el
+único caso con `cuentaEnVolumen == false` y por eso no suma series ni en
+`ServicioVolumen` ni en el agregado del MCP. Antes nacía con `.core`, y una
+sesión de pierna importada le subía el recuento a core. No se ofrece como grupo
+secundario ni como objetivo semanal, porque ahí nunca podría cumplirse.
 
 ## Si esta sesión corre en el Mac
 

@@ -221,6 +221,66 @@ final class ServicioVolumenTests: XCTestCase {
         XCTAssertTrue(ServicioVolumen.seriesPorSemana([], semanas: 0, hasta: fecha(7), calendario: calendario).isEmpty)
     }
 
+    // MARK: - Sin clasificar
+
+    func testUnEjercicioSinClasificarNoSumaNingunaSerie() {
+        // Lo que entra por importación sin grupo declarado. Antes nacía como
+        // core y una sesión de pierna le subía el recuento a core.
+        let series = [serie(fecha(5), .sinClasificar), serie(fecha(5), .sinClasificar)]
+        XCTAssertTrue(ServicioVolumen.seriesPorGrupo(series).isEmpty)
+    }
+
+    func testSinClasificarComoSecundarioTampocoSuma() throws {
+        let series = [serie(fecha(5), .pecho, [.sinClasificar, .triceps])]
+        let cuenta = ServicioVolumen.seriesPorGrupo(series)
+        XCTAssertNil(cuenta[.sinClasificar])
+        XCTAssertEqual(try XCTUnwrap(cuenta[.pecho]), 1, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(cuenta[.triceps]), 0.5, accuracy: 0.0001)
+    }
+
+    func testSinClasificarNoSaleEnLasSeriesSemanalesYNoEstorbaAlResto() throws {
+        let series = [
+            serie(fecha(5), .sinClasificar),
+            serie(fecha(5), .sinClasificar),
+            serie(fecha(5), .cuadriceps),
+        ]
+        let resultado = ServicioVolumen.seriesSemanales(series, semanaDe: fecha(7), calendario: calendario)
+        XCTAssertFalse(resultado.contains { $0.grupo == .sinClasificar })
+        let cuadriceps = try XCTUnwrap(resultado.first { $0.grupo == .cuadriceps })
+        XCTAssertEqual(cuadriceps.series, 1, accuracy: 0.0001)
+    }
+
+    func testUnObjetivoGuardadoDeSinClasificarNoCreaFila() {
+        // Un objetivo que viniera de unos ajustes antiguos no puede crear una
+        // fila: no sumaría nunca y se quedaría clavada en 0.
+        let resultado = ServicioVolumen.seriesSemanales(
+            [serie(fecha(5), .sinClasificar)],
+            semanaDe: fecha(7),
+            objetivos: [.sinClasificar: 10],
+            calendario: calendario
+        )
+        XCTAssertTrue(resultado.isEmpty)
+    }
+
+    func testLaTendenciaFiltradaPorSinClasificarEsCero() {
+        let series = [serie(fecha(5), .sinClasificar), serie(fecha(5), .pecho)]
+        let tendencia = ServicioVolumen.seriesPorSemana(
+            series, semanas: 1, hasta: fecha(7), grupo: .sinClasificar, calendario: calendario
+        )
+        XCTAssertEqual(tendencia.map(\.series), [0])
+    }
+
+    func testLaTendenciaTotalSiCuentaLasSeriesSinClasificar() {
+        // Decisión explícita: el total no se reparte por músculo, así que una
+        // serie sin clasificar no falsea nada y sí se hizo. Quitarla haría que
+        // importar una rutina pareciera entrenar menos.
+        let series = [serie(fecha(5), .sinClasificar), serie(fecha(5), .pecho)]
+        let tendencia = ServicioVolumen.seriesPorSemana(
+            series, semanas: 1, hasta: fecha(7), calendario: calendario
+        )
+        XCTAssertEqual(tendencia.map(\.series), [2])
+    }
+
     // MARK: - Calendario
 
     func testUltimasSemanasDevuelveLunes() throws {

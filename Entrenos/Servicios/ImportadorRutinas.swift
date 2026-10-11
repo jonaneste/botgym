@@ -177,12 +177,13 @@ struct ImportadorRutinas {
     ///
     /// No se intenta adivinar el grupo muscular ni el material a partir del
     /// nombre: una suposición mala contamina el recuento semanal en silencio.
-    /// Se marca como personalizado para que destaque en la biblioteca y lo
-    /// puedas completar.
+    /// Por eso el grupo es `sinClasificar`, que no suma series en ningún
+    /// recuento, y no `core`, que sí sumaba. Se marca como personalizado para
+    /// que destaque en la biblioteca y lo puedas completar.
     private func crear(nombre: String, esTiempo: Bool) -> Ejercicio {
         Ejercicio(
             nombre: nombre,
-            grupoPrincipal: .core,
+            grupoPrincipal: .sinClasificar,
             gruposSecundarios: [],
             material: .otro,
             tipoRegistro: esTiempo ? .tiempo : .repeticiones,

@@ -92,6 +92,17 @@ function generarFixture() {
           superserie: null,
           series: [0, 1, 2, 3].map((j) => serie(j, 10, 14)),
         },
+        {
+          // Importado sin grupo y todavía sin revisar: cuenta como serie
+          // hecha, pero no puede sumarle a ningún músculo.
+          nombre: 'Prensa inclinada 45',
+          grupoPrincipal: 'sinClasificar',
+          gruposSecundarios: [],
+          tipoRegistro: 'repeticiones',
+          notas: 'Creado al importar. Revisa el grupo muscular y el material.',
+          superserie: null,
+          series: [0, 1].map((j) => serie(j, 100, 12)),
+        },
       ],
     }
   })
@@ -239,10 +250,10 @@ comprobar(JSON.stringify(por[3].result) === '{}', 'ping no responde vacío')
 const general = contenido(por[4])
 comprobar(general.entrenos === 3, `resumen_general.entrenos = ${general.entrenos}, esperado 3`)
 comprobar(general.carreras === 3, `resumen_general.carreras = ${general.carreras}, esperado 3`)
-comprobar(general.ejerciciosDistintos === 2, `ejerciciosDistintos = ${general.ejerciciosDistintos}`)
-// Series efectivas: por entreno, 4 de press + 4 de laterales = 8; el
-// calentamiento no cuenta. Tres entrenos → 24.
-comprobar(general.seriesTotales === 24, `seriesTotales = ${general.seriesTotales}, esperado 24`)
+comprobar(general.ejerciciosDistintos === 3, `ejerciciosDistintos = ${general.ejerciciosDistintos}`)
+// Series efectivas: por entreno, 4 de press + 4 de laterales + 2 de la prensa
+// sin clasificar = 10; el calentamiento no cuenta. Tres entrenos → 30.
+comprobar(general.seriesTotales === 30, `seriesTotales = ${general.seriesTotales}, esperado 30`)
 
 // resumen_semanal: 4 semanas, y los secundarios cuentan 0,5.
 const semanal = contenido(por[5])
@@ -253,6 +264,15 @@ const grupos = conDatos[0].seriesPorGrupo
 comprobar(grupos.pecho === 4, `pecho = ${grupos.pecho}, esperado 4`)
 comprobar(grupos.triceps === 2, `triceps = ${grupos.triceps}, esperado 2 (4 series × 0,5)`)
 comprobar(grupos.hombroLateral === 4, `hombroLateral = ${grupos.hombroLateral}, esperado 4`)
+// Las 2 series de la prensa sin clasificar no crean grupo ni se cuelan en uno.
+comprobar(
+  grupos.sinClasificar === undefined,
+  `sinClasificar aparece en el reparto por grupo con ${grupos.sinClasificar}`
+)
+comprobar(
+  Object.values(grupos).reduce((a, b) => a + b, 0) === 4 + 2 + 2 + 4,
+  `el reparto por grupo suma ${Object.values(grupos).reduce((a, b) => a + b, 0)}, esperado 12`
+)
 
 // El calentamiento de 40 kg × 15 no debe aparecer en el historial.
 const historial = contenido(por[6])

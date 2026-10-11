@@ -49,7 +49,9 @@ final class Ejercicio {
     // MARK: - Accesores con tipo
 
     var grupoPrincipal: GrupoMuscular {
-        get { GrupoMuscular(rawValue: grupoPrincipalRaw) ?? .pecho }
+        // Un valor que esta versión no conoce cae en `sinClasificar` y no en
+        // un músculo cualquiera: así no suma series donde no toca.
+        get { GrupoMuscular(rawValue: grupoPrincipalRaw) ?? .sinClasificar }
         set { grupoPrincipalRaw = newValue.rawValue }
     }
 

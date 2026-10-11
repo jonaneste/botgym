@@ -15,7 +15,7 @@ struct VistaObjetivosSemanales: View {
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(RegionCorporal.allCases, id: \.self) { region in
+            ForEach(regionesConGrupos, id: \.self) { region in
                 Section(region.nombre) {
                     ForEach(gruposDe(region), id: \.self) { grupo in
                         Stepper(
@@ -66,8 +66,16 @@ struct VistaObjetivosSemanales: View {
         }
     }
 
+    /// Solo las regiones que tienen algún grupo con objetivo posible, para no
+    /// dibujar una sección vacía.
+    private var regionesConGrupos: [RegionCorporal] {
+        RegionCorporal.allCases.filter { !gruposDe($0).isEmpty }
+    }
+
+    /// `sinClasificar` no se ofrece: no suma series, así que su objetivo nunca
+    /// se podría cumplir.
     private func gruposDe(_ region: RegionCorporal) -> [GrupoMuscular] {
-        GrupoMuscular.allCases.filter { $0.region == region }
+        GrupoMuscular.allCases.filter { $0.region == region && $0.cuentaEnVolumen }
     }
 
     private func aplicarPlanSugerido() {
