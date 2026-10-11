@@ -12,6 +12,10 @@ struct VistaDetalleEjercicio: View {
     @State private var sesiones: [SesionEjercicio] = []
     @State private var metrica: MetricaGrafica = .unRM
 
+    /// Igual que en la pestaña de progreso: el alto acompaña al cuerpo de
+    /// letra para que las etiquetas de los ejes no ahoguen la gráfica.
+    @ScaledMetric(relativeTo: .caption) private var altoGrafica: CGFloat = 200
+
     private var esTiempo: Bool { ejercicio.tipoRegistro.esTiempo }
 
     /// En los ejercicios de tiempo el 1RM no significa nada, así que esa
@@ -70,7 +74,7 @@ struct VistaDetalleEjercicio: View {
                     .pickerStyle(.segmented)
 
                     GraficaEjercicio(puntos: puntos, metrica: metrica)
-                        .frame(height: 200)
+                        .frame(height: altoGrafica)
                         .padding(.vertical, 6)
                 } header: {
                     Text("Evolución")

@@ -95,27 +95,28 @@ struct VistaHistorial: View {
 
     // MARK: - Resumen
 
+    /// El acumulado de todo el historial, con las mismas cifras grandes que
+    /// la cabecera del entreno y el resumen de fin: es el mismo tipo de dato
+    /// y tiene que leerse igual en los tres sitios.
+    ///
+    /// Las filas de abajo siguen siendo filas de lista a propósito. Un
+    /// historial es para recorrerlo con el pulgar, y convertirlo en tarjetas
+    /// sueltas caben menos entrenos en pantalla sin ganar nada.
     private var resumenGeneral: some View {
-        HStack {
-            columnaResumen("Entrenos", "\(entrenos.count)")
-            Divider()
-            columnaResumen("Series", "\(entrenos.reduce(0) { $0 + $1.seriesCompletadas })")
-            Divider()
-            columnaResumen("Volumen", Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }))
+        HStack(spacing: 0) {
+            CifraDestacada(valor: "\(entrenos.count)", etiqueta: "Entrenos")
+            Divider().frame(height: 28)
+            CifraDestacada(
+                valor: "\(entrenos.reduce(0) { $0 + $1.seriesCompletadas })",
+                etiqueta: "Series"
+            )
+            Divider().frame(height: 28)
+            CifraDestacada(
+                valor: Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }),
+                etiqueta: "Volumen"
+            )
         }
-        .frame(height: 44)
-    }
-
-    private func columnaResumen(_ titulo: String, _ valor: String) -> some View {
-        VStack(spacing: 2) {
-            Text(valor)
-                .font(.system(.headline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-            Text(titulo)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Fila
@@ -162,7 +163,7 @@ struct VistaHistorial: View {
             Text("\(zona) \(valor)/10")
         }
         .font(.caption2)
-        .foregroundStyle(valor >= 7 ? .red : .orange)
+        .foregroundStyle(Paleta.molestia(valor))
     }
 
     // MARK: - Agrupación por mes
@@ -256,7 +257,7 @@ struct FilaCarrera: View {
         HStack(spacing: 12) {
             Image(systemName: "figure.run")
                 .font(.title3)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Paleta.carrera)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 5) {

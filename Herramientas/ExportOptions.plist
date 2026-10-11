@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- El identificador del equipo no se guarda aquí: el workflow lo pone con
+	     plutil sobre una copia, leyéndolo del secreto APPLE_TEAM_ID. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<!-- Que los decida el proyecto: la versión está en MARKETING_VERSION y el
+	     número de build lo pone el workflow desde el contador del run. Si se
+	     dejara en true, Xcode los reescribiría por su cuenta. -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>

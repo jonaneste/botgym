@@ -53,7 +53,33 @@ struct ServicioExportacion {
             ejercicios: ejercicios,
             carpetas: todasLasCarpetas,
             entrenos: entrenos,
-            carreras: carreras
+            carreras: carreras,
+            ajustes: exportarAjustes()
+        )
+    }
+
+    /// Los ajustes que cambian cómo se leen los datos o qué se puede
+    /// aconsejar con ellos. Los de interfaz —vibrar, notificar— no salen:
+    /// a quien lee el archivo no le dicen nada.
+    private func exportarAjustes() -> AjustesExportados {
+        let ajustes = Ajustes.cargar(en: contexto)
+        var objetivos: [String: Int] = [:]
+        for (grupo, series) in ajustes.objetivosSemanales {
+            objetivos[grupo.rawValue] = series
+        }
+        return AjustesExportados(
+            objetivosSemanales: objetivos,
+            incrementoBarra: ajustes.incrementoBarra,
+            incrementoPolea: ajustes.incrementoPolea,
+            incrementoMaquina: ajustes.incrementoMaquina,
+            incrementoTiempo: ajustes.incrementoTiempo,
+            mancuernasDisponibles: ajustes.mancuernasDisponibles,
+            rirPorDefectoMin: ajustes.rirPorDefectoMin,
+            rirPorDefectoMax: ajustes.rirPorDefectoMax,
+            descansoPorDefectoSegundos: ajustes.descansoPorDefecto,
+            // Cero es «sin poner», no un peso. Mandarlo como cero haría que
+            // una estimación de calorías o de carga relativa saliera absurda.
+            pesoCorporal: ajustes.pesoCorporal > 0 ? ajustes.pesoCorporal : nil
         )
     }
 

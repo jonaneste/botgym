@@ -112,7 +112,7 @@ struct VistaDetalleEntreno: View {
             Spacer()
             Text("\(valor)/10")
                 .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(valor >= 7 ? .red : (valor >= 4 ? .orange : .green))
+                .foregroundStyle(Paleta.molestia(valor))
         }
     }
 
@@ -153,7 +153,7 @@ struct VistaDetalleEntreno: View {
             if serie.esCalentamiento {
                 Image(systemName: "flame")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Paleta.calentamiento)
                     .frame(width: 22)
             } else {
                 Text("\(serie.orden + 1)")

@@ -13,6 +13,10 @@ struct GraficaSeriesSemanales: View {
             )
             .foregroundStyle(Color.accentColor.gradient)
             .cornerRadius(4)
+            // Cada barra se anuncia sola, para poder recorrerlas una a una
+            // en lugar de oír solo el resumen del conjunto.
+            .accessibilityLabel(Formato.diaYMes(semana.inicioSemana))
+            .accessibilityValue("\(Formato.numeroCorto(semana.series)) series")
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .weekOfYear)) { valor in
@@ -28,5 +32,14 @@ struct GraficaSeriesSemanales: View {
         .chartYAxis {
             AxisMarks(position: .leading)
         }
+        .accessibilityLabel("Series por semana")
+        .accessibilityValue(resumenAccesible)
+    }
+
+    private var resumenAccesible: String {
+        guard let ultima = datos.last else { return "Sin datos todavía" }
+        let total = datos.reduce(0.0) { $0 + $1.series }
+        let media = total / Double(datos.count)
+        return "\(datos.count) semanas, esta semana \(Formato.numeroCorto(ultima.series)) series, media \(Formato.numeroCorto(media))"
     }
 }

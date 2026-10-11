@@ -14,9 +14,9 @@
  *   node servidor-entrenos.mjs /ruta/a/entrenos.json
  */
 
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const VERSION = '1.0.0'
 const PESO_SECUNDARIO = 0.5
@@ -37,6 +37,11 @@ function rutasCandidatas() {
 
 let cache = { ruta: null, mtime: 0, datos: null }
 
+/// La ruta del archivo que se acabó leyendo. Las propuestas se escriben en
+/// esa misma carpeta: es la que el usuario eligió en la app, y la única que
+/// la app sabe mirar.
+let rutaEnUso = null
+
 function cargarDatos() {
   for (const ruta of rutasCandidatas()) {
     let info
@@ -51,6 +56,7 @@ function cargarDatos() {
     }
     const datos = JSON.parse(readFileSync(ruta, 'utf8'))
     cache = { ruta, mtime, datos }
+    rutaEnUso = ruta
     return datos
   }
   throw new Error(
@@ -258,6 +264,115 @@ const HERRAMIENTAS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'ejercicios_disponibles',
+    description:
+      'El catálogo entero de ejercicios de la app, con grupo muscular, material ' +
+      'y tipo de registro. Es lo que hay que mirar ANTES de proponer una rutina: ' +
+      'un ejercicio que no esté aquí no existe en la app. Incluye los que todavía ' +
+      'no se han hecho nunca, que `historial_ejercicio` no puede encontrar.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        grupo: {
+          type: 'string',
+          description: 'Opcional. Filtra por grupo muscular, principal o secundario.',
+        },
+        material: {
+          type: 'string',
+          description: 'Opcional. Filtra por material: barra, mancuerna, polea, maquina…',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'proponer_rutina',
+    description:
+      'Escribe una rutina en la carpeta de la app para que la importes con un ' +
+      'toque. NO la añade a la app por su cuenta: la deja propuesta y tú la ' +
+      'revisas y la aceptas en Ajustes → Importar rutinas. Valida antes de ' +
+      'escribir, contra tu catálogo real y contra los límites del importador, ' +
+      'así que si un ejercicio no existe o un rango es imposible te lo dice ' +
+      'aquí y no después de pegarla. Mira `ejercicios_disponibles` primero.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        carpeta: {
+          type: 'string',
+          description: 'Carpeta donde caen las rutinas. Si se omite, van sueltas.',
+        },
+        rutinas: {
+          type: 'array',
+          minItems: 1,
+          description: 'Las rutinas, en el formato de docs/ESQUEMA-RUTINA-JSON.md.',
+          items: {
+            type: 'object',
+            properties: {
+              nombre: { type: 'string' },
+              notas: { type: 'string' },
+              ejercicios: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  properties: {
+                    nombre: { type: 'string', description: 'Tiene que existir en tu biblioteca.' },
+                    series: { type: 'integer', minimum: 1, maximum: 20 },
+                    reps: { type: 'string', description: 'Rango objetivo: "8-10", "15", "30-45s".' },
+                    rir: { type: 'string', description: 'Repeticiones en reserva: "2" o "2-3".' },
+                    descanso: { type: 'integer', minimum: 0, maximum: 1800 },
+                    notas: { type: 'string' },
+                    superserie: { type: 'string', description: 'Etiqueta: "A", "B"…' },
+                    grupo: {
+                      type: 'string',
+                      description:
+                        'Grupo muscular, SOLO para un ejercicio que no exista todavía. Sin ' +
+                        'esto nace sin clasificar y no cuenta para las series semanales. ' +
+                        'Valores: pecho, espalda, dorsal, trapecio, hombroAnterior, ' +
+                        'hombroLateral, hombroPosterior, biceps, triceps, antebrazo, ' +
+                        'cuadriceps, isquios, gluteo, gemelo, core, lumbar.',
+                    },
+                    gruposSecundarios: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Los que trabaja de forma secundaria. Cuentan media serie.',
+                    },
+                    material: {
+                      type: 'string',
+                      enum: ['barra', 'mancuerna', 'polea', 'maquina', 'peso', 'otro'],
+                    },
+                  },
+                  required: ['nombre', 'series'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['nombre', 'ejercicios'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['rutinas'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'propuestas_pendientes',
+    description:
+      'Las rutinas que ya has propuesto y todavía no se han importado en la app, ' +
+      'con su fecha. Sirve para no proponer dos veces lo mismo.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'ajustes',
+    description:
+      'Los objetivos de series por semana de cada grupo, los saltos de carga de ' +
+      'cada material, qué mancuernas hay en el gimnasio y el peso corporal. Hace ' +
+      'falta para aconsejar una carga concreta: entre la mancuerna de 20 y la de ' +
+      '22,5 no hay nada, y el salto depende de si es barra, polea o máquina.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'carreras',
     description:
       'Carreras registradas, que llegan desde Zepp a través de Apple Salud: ' +
@@ -314,6 +429,206 @@ const EJECUTORES = {
     }
   },
 
+  ejercicios_disponibles({ grupo, material } = {}) {
+    const datos = cargarDatos()
+    const g = grupo ? normalizar(grupo) : null
+    const m = material ? normalizar(material) : null
+
+    // Qué se ha hecho ya y cuándo, para distinguir el catálogo muerto del
+    // que se usa: proponer un ejercicio que lleva seis meses sin tocarse no
+    // es lo mismo que proponer uno que nunca se ha hecho.
+    const ultimaVez = new Map()
+    for (const entreno of datos.entrenos || []) {
+      for (const ej of entreno.ejercicios || []) {
+        const previa = ultimaVez.get(ej.nombre)
+        if (!previa || entreno.fechaInicio > previa) ultimaVez.set(ej.nombre, entreno.fechaInicio)
+      }
+    }
+
+    const lista = (datos.ejercicios || [])
+      .filter((e) => {
+        if (m && normalizar(e.material || '') !== m) return false
+        if (!g) return true
+        const grupos = [e.grupoPrincipal, ...(e.gruposSecundarios || [])]
+        return grupos.some((x) => normalizar(x || '').includes(g))
+      })
+      .map((e) => ({
+        nombre: e.nombre,
+        grupoPrincipal: e.grupoPrincipal,
+        gruposSecundarios: e.gruposSecundarios || [],
+        material: e.material,
+        tipoRegistro: e.tipoRegistro,
+        esPersonalizado: e.esPersonalizado === true,
+        ultimaVez: ultimaVez.get(e.nombre) ?? null,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+    return {
+      total: lista.length,
+      // Decirlo explícitamente evita el error de proponer algo que no existe
+      // cuando un filtro no ha encontrado nada.
+      nota: lista.length === 0
+        ? 'Ningún ejercicio cumple el filtro. No inventes uno: créalo en la app primero.'
+        : undefined,
+      ejercicios: lista,
+    }
+  },
+
+  proponer_rutina({ carpeta, rutinas } = {}) {
+    const datos = cargarDatos()
+    if (!Array.isArray(rutinas) || rutinas.length === 0) {
+      throw new Error('Hace falta al menos una rutina.')
+    }
+
+    // Se valida contra el catálogo de verdad ANTES de escribir. El importador
+    // de la app también lo hace, pero allí el error llega cuando el usuario ya
+    // ha abierto la pantalla; aquí llega mientras se está redactando, que es
+    // donde se puede corregir.
+    const porNombre = new Map()
+    for (const e of datos.ejercicios || []) porNombre.set(normalizar(e.nombre), e.nombre)
+
+    const problemas = []
+    const desconocidos = new Set()
+    let totalEjercicios = 0
+
+    rutinas.forEach((rutina, i) => {
+      const donde = `rutinas[${i}]`
+      if (!rutina?.nombre) problemas.push(`${donde}.nombre: falta el nombre de la rutina.`)
+      const ejercicios = rutina?.ejercicios
+      if (!Array.isArray(ejercicios) || ejercicios.length === 0) {
+        problemas.push(`${donde}.ejercicios: la rutina no tiene ningún ejercicio.`)
+        return
+      }
+      ejercicios.forEach((ej, j) => {
+        totalEjercicios++
+        const sitio = `${donde}.ejercicios[${j}]`
+        const canonico = porNombre.get(normalizar(ej?.nombre || ''))
+        if (!canonico && !ej?.grupo) {
+          // Se puede proponer un ejercicio que no exista, pero entonces hay
+          // que decir de qué grupo es: creado sin grupo no suma a las series
+          // semanales de nada, y el recuento sale mal en silencio.
+          desconocidos.add(ej?.nombre ?? '(sin nombre)')
+          problemas.push(
+            `${sitio}.nombre: «${ej?.nombre}» no está en tu biblioteca. Si es ` +
+              'a propósito, añade "grupo" (y "material") para que se cree bien.'
+          )
+        } else if (canonico && canonico !== ej.nombre) {
+          // Se corrige en silencio a la grafía de la app: el importador busca
+          // ignorando acentos, pero el archivo queda más claro con el nombre
+          // tal y como está guardado.
+          ej.nombre = canonico
+        }
+        if (!Number.isInteger(ej?.series) || ej.series < 1 || ej.series > 20) {
+          problemas.push(`${sitio}.series: ${ej?.series} está fuera de 1 a 20.`)
+        }
+        if (ej?.descanso !== undefined && (!Number.isInteger(ej.descanso) || ej.descanso < 0 || ej.descanso > 1800)) {
+          problemas.push(`${sitio}.descanso: ${ej.descanso} está fuera de 0 a 1800 segundos.`)
+        }
+        if (ej?.reps !== undefined && !/^\s*\d{1,4}\s*(?:[-–a]\s*\d{1,4}\s*)?s?\s*$/i.test(String(ej.reps))) {
+          problemas.push(`${sitio}.reps: «${ej.reps}» no es un rango válido. Usa "8-10", "15" o "30-45s".`)
+        }
+        if (ej?.rir !== undefined && !/^\s*\d{1,2}\s*(?:[-–]\s*\d{1,2}\s*)?$/.test(String(ej.rir))) {
+          problemas.push(`${sitio}.rir: «${ej.rir}» no es válido. Usa "2" o "2-3".`)
+        }
+      })
+    })
+
+    if (problemas.length > 0) {
+      const aviso = desconocidos.size > 0
+        ? ' Mira `ejercicios_disponibles` para ver los nombres que sí existen; no inventes uno nuevo.'
+        : ''
+      throw new Error(`No la he escrito, hay ${problemas.length} problema(s):\n` +
+        problemas.map((x) => `  ${x}`).join('\n') + aviso)
+    }
+
+    const documento = { version: 1, ...(carpeta ? { carpeta } : {}), rutinas }
+    const carpetaPropuestas = join(dirname(rutaEnUso), 'propuestas')
+    mkdirSync(carpetaPropuestas, { recursive: true })
+
+    const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    const apodo = (rutinas[0].nombre || 'rutina')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase()
+      .slice(0, 40)
+    const destino = join(carpetaPropuestas, `${marca}-${apodo}.json`)
+    writeFileSync(destino, JSON.stringify(documento, null, 2) + '\n', 'utf8')
+
+    return {
+      escrita: true,
+      archivo: destino,
+      rutinas: rutinas.length,
+      ejercicios: totalEjercicios,
+      siguientePaso:
+        'En la app: Ajustes → Exportar, importar y Salud → Importar rutinas. ' +
+        'Aparecerá ahí para revisarla y aceptarla. Hasta que no la aceptes, no ' +
+        'toca tus datos.',
+    }
+  },
+
+  propuestas_pendientes() {
+    cargarDatos()
+    const carpetaPropuestas = join(dirname(rutaEnUso), 'propuestas')
+    let archivos = []
+    try {
+      archivos = readdirSync(carpetaPropuestas).filter((n) => n.endsWith('.json'))
+    } catch {
+      return { pendientes: 0, propuestas: [] }
+    }
+
+    const propuestas = archivos
+      .map((nombre) => {
+        try {
+          const doc = JSON.parse(readFileSync(join(carpetaPropuestas, nombre), 'utf8'))
+          return {
+            archivo: nombre,
+            carpeta: doc.carpeta ?? null,
+            rutinas: (doc.rutinas || []).map((r) => ({
+              nombre: r.nombre,
+              ejercicios: (r.ejercicios || []).length,
+            })),
+          }
+        } catch {
+          // Un archivo corrupto se nombra en lugar de tumbar la respuesta:
+          // saber que está ahí es parte de la respuesta.
+          return { archivo: nombre, error: 'no se puede leer' }
+        }
+      })
+      .sort((a, b) => a.archivo.localeCompare(b.archivo))
+
+    return { pendientes: propuestas.length, propuestas }
+  },
+
+  ajustes() {
+    const datos = cargarDatos()
+    const a = datos.ajustes
+    if (!a) {
+      return {
+        disponible: false,
+        nota:
+          'Este entrenos.json es de una versión anterior y no lleva los ajustes. ' +
+          'Vuelve a volcarlo desde la app (Ajustes → Datos → Volcar ahora) para ' +
+          'tener objetivos semanales e incrementos de carga.',
+      }
+    }
+    return {
+      disponible: true,
+      objetivosSemanales: a.objetivosSemanales || {},
+      incrementos: {
+        barraKg: a.incrementoBarra,
+        poleaKg: a.incrementoPolea,
+        maquinaKg: a.incrementoMaquina,
+        tiempoSegundos: a.incrementoTiempo,
+      },
+      mancuernasDisponiblesKg: a.mancuernasDisponibles || [],
+      rirPorDefecto: { min: a.rirPorDefectoMin, max: a.rirPorDefectoMax },
+      descansoPorDefectoSegundos: a.descansoPorDefectoSegundos,
+      pesoCorporalKg: a.pesoCorporal ?? null,
+    }
+  },
+
   resumen_semanal({ semanas = 8 } = {}) {
     const datos = cargarDatos()
     const porSemana = new Map()
@@ -334,15 +649,38 @@ const EJECUTORES = {
       if (porSemana.has(clave)) porSemana.get(clave).carreras.push(carrera)
     }
 
-    return [...porSemana.entries()].map(([semana, { entrenos, carreras }]) => ({
-      semanaDesde: semana,
-      entrenos: entrenos.length,
-      series: entrenos.reduce((s, e) => s + contarSeries(e), 0),
-      volumenKg: redondear(entrenos.reduce((s, e) => s + volumenDeEntreno(e), 0), 0),
-      seriesPorGrupo: seriesPorGrupo(entrenos),
-      carreras: carreras.length,
-      kilometros: redondear(carreras.reduce((s, c) => s + c.distanciaKm, 0)),
-    }))
+    // Los objetivos se cruzan aquí y no se dejan para quien lea: «12 series de
+    // pecho» no dice si está bien o mal sin saber contra qué se compara, y
+    // ese número vive en los ajustes de la app.
+    const objetivos = datos.ajustes?.objetivosSemanales || {}
+
+    return [...porSemana.entries()].map(([semana, { entrenos, carreras }]) => {
+      const porGrupo = seriesPorGrupo(entrenos)
+      const conObjetivo = {}
+      for (const [grupo, series] of Object.entries(porGrupo)) {
+        const objetivo = objetivos[grupo]
+        conObjetivo[grupo] = objetivo === undefined
+          ? { series }
+          : { series, objetivo, cumplido: series >= objetivo }
+      }
+      // Un grupo con objetivo y cero series no aparece en `porGrupo`, y es
+      // justo el caso que hay que ver: la semana que te saltaste las piernas.
+      for (const [grupo, objetivo] of Object.entries(objetivos)) {
+        if (conObjetivo[grupo] === undefined) {
+          conObjetivo[grupo] = { series: 0, objetivo, cumplido: false }
+        }
+      }
+
+      return {
+        semanaDesde: semana,
+        entrenos: entrenos.length,
+        series: entrenos.reduce((s, e) => s + contarSeries(e), 0),
+        volumenKg: redondear(entrenos.reduce((s, e) => s + volumenDeEntreno(e), 0), 0),
+        seriesPorGrupo: conObjetivo,
+        carreras: carreras.length,
+        kilometros: redondear(carreras.reduce((s, c) => s + c.distanciaKm, 0)),
+      }
+    })
   },
 
   historial_ejercicio({ nombre, limite = 20 } = {}) {

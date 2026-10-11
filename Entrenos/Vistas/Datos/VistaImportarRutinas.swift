@@ -14,6 +14,15 @@ struct VistaImportarRutinas: View {
     @State private var resultado: ImportadorRutinas.Resultado?
     @State private var mostrarSelectorArchivo = false
 
+    /// Rutinas que Claude ha dejado en la carpeta compartida esperando
+    /// revisión. Se leen al abrir la pantalla, no en el cuerpo de la vista:
+    /// listar un directorio de iCloud en cada redibujado es ir al disco
+    /// decenas de veces por segundo.
+    @State private var bandeja = ExportadorAutomatico.Bandeja()
+    /// La que se ha cargado en el cuadro de texto, para poder borrar el
+    /// archivo solo si la importación llega a buen puerto.
+    @State private var propuestaCargada: ExportadorAutomatico.Propuesta?
+
     var body: some View {
         NavigationStack {
             Group {
@@ -41,6 +50,9 @@ struct VistaImportarRutinas: View {
             ) { salida in
                 cargarArchivo(salida)
             }
+            .onAppear {
+                bandeja = ExportadorAutomatico.compartido.propuestasPendientes()
+            }
         }
     }
 
@@ -48,6 +60,65 @@ struct VistaImportarRutinas: View {
 
     private var pantallaPegar: some View {
         Form {
+            // Lo primero de la pantalla cuando hay algo que revisar: si Claude
+            // te ha dejado una rutina, pedirte que la copies y la pegues sería
+            // absurdo teniendo el archivo al lado.
+            if !bandeja.listas.isEmpty || bandeja.descargando > 0 {
+                Section {
+                    ForEach(bandeja.listas) { propuesta in
+                        Button {
+                            texto = propuesta.json
+                            propuestaCargada = propuesta
+                            error = nil
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(.tint)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(propuesta.rutinas.isEmpty
+                                         ? propuesta.nombreArchivo
+                                         : propuesta.rutinas.joined(separator: ", "))
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text(Formato.fechaRelativa(propuesta.fecha))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
+                                bandeja.listas.removeAll { $0.id == propuesta.id }
+                            } label: {
+                                Label("Descartar", systemImage: "trash")
+                            }
+                        }
+                    }
+
+                    if bandeja.descargando > 0 {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text(bandeja.descargando == 1
+                                 ? "Una propuesta bajando de iCloud"
+                                 : "\(bandeja.descargando) propuestas bajando de iCloud")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text(bandeja.listas.count == 1 ? "Propuesta de Claude" : "Propuestas de Claude")
+                } footer: {
+                    Text("Tócala para cargarla aquí y revisarla. Nada entra en la app hasta que la aceptes.")
+                }
+            }
+
             Section {
                 TextEditor(text: $texto)
                     .font(.system(.footnote, design: .monospaced))
@@ -61,10 +132,10 @@ struct VistaImportarRutinas: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(error.ruta.isEmpty ? "Error" : error.ruta, systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Paleta.insuficiente)
                         Text(error.mensaje)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Paleta.insuficiente)
                     }
                 } else {
                     Text("Pega aquí lo que te dé la IA, o usa el botón de archivo.")
@@ -222,7 +293,7 @@ struct VistaImportarRutinas: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.green)
+                .foregroundStyle(Paleta.logrado)
             Text("\(resultado.rutinasCreadas) \(resultado.rutinasCreadas == 1 ? "rutina importada" : "rutinas importadas")")
                 .font(.headline)
             if let carpeta = resultado.carpeta {
@@ -266,6 +337,15 @@ struct VistaImportarRutinas: View {
     private func importar(_ revision: ImportadorRutinas.Revision) {
         let importador = ImportadorRutinas(contexto: contexto)
         resultado = importador.importar(revision.rutinas, mapeo: mapeo)
+
+        // El archivo se borra solo cuando la importación ha terminado, no al
+        // cargarlo en el cuadro: si te echas atrás en la pantalla de revisar,
+        // la propuesta tiene que seguir ahí.
+        if let propuestaCargada {
+            ExportadorAutomatico.compartido.descartarPropuesta(propuestaCargada)
+            bandeja.listas.removeAll { $0.id == propuestaCargada.id }
+            self.propuestaCargada = nil
+        }
     }
 
     private func cargarArchivo(_ salida: Result<[URL], Error>) {

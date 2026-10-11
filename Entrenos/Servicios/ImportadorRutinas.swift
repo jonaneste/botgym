@@ -130,7 +130,7 @@ struct ImportadorRutinas {
                 if let existente = indice[clave] {
                     ejercicio = existente
                 } else {
-                    ejercicio = crear(nombre: elementoDef.nombre, esTiempo: elementoDef.esTiempo)
+                    ejercicio = crear(desde: elementoDef)
                     contexto.insert(ejercicio)
                     indice[clave] = ejercicio
                     ejerciciosCreados += 1
@@ -175,18 +175,31 @@ struct ImportadorRutinas {
 
     /// Un ejercicio nuevo nacido de una importación.
     ///
-    /// No se intenta adivinar el grupo muscular ni el material a partir del
-    /// nombre: una suposición mala contamina el recuento semanal en silencio.
-    /// Se marca como personalizado para que destaque en la biblioteca y lo
-    /// puedas completar.
-    private func crear(nombre: String, esTiempo: Bool) -> Ejercicio {
-        Ejercicio(
-            nombre: nombre,
-            grupoPrincipal: .core,
-            gruposSecundarios: [],
-            material: .otro,
-            tipoRegistro: esTiempo ? .tiempo : .repeticiones,
-            notas: "Creado al importar. Revisa el grupo muscular y el material.",
+    /// Sigue sin adivinarse nada a partir del nombre: una suposición mala
+    /// contamina el recuento semanal en silencio. Lo que sí se usa es el
+    /// grupo y el material si el archivo los declara, que es información del
+    /// que escribe la rutina y no una conjetura nuestra.
+    ///
+    /// Cuando no vienen, el grupo cae en `core`, que es tan arbitrario como
+    /// cualquier otro y por eso la nota lo dice: un ejercicio de pierna
+    /// contado como core desequilibra la cuenta semanal hacia el lado
+    /// contrario.
+    private func crear(desde def: EjercicioImportado) -> Ejercicio {
+        let grupo = def.grupoPrincipal.flatMap(GrupoMuscular.init(rawValue:))
+        let secundarios = def.gruposSecundarios.compactMap(GrupoMuscular.init(rawValue:))
+        let material = def.material.flatMap(Material.init(rawValue:))
+
+        let nota = grupo == nil
+            ? "Creado al importar SIN grupo muscular: ponle el suyo o no contará bien en las series semanales."
+            : "Creado al importar."
+
+        return Ejercicio(
+            nombre: def.nombre,
+            grupoPrincipal: grupo ?? .core,
+            gruposSecundarios: secundarios,
+            material: material ?? .otro,
+            tipoRegistro: def.esTiempo ? .tiempo : .repeticiones,
+            notas: nota,
             esPersonalizado: true
         )
     }
