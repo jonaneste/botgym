@@ -14,9 +14,9 @@
  *   node servidor-entrenos.mjs /ruta/a/entrenos.json
  */
 
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const VERSION = '1.0.0'
 const PESO_SECUNDARIO = 0.5
@@ -37,6 +37,11 @@ function rutasCandidatas() {
 
 let cache = { ruta: null, mtime: 0, datos: null }
 
+/// La ruta del archivo que se acabó leyendo. Las propuestas se escriben en
+/// esa misma carpeta: es la que el usuario eligió en la app, y la única que
+/// la app sabe mirar.
+let rutaEnUso = null
+
 function cargarDatos() {
   for (const ruta of rutasCandidatas()) {
     let info
@@ -51,6 +56,7 @@ function cargarDatos() {
     }
     const datos = JSON.parse(readFileSync(ruta, 'utf8'))
     cache = { ruta, mtime, datos }
+    rutaEnUso = ruta
     return datos
   }
   throw new Error(
@@ -280,6 +286,66 @@ const HERRAMIENTAS = [
     },
   },
   {
+    name: 'proponer_rutina',
+    description:
+      'Escribe una rutina en la carpeta de la app para que la importes con un ' +
+      'toque. NO la añade a la app por su cuenta: la deja propuesta y tú la ' +
+      'revisas y la aceptas en Ajustes → Importar rutinas. Valida antes de ' +
+      'escribir, contra tu catálogo real y contra los límites del importador, ' +
+      'así que si un ejercicio no existe o un rango es imposible te lo dice ' +
+      'aquí y no después de pegarla. Mira `ejercicios_disponibles` primero.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        carpeta: {
+          type: 'string',
+          description: 'Carpeta donde caen las rutinas. Si se omite, van sueltas.',
+        },
+        rutinas: {
+          type: 'array',
+          minItems: 1,
+          description: 'Las rutinas, en el formato de docs/ESQUEMA-RUTINA-JSON.md.',
+          items: {
+            type: 'object',
+            properties: {
+              nombre: { type: 'string' },
+              notas: { type: 'string' },
+              ejercicios: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  properties: {
+                    nombre: { type: 'string', description: 'Tiene que existir en tu biblioteca.' },
+                    series: { type: 'integer', minimum: 1, maximum: 20 },
+                    reps: { type: 'string', description: 'Rango objetivo: "8-10", "15", "30-45s".' },
+                    rir: { type: 'string', description: 'Repeticiones en reserva: "2" o "2-3".' },
+                    descanso: { type: 'integer', minimum: 0, maximum: 1800 },
+                    notas: { type: 'string' },
+                    superserie: { type: 'string', description: 'Etiqueta: "A", "B"…' },
+                  },
+                  required: ['nombre', 'series'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['nombre', 'ejercicios'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['rutinas'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'propuestas_pendientes',
+    description:
+      'Las rutinas que ya has propuesto y todavía no se han importado en la app, ' +
+      'con su fecha. Sirve para no proponer dos veces lo mismo.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'ajustes',
     description:
       'Los objetivos de series por semana de cada grupo, los saltos de carga de ' +
@@ -388,6 +454,127 @@ const EJECUTORES = {
         : undefined,
       ejercicios: lista,
     }
+  },
+
+  proponer_rutina({ carpeta, rutinas } = {}) {
+    const datos = cargarDatos()
+    if (!Array.isArray(rutinas) || rutinas.length === 0) {
+      throw new Error('Hace falta al menos una rutina.')
+    }
+
+    // Se valida contra el catálogo de verdad ANTES de escribir. El importador
+    // de la app también lo hace, pero allí el error llega cuando el usuario ya
+    // ha abierto la pantalla; aquí llega mientras se está redactando, que es
+    // donde se puede corregir.
+    const porNombre = new Map()
+    for (const e of datos.ejercicios || []) porNombre.set(normalizar(e.nombre), e.nombre)
+
+    const problemas = []
+    const desconocidos = new Set()
+    let totalEjercicios = 0
+
+    rutinas.forEach((rutina, i) => {
+      const donde = `rutinas[${i}]`
+      if (!rutina?.nombre) problemas.push(`${donde}.nombre: falta el nombre de la rutina.`)
+      const ejercicios = rutina?.ejercicios
+      if (!Array.isArray(ejercicios) || ejercicios.length === 0) {
+        problemas.push(`${donde}.ejercicios: la rutina no tiene ningún ejercicio.`)
+        return
+      }
+      ejercicios.forEach((ej, j) => {
+        totalEjercicios++
+        const sitio = `${donde}.ejercicios[${j}]`
+        const canonico = porNombre.get(normalizar(ej?.nombre || ''))
+        if (!canonico) {
+          desconocidos.add(ej?.nombre ?? '(sin nombre)')
+          problemas.push(`${sitio}.nombre: «${ej?.nombre}» no está en tu biblioteca.`)
+        } else if (canonico !== ej.nombre) {
+          // Se corrige en silencio a la grafía de la app: el importador busca
+          // ignorando acentos, pero el archivo queda más claro con el nombre
+          // tal y como está guardado.
+          ej.nombre = canonico
+        }
+        if (!Number.isInteger(ej?.series) || ej.series < 1 || ej.series > 20) {
+          problemas.push(`${sitio}.series: ${ej?.series} está fuera de 1 a 20.`)
+        }
+        if (ej?.descanso !== undefined && (!Number.isInteger(ej.descanso) || ej.descanso < 0 || ej.descanso > 1800)) {
+          problemas.push(`${sitio}.descanso: ${ej.descanso} está fuera de 0 a 1800 segundos.`)
+        }
+        if (ej?.reps !== undefined && !/^\s*\d{1,4}\s*(?:[-–a]\s*\d{1,4}\s*)?s?\s*$/i.test(String(ej.reps))) {
+          problemas.push(`${sitio}.reps: «${ej.reps}» no es un rango válido. Usa "8-10", "15" o "30-45s".`)
+        }
+        if (ej?.rir !== undefined && !/^\s*\d{1,2}\s*(?:[-–]\s*\d{1,2}\s*)?$/.test(String(ej.rir))) {
+          problemas.push(`${sitio}.rir: «${ej.rir}» no es válido. Usa "2" o "2-3".`)
+        }
+      })
+    })
+
+    if (problemas.length > 0) {
+      const aviso = desconocidos.size > 0
+        ? ' Mira `ejercicios_disponibles` para ver los nombres que sí existen; no inventes uno nuevo.'
+        : ''
+      throw new Error(`No la he escrito, hay ${problemas.length} problema(s):\n` +
+        problemas.map((x) => `  ${x}`).join('\n') + aviso)
+    }
+
+    const documento = { version: 1, ...(carpeta ? { carpeta } : {}), rutinas }
+    const carpetaPropuestas = join(dirname(rutaEnUso), 'propuestas')
+    mkdirSync(carpetaPropuestas, { recursive: true })
+
+    const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    const apodo = (rutinas[0].nombre || 'rutina')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase()
+      .slice(0, 40)
+    const destino = join(carpetaPropuestas, `${marca}-${apodo}.json`)
+    writeFileSync(destino, JSON.stringify(documento, null, 2) + '\n', 'utf8')
+
+    return {
+      escrita: true,
+      archivo: destino,
+      rutinas: rutinas.length,
+      ejercicios: totalEjercicios,
+      siguientePaso:
+        'En la app: Ajustes → Exportar, importar y Salud → Importar rutinas. ' +
+        'Aparecerá ahí para revisarla y aceptarla. Hasta que no la aceptes, no ' +
+        'toca tus datos.',
+    }
+  },
+
+  propuestas_pendientes() {
+    cargarDatos()
+    const carpetaPropuestas = join(dirname(rutaEnUso), 'propuestas')
+    let archivos = []
+    try {
+      archivos = readdirSync(carpetaPropuestas).filter((n) => n.endsWith('.json'))
+    } catch {
+      return { pendientes: 0, propuestas: [] }
+    }
+
+    const propuestas = archivos
+      .map((nombre) => {
+        try {
+          const doc = JSON.parse(readFileSync(join(carpetaPropuestas, nombre), 'utf8'))
+          return {
+            archivo: nombre,
+            carpeta: doc.carpeta ?? null,
+            rutinas: (doc.rutinas || []).map((r) => ({
+              nombre: r.nombre,
+              ejercicios: (r.ejercicios || []).length,
+            })),
+          }
+        } catch {
+          // Un archivo corrupto se nombra en lugar de tumbar la respuesta:
+          // saber que está ahí es parte de la respuesta.
+          return { archivo: nombre, error: 'no se puede leer' }
+        }
+      })
+      .sort((a, b) => a.archivo.localeCompare(b.archivo))
+
+    return { pendientes: propuestas.length, propuestas }
   },
 
   ajustes() {

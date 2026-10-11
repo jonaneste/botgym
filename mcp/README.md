@@ -75,6 +75,8 @@ claude mcp add entrenos -- node /ruta/a/botgym/mcp/servidor-entrenos.mjs
 | `ejercicios_disponibles` | El catálogo entero, con grupo y material. Incluye los que nunca se han hecho |
 | `ajustes` | Objetivos semanales, saltos de carga, mancuernas del gimnasio y peso corporal |
 | `carreras` | Carreras con ritmo y pulso, y resumen semanal |
+| `proponer_rutina` | **Escribe** una rutina para que la importes con un toque |
+| `propuestas_pendientes` | Las rutinas propuestas que todavía no has aceptado |
 
 Son consultas estructuradas y no el archivo entero a propósito: así Claude
 puede preguntar «¿cómo va mi press banca?» sin tragarse dos años de series.
@@ -86,11 +88,31 @@ puede usar. Y `ajustes` dice contra qué objetivo se cuentan las series de cada
 grupo y con qué saltos sube la carga: «sube a 22,5» solo es correcto si esa
 mancuerna existe en tu gimnasio.
 
-**Todo es de solo lectura.** Claude puede mirar y aconsejar, pero no escribe
-nada: no crea rutinas ni apunta series. Para meter una rutina que te proponga,
-el camino es el de siempre —copiarla en **Ajustes → Importar rutinas**, con el
-formato de [`docs/ESQUEMA-RUTINA-JSON.md`](../docs/ESQUEMA-RUTINA-JSON.md)—,
-que además deja que la revises antes de que toque tus datos.
+## Rutinas que propone Claude
+
+`proponer_rutina` es la única herramienta que escribe, y **no mete nada en la
+app**. Deja la rutina en `propuestas/`, dentro de la misma carpeta donde está
+tu `entrenos.json`, y la app la enseña arriba del todo en **Ajustes →
+Exportar, importar y Salud → Importar rutinas**. Un toque la carga, la revisas
+y la aceptas; hasta ese momento no ha tocado tus datos. Si la rechazas, se
+desliza y se borra.
+
+```
+Claude ──► propuestas/2026-10-11-lunes-empuje.json ──► app ──► la revisas ──► dentro
+```
+
+Es a propósito que no entre sola. Una rutina que se añadiera sin que lo vieras
+podría cambiar tus objetivos semanales y falsear el recuento sin que te
+enteres, que es justo lo que este proyecto no hace.
+
+Antes de escribir valida contra **tu** catálogo y contra los límites del
+importador, así que un ejercicio inventado o un rango imposible se rechazan
+ahí mismo, con el error dicho mientras se está redactando y no después de que
+lo hayas pegado en el móvil. Por eso conviene mirar `ejercicios_disponibles`
+primero.
+
+Lo demás sigue siendo de solo lectura: Claude no apunta series ni toca tu
+historial.
 
 ## Cómo pedirle consejo
 

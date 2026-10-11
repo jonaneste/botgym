@@ -250,12 +250,44 @@ const { respuestas, errores } = await hablarConElServidor([
   llamar(15, 'ejercicios_disponibles', { material: 'mancuerna' }),
   llamar(16, 'ejercicios_disponibles', { grupo: 'inventado' }),
   llamar(17, 'ajustes'),
+  llamar(18, 'propuestas_pendientes'),
+  // Una rutina válida, con los nombres tal y como están en la biblioteca.
+  llamar(19, 'proponer_rutina', {
+    carpeta: 'Propuesto por Claude',
+    rutinas: [
+      {
+        nombre: 'Martes – Tirón',
+        ejercicios: [
+          { nombre: 'Curl martillo', series: 3, reps: '10-12', rir: '2', descanso: 90 },
+        ],
+      },
+    ],
+  }),
+  // Un ejercicio que no existe: tiene que negarse y NO escribir nada.
+  llamar(20, 'proponer_rutina', {
+    rutinas: [
+      { nombre: 'Inventada', ejercicios: [{ nombre: 'Press de kriptonita', series: 3 }] },
+    ],
+  }),
+  // Series fuera de rango, con un ejercicio que sí existe.
+  llamar(21, 'proponer_rutina', {
+    rutinas: [
+      { nombre: 'Exagerada', ejercicios: [{ nombre: 'Curl martillo', series: 99 }] },
+    ],
+  }),
+  // El nombre sin acentos ni mayúsculas tiene que encontrarse igual.
+  llamar(22, 'proponer_rutina', {
+    rutinas: [
+      { nombre: 'Con el nombre flojo', ejercicios: [{ nombre: '  curl MARTILLO ', series: 3 }] },
+    ],
+  }),
+  llamar(23, 'propuestas_pendientes'),
 ])
 
 const por = Object.fromEntries(respuestas.map((r) => [r.id, r]))
 
 // Una notificación no se responde: 14 mensajes, 13 respuestas.
-comprobar(respuestas.length === 17, `se esperaban 17 respuestas, llegaron ${respuestas.length}`)
+comprobar(respuestas.length === 23, `se esperaban 23 respuestas, llegaron ${respuestas.length}`)
 comprobar(
   respuestas.every((r) => r.jsonrpc === '2.0'),
   'alguna respuesta no lleva jsonrpc 2.0'
@@ -268,7 +300,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 9, `se esperaban 9 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 11, `se esperaban 11 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -470,6 +502,62 @@ comprobar(
   ajustesLeidos.mancuernasDisponiblesKg.includes(22.5) &&
     !ajustesLeidos.mancuernasDisponiblesKg.includes(21),
   'las mancuernas disponibles no son las del ejemplo'
+)
+
+// ─── Escribir rutinas ────────────────────────────────────────────────────────
+
+// Antes de proponer nada no hay propuestas: la carpeta ni siquiera existe, y
+// eso no puede ser un error.
+const antes = contenido(por[18])
+comprobar(antes.pendientes === 0, `pendientes antes = ${antes.pendientes}, esperado 0`)
+
+const escrita = contenido(por[19])
+comprobar(escrita.escrita === true, 'una rutina válida no se escribe')
+comprobar(escrita.rutinas === 1 && escrita.ejercicios === 1, 'el recuento de lo escrito no cuadra')
+comprobar(
+  typeof escrita.archivo === 'string' && escrita.archivo.endsWith('.json'),
+  `el archivo escrito no parece un json: ${escrita.archivo}`
+)
+// Lo que de verdad importa: que el archivo exista y se pueda releer.
+const documentoEscrito = JSON.parse(readFileSync(escrita.archivo, 'utf8'))
+comprobar(documentoEscrito.version === 1, 'la propuesta no declara version 1')
+comprobar(documentoEscrito.carpeta === 'Propuesto por Claude', 'la carpeta no se guarda')
+comprobar(
+  documentoEscrito.rutinas[0].ejercicios[0].nombre === 'Curl martillo',
+  'el ejercicio no se guarda con su nombre'
+)
+
+// Un ejercicio inventado se rechaza, y el mensaje tiene que decir dónde mirar:
+// el error caro es que Claude se invente un nombre para rellenar.
+comprobar(por[20].result?.isError === true, 'un ejercicio inexistente no da error')
+const textoError = por[20].result?.content?.[0]?.text || ''
+comprobar(textoError.includes('Press de kriptonita'), 'el error no nombra el ejercicio que falla')
+comprobar(
+  textoError.includes('ejercicios_disponibles'),
+  'el error no remite al catálogo'
+)
+
+comprobar(por[21].result?.isError === true, '99 series no da error')
+comprobar(
+  (por[21].result?.content?.[0]?.text || '').includes('1 a 20'),
+  'el error de series no dice el rango permitido'
+)
+
+// Acentos, mayúsculas y espacios de sobra: igual que el importador de la app.
+comprobar(por[22].result?.isError !== true, 'un nombre con otra grafía se rechaza')
+const flojo = contenido(por[22])
+const docFlojo = JSON.parse(readFileSync(flojo.archivo, 'utf8'))
+comprobar(
+  docFlojo.rutinas[0].ejercicios[0].nombre === 'Curl martillo',
+  `el nombre no se normaliza a la grafía de la app: ${docFlojo.rutinas[0].ejercicios[0].nombre}`
+)
+
+// Las dos que se escribieron aparecen como pendientes; las rechazadas no.
+const despues = contenido(por[23])
+comprobar(despues.pendientes === 2, `pendientes después = ${despues.pendientes}, esperado 2`)
+comprobar(
+  despues.propuestas.every((p) => Array.isArray(p.rutinas) && p.rutinas.length === 1),
+  'una propuesta pendiente no resume sus rutinas'
 )
 
 // ─── Resultado ───────────────────────────────────────────────────────────────

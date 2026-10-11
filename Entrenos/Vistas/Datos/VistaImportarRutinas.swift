@@ -14,6 +14,15 @@ struct VistaImportarRutinas: View {
     @State private var resultado: ImportadorRutinas.Resultado?
     @State private var mostrarSelectorArchivo = false
 
+    /// Rutinas que Claude ha dejado en la carpeta compartida esperando
+    /// revisión. Se leen al abrir la pantalla, no en el cuerpo de la vista:
+    /// listar un directorio de iCloud en cada redibujado es ir al disco
+    /// decenas de veces por segundo.
+    @State private var propuestas: [ExportadorAutomatico.Propuesta] = []
+    /// La que se ha cargado en el cuadro de texto, para poder borrar el
+    /// archivo solo si la importación llega a buen puerto.
+    @State private var propuestaCargada: ExportadorAutomatico.Propuesta?
+
     var body: some View {
         NavigationStack {
             Group {
@@ -41,6 +50,9 @@ struct VistaImportarRutinas: View {
             ) { salida in
                 cargarArchivo(salida)
             }
+            .onAppear {
+                propuestas = ExportadorAutomatico.compartido.propuestasPendientes()
+            }
         }
     }
 
@@ -48,6 +60,54 @@ struct VistaImportarRutinas: View {
 
     private var pantallaPegar: some View {
         Form {
+            // Lo primero de la pantalla cuando hay algo que revisar: si Claude
+            // te ha dejado una rutina, pedirte que la copies y la pegues sería
+            // absurdo teniendo el archivo al lado.
+            if !propuestas.isEmpty {
+                Section {
+                    ForEach(propuestas) { propuesta in
+                        Button {
+                            texto = propuesta.json
+                            propuestaCargada = propuesta
+                            error = nil
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(.tint)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(propuesta.rutinas.isEmpty
+                                         ? propuesta.nombreArchivo
+                                         : propuesta.rutinas.joined(separator: ", "))
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text(Formato.fechaRelativa(propuesta.fecha))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
+                                propuestas.removeAll { $0.id == propuesta.id }
+                            } label: {
+                                Label("Descartar", systemImage: "trash")
+                            }
+                        }
+                    }
+                } header: {
+                    Text(propuestas.count == 1 ? "Propuesta de Claude" : "Propuestas de Claude")
+                } footer: {
+                    Text("Tócala para cargarla aquí y revisarla. Nada entra en la app hasta que la aceptes.")
+                }
+            }
+
             Section {
                 TextEditor(text: $texto)
                     .font(.system(.footnote, design: .monospaced))
@@ -266,6 +326,15 @@ struct VistaImportarRutinas: View {
     private func importar(_ revision: ImportadorRutinas.Revision) {
         let importador = ImportadorRutinas(contexto: contexto)
         resultado = importador.importar(revision.rutinas, mapeo: mapeo)
+
+        // El archivo se borra solo cuando la importación ha terminado, no al
+        // cargarlo en el cuadro: si te echas atrás en la pantalla de revisar,
+        // la propuesta tiene que seguir ahí.
+        if let propuestaCargada {
+            ExportadorAutomatico.compartido.descartarPropuesta(propuestaCargada)
+            propuestas.removeAll { $0.id == propuestaCargada.id }
+            self.propuestaCargada = nil
+        }
     }
 
     private func cargarArchivo(_ salida: Result<[URL], Error>) {
