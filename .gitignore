@@ -11,6 +11,11 @@ xcuserdata/
 *.dSYM
 # Lo deja Herramientas/verificar.sh al compilar.
 build.log
+# Lo deja Herramientas/instalar-en-iphone.sh. `.build/` de abajo no lo cubre:
+# ese patrón solo casa con un directorio llamado exactamente `.build`, así que
+# la carpeta de la instalación semanal quedaba sin ignorar y lista para que
+# alguien se comiera cientos de megas en un commit.
+.build-iphone/
 
 # Swift Package Manager
 .build/
