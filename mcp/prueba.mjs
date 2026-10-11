@@ -255,7 +255,7 @@ const { respuestas, errores } = await hablarConElServidor([
 const por = Object.fromEntries(respuestas.map((r) => [r.id, r]))
 
 // Una notificación no se responde: 14 mensajes, 13 respuestas.
-comprobar(respuestas.length === 13, `se esperaban 13 respuestas, llegaron ${respuestas.length}`)
+comprobar(respuestas.length === 17, `se esperaban 17 respuestas, llegaron ${respuestas.length}`)
 comprobar(
   respuestas.every((r) => r.jsonrpc === '2.0'),
   'alguna respuesta no lleva jsonrpc 2.0'
@@ -268,7 +268,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 7, `se esperaban 7 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 9, `se esperaban 9 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -428,8 +428,11 @@ comprobar(catalogo.total === 3, `catálogo con ${catalogo.total} ejercicios, esp
 const curl = catalogo.ejercicios.find((e) => e.nombre === 'Curl martillo')
 comprobar(curl !== undefined, 'el catálogo no incluye un ejercicio sin historial')
 comprobar(curl && curl.ultimaVez === null, 'un ejercicio nunca hecho tiene fecha de última vez')
-const press = catalogo.ejercicios.find((e) => e.nombre === 'Press banca con barra')
-comprobar(press && press.ultimaVez !== null, 'un ejercicio con historial no trae su última vez')
+const pressDelCatalogo = catalogo.ejercicios.find((e) => e.nombre === 'Press banca con barra')
+comprobar(
+  pressDelCatalogo && pressDelCatalogo.ultimaVez !== null,
+  'un ejercicio con historial no trae su última vez'
+)
 comprobar(
   catalogo.ejercicios.every((e, i, a) => i === 0 || a[i - 1].nombre.localeCompare(e.nombre, 'es') <= 0),
   'el catálogo no viene ordenado por nombre'
@@ -444,18 +447,28 @@ comprobar(
 
 // Con un filtro sin resultados hay que decirlo, porque el error caro es
 // inventarse un ejercicio para rellenar el hueco.
-const vacio = contenido(por[16])
-comprobar(vacio.total === 0, `filtro inventado devuelve ${vacio.total}, esperado 0`)
-comprobar(typeof vacio.nota === 'string' && vacio.nota.length > 0, 'un filtro sin resultados no avisa')
+const sinResultados = contenido(por[16])
+comprobar(sinResultados.total === 0, `filtro inventado devuelve ${sinResultados.total}, esperado 0`)
+comprobar(
+  typeof sinResultados.nota === 'string' && sinResultados.nota.length > 0,
+  'un filtro sin resultados no avisa'
+)
 
-const ajustes = contenido(por[17])
-comprobar(ajustes.disponible === true, 'los ajustes del ejemplo no se leen')
-comprobar(ajustes.objetivosSemanales.pecho === 12, `objetivo de pecho = ${ajustes.objetivosSemanales.pecho}`)
-comprobar(ajustes.incrementos.barraKg === 2.5, `incremento de barra = ${ajustes.incrementos.barraKg}`)
-comprobar(ajustes.pesoCorporalKg === 78.5, `peso corporal = ${ajustes.pesoCorporalKg}`)
+const ajustesLeidos = contenido(por[17])
+comprobar(ajustesLeidos.disponible === true, 'los ajustes del fixture no se leen')
+comprobar(
+  ajustesLeidos.objetivosSemanales.pecho === 12,
+  `objetivo de pecho = ${ajustesLeidos.objetivosSemanales.pecho}`
+)
+comprobar(
+  ajustesLeidos.incrementos.barraKg === 2.5,
+  `incremento de barra = ${ajustesLeidos.incrementos.barraKg}`
+)
+comprobar(ajustesLeidos.pesoCorporalKg === 78.5, `peso corporal = ${ajustesLeidos.pesoCorporalKg}`)
 // Es el dato por el que existe la herramienta: entre 20 y 22,5 no hay nada.
 comprobar(
-  ajustes.mancuernasDisponiblesKg.includes(22.5) && !ajustes.mancuernasDisponiblesKg.includes(21),
+  ajustesLeidos.mancuernasDisponiblesKg.includes(22.5) &&
+    !ajustesLeidos.mancuernasDisponiblesKg.includes(21),
   'las mancuernas disponibles no son las del ejemplo'
 )
 
