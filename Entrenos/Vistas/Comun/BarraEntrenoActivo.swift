@@ -19,6 +19,9 @@ struct BarraEntrenoActivo: View {
                             Text(entreno.nombre)
                                 .font(.subheadline.weight(.semibold))
                                 .lineLimit(1)
+                                // La barra no puede crecer, así que el nombre
+                                // se encoge antes que quedarse en «Lunes –...».
+                                .minimumScaleFactor(0.75)
                             Text("\(entreno.seriesCompletadas) series · \(Formato.volumen(entreno.volumenTotal))")
                                 .font(.caption2)
                                 .opacity(0.85)

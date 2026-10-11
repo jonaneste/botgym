@@ -179,7 +179,7 @@ struct VistaAjustes: View {
             Text(titulo)
             Spacer()
             CampoDecimal(marcador: "kg", valor: valor)
-                .frame(width: 70)
+                .anchoDeCampoDePeso()
                 .padding(.vertical, 6)
                 .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
             Text("kg")
@@ -201,7 +201,7 @@ struct VistaMancuernas: View {
                 Section {
                     HStack {
                         CampoDecimal(marcador: "kg", valor: $nuevoPeso)
-                            .frame(width: 80)
+                            .anchoDeCampoDePeso(80)
                             .padding(.vertical, 8)
                             .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
                         Spacer()

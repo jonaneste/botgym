@@ -171,6 +171,32 @@ struct CampoEnteroOpcional: View {
     }
 }
 
+/// Ancho de un campo de peso metido en una fila de ajustes.
+///
+/// Ni `width` ni `minWidth` sirven aquí. Un ancho fijo recorta el número en los
+/// tamaños de accesibilidad, porque la fuente del campo es `.title3` y crece; y
+/// `minWidth` no vale porque un `TextField` es voraz en horizontal y se comería
+/// la fila entera, dejando el «kg» pegado al borde. Así que el ancho escala con
+/// el mismo estilo de texto que usa el campo.
+struct AnchoDeCampoDePeso: ViewModifier {
+    // El valor de aquí lo pisa el `init`; la declaración lo exige igual.
+    @ScaledMetric(relativeTo: .title3) private var ancho: CGFloat = 70
+
+    init(base: CGFloat) {
+        _ancho = ScaledMetric(wrappedValue: base, relativeTo: .title3)
+    }
+
+    func body(content: Content) -> some View {
+        content.frame(width: ancho)
+    }
+}
+
+extension View {
+    func anchoDeCampoDePeso(_ base: CGFloat = 70) -> some View {
+        modifier(AnchoDeCampoDePeso(base: base))
+    }
+}
+
 /// Barra que cierra el teclado numérico, que no trae tecla de retorno.
 struct BarraTeclado: ViewModifier {
     func body(content: Content) -> some View {

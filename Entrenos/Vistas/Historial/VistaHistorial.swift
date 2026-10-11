@@ -103,7 +103,9 @@ struct VistaHistorial: View {
             Divider()
             columnaResumen("Volumen", Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }))
         }
-        .frame(height: 44)
+        // Mínimo y no fijo: las dos líneas de texto crecen con el ajuste
+        // del sistema, y a tamaños de accesibilidad se recortaban.
+        .frame(minHeight: 44)
     }
 
     private func columnaResumen(_ titulo: String, _ valor: String) -> some View {
@@ -311,7 +313,9 @@ struct FilaResumenCarreras: View {
                 columna(textoRitmo(ritmo), "Ritmo medio")
             }
         }
-        .frame(height: 44)
+        // Mínimo y no fijo: las dos líneas de texto crecen con el ajuste
+        // del sistema, y a tamaños de accesibilidad se recortaban.
+        .frame(minHeight: 44)
     }
 
     private func columna(_ valor: String, _ titulo: String) -> some View {

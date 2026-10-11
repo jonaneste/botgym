@@ -6,6 +6,7 @@ struct VistaDetalleEntreno: View {
     let entreno: Entreno
 
     @Environment(\.modelContext) private var contexto
+    @Environment(\.dynamicTypeSize) private var tamañoTexto
     @State private var editando = false
 
     var body: some View {
@@ -83,7 +84,9 @@ struct VistaDetalleEntreno: View {
                 Divider()
                 columna("Volumen", Formato.volumen(entreno.volumenTotal))
             }
-            .frame(height: 42)
+            // Mínimo y no fijo, por lo mismo que en el historial: dentro hay
+            // dos líneas que crecen con el ajuste de texto del sistema.
+            .frame(minHeight: 42)
 
             if let origen = entreno.nombreRutinaOrigen, origen != entreno.nombre {
                 Label("Desde la rutina «\(origen)»", systemImage: "list.bullet.rectangle")
@@ -148,6 +151,46 @@ struct VistaDetalleEntreno: View {
         }
     }
 
+    private func campoPesoDe(_ serie: SerieRegistrada) -> some View {
+        CampoDecimal(marcador: "kg", valor: Binding(
+            get: { serie.peso }, set: { serie.peso = $0 }
+        ))
+        .frame(minWidth: 58)
+        .padding(.vertical, 6)
+        .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private func campoRepeticionesDe(
+        _ serie: SerieRegistrada,
+        ejercicio: EjercicioEntreno
+    ) -> some View {
+        if ejercicio.tipoRegistro.esTiempo {
+            CampoEntero(marcador: "s", valor: Binding(
+                get: { serie.segundos ?? 0 }, set: { serie.segundos = $0 }
+            ))
+            .frame(minWidth: 52)
+            .padding(.vertical, 6)
+            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+        } else {
+            CampoEntero(marcador: "reps", valor: Binding(
+                get: { serie.repeticiones }, set: { serie.repeticiones = $0 }
+            ))
+            .frame(minWidth: 52)
+            .padding(.vertical, 6)
+            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+        }
+    }
+
+    private func campoRIRDe(_ serie: SerieRegistrada) -> some View {
+        CampoEnteroOpcional(marcador: "RIR", valor: Binding(
+            get: { serie.rir }, set: { serie.rir = $0 }
+        ))
+        .frame(minWidth: 44)
+        .padding(.vertical, 6)
+        .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 8))
+    }
+
     private func filaSerieLectura(_ serie: SerieRegistrada, ejercicio: EjercicioEntreno) -> some View {
         HStack(spacing: 10) {
             if serie.esCalentamiento {
@@ -180,44 +223,33 @@ struct VistaDetalleEntreno: View {
         }
     }
 
+    /// La fila editable del historial, con el mismo reparto que la del entreno
+    /// en curso y por tanto el mismo problema: 22 + 58 + 52 + 44 de anchos
+    /// mínimos en un `HStack`, que no parte líneas, con campos en `.title3` que
+    /// crecen con el ajuste de texto. A tamaños de accesibilidad se parte en
+    /// dos, igual que `FilaSerie`.
     private func filaSerieEditable(_ serie: SerieRegistrada, ejercicio: EjercicioEntreno) -> some View {
         HStack(spacing: 8) {
             Text("\(serie.orden + 1)")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 22)
+                .frame(minWidth: 22)
 
-            CampoDecimal(marcador: "kg", valor: Binding(
-                get: { serie.peso }, set: { serie.peso = $0 }
-            ))
-            .frame(minWidth: 58)
-            .padding(.vertical, 6)
-            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
-
-            Text("×").foregroundStyle(.secondary)
-
-            if ejercicio.tipoRegistro.esTiempo {
-                CampoEntero(marcador: "s", valor: Binding(
-                    get: { serie.segundos ?? 0 }, set: { serie.segundos = $0 }
-                ))
-                .frame(minWidth: 52)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+            if tamañoTexto.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        campoPesoDe(serie)
+                        Text("×").foregroundStyle(.secondary)
+                        campoRepeticionesDe(serie, ejercicio: ejercicio)
+                    }
+                    campoRIRDe(serie)
+                }
             } else {
-                CampoEntero(marcador: "reps", valor: Binding(
-                    get: { serie.repeticiones }, set: { serie.repeticiones = $0 }
-                ))
-                .frame(minWidth: 52)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+                campoPesoDe(serie)
+                Text("×").foregroundStyle(.secondary)
+                campoRepeticionesDe(serie, ejercicio: ejercicio)
+                campoRIRDe(serie)
             }
-
-            CampoEnteroOpcional(marcador: "RIR", valor: Binding(
-                get: { serie.rir }, set: { serie.rir = $0 }
-            ))
-            .frame(minWidth: 44)
-            .padding(.vertical, 6)
-            .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 8))
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
