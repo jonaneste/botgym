@@ -156,19 +156,34 @@ final class SerializadorExportacionTests: XCTestCase {
         XCTAssertEqual(vuelta, original)
     }
 
-    func testLosObjetivosSemanalesVanYVuelven() throws {
+    func testLosAjustesVanYVuelven() throws {
+        let ajustes = AjustesExportados(
+            objetivosSemanales: ["pecho": 12, "espalda": 14],
+            incrementoBarra: 2.5,
+            incrementoPolea: 2.5,
+            incrementoMaquina: 2.5,
+            incrementoTiempo: 5,
+            mancuernasDisponibles: [22.5, 10, 20],
+            rirPorDefectoMin: 1,
+            rirPorDefectoMax: 2,
+            descansoPorDefectoSegundos: 90,
+            pesoCorporal: 78.5
+        )
         let original = ExportacionCompleta(
             generado: Date(timeIntervalSince1970: 1_790_000_000),
             ejercicios: [], carpetas: [], entrenos: [],
-            objetivosSemanales: ["pecho": 12, "espalda": 14]
+            ajustes: ajustes
         )
         let vuelta = try SerializadorExportacion.leerJSON(SerializadorExportacion.json(original))
-        XCTAssertEqual(vuelta.objetivosSemanales, ["pecho": 12, "espalda": 14])
+        XCTAssertEqual(vuelta.ajustes, ajustes)
+        // Las mancuernas salen ordenadas aunque se metan a boleo: «sube a la
+        // siguiente» se lee del orden de la lista.
+        XCTAssertEqual(vuelta.ajustes?.mancuernasDisponibles, [10, 20, 22.5])
     }
 
-    func testUnArchivoSinObjetivosSigueLeyendose() throws {
-        // Los objetivos se añadieron después de la versión 1: un archivo
-        // escrito antes no los lleva y tiene que seguir valiendo.
+    func testUnArchivoSinAjustesSigueLeyendose() throws {
+        // Los ajustes se añadieron después de la versión 1: un archivo escrito
+        // antes no los lleva y tiene que seguir valiendo.
         let json = """
         {
           "version": 1,
@@ -180,7 +195,7 @@ final class SerializadorExportacionTests: XCTestCase {
         }
         """
         let leido = try SerializadorExportacion.leerJSON(Data(json.utf8))
-        XCTAssertEqual(leido.objetivosSemanales, [:])
+        XCTAssertNil(leido.ajustes)
         XCTAssertEqual(leido.carreras, [])
     }
 

@@ -17,11 +17,11 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     /// Carreras importadas de Apple Salud. Van en el mismo archivo para que un
     /// solo JSON contenga todo el entrenamiento, gimnasio y carrera.
     public var carreras: [CarreraExportada]
-    /// Objetivo de series semanales por grupo muscular, con el grupo como
-    /// clave cruda. Sin esto, quien lea el archivo puede contar las series de
-    /// pecho de la semana pero no sabe a cuántas apuntabas, que es la mitad de
-    /// la pregunta.
-    public var objetivosSemanales: [String: Int]
+    /// Lo que la app sabe y quien lee el archivo no podía deducir: contra qué
+    /// objetivo se cuentan las series de cada grupo, y con qué saltos de carga
+    /// se progresa. Sin esto, un consejo como «sube a 22,5» es una suposición:
+    /// depende de qué mancuernas hay en el gimnasio.
+    public var ajustes: AjustesExportados?
 
     public init(
         version: Int = ExportacionCompleta.versionActual,
@@ -31,7 +31,7 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         carpetas: [CarpetaExportada],
         entrenos: [EntrenoExportado],
         carreras: [CarreraExportada] = [],
-        objetivosSemanales: [String: Int] = [:]
+        ajustes: AjustesExportados? = nil
     ) {
         self.version = version
         self.generado = generado
@@ -40,16 +40,15 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         self.carpetas = carpetas
         self.entrenos = entrenos
         self.carreras = carreras
-        self.objetivosSemanales = objetivosSemanales
+        self.ajustes = ajustes
     }
 
     public static let versionActual = 1
 
-    /// Las carreras y los objetivos se añadieron después, así que un archivo de
-    /// la versión 1 sin ellos sigue siendo válido.
+    /// Las carreras se añadieron después, así que un archivo de la versión 1
+    /// sin ellas sigue siendo válido.
     enum CodingKeys: String, CodingKey {
-        case version, generado, app, ejercicios, carpetas, entrenos, carreras
-        case objetivosSemanales
+        case version, generado, app, ejercicios, carpetas, entrenos, carreras, ajustes
     }
 
     public init(from decodificador: Decoder) throws {
@@ -61,12 +60,59 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         carpetas = try contenedor.decode([CarpetaExportada].self, forKey: .carpetas)
         entrenos = try contenedor.decode([EntrenoExportado].self, forKey: .entrenos)
         carreras = try contenedor.decodeIfPresent([CarreraExportada].self, forKey: .carreras) ?? []
-        objetivosSemanales =
-            try contenedor.decodeIfPresent([String: Int].self, forKey: .objetivosSemanales) ?? [:]
+        ajustes = try contenedor.decodeIfPresent(AjustesExportados.self, forKey: .ajustes)
     }
 }
 
 /// Una carrera en el archivo de exportación.
+/// Los ajustes que hacen falta para interpretar los datos y para aconsejar
+/// con ellos.
+///
+/// No va todo lo de la pantalla de ajustes: las preferencias de vibración o
+/// de notificación no le dicen nada a quien lee el archivo. Van las que
+/// cambian la lectura —cuál es el objetivo semanal de cada grupo— y las que
+/// condicionan un consejo: con qué saltos sube la carga en cada material y
+/// qué mancuernas existen de verdad en el gimnasio.
+public struct AjustesExportados: Codable, Equatable, Sendable {
+    /// Series objetivo por semana, con el grupo muscular como clave.
+    public var objetivosSemanales: [String: Int]
+    public var incrementoBarra: Double
+    public var incrementoPolea: Double
+    public var incrementoMaquina: Double
+    public var incrementoTiempo: Int
+    /// Pesos de mancuerna disponibles, en kg y ordenados.
+    public var mancuernasDisponibles: [Double]
+    public var rirPorDefectoMin: Int
+    public var rirPorDefectoMax: Int
+    public var descansoPorDefectoSegundos: Int
+    /// En kg. Cero significa que no se ha puesto, no que pese cero.
+    public var pesoCorporal: Double?
+
+    public init(
+        objetivosSemanales: [String: Int],
+        incrementoBarra: Double,
+        incrementoPolea: Double,
+        incrementoMaquina: Double,
+        incrementoTiempo: Int,
+        mancuernasDisponibles: [Double],
+        rirPorDefectoMin: Int,
+        rirPorDefectoMax: Int,
+        descansoPorDefectoSegundos: Int,
+        pesoCorporal: Double?
+    ) {
+        self.objetivosSemanales = objetivosSemanales
+        self.incrementoBarra = incrementoBarra
+        self.incrementoPolea = incrementoPolea
+        self.incrementoMaquina = incrementoMaquina
+        self.incrementoTiempo = incrementoTiempo
+        self.mancuernasDisponibles = mancuernasDisponibles.sorted()
+        self.rirPorDefectoMin = rirPorDefectoMin
+        self.rirPorDefectoMax = rirPorDefectoMax
+        self.descansoPorDefectoSegundos = descansoPorDefectoSegundos
+        self.pesoCorporal = pesoCorporal
+    }
+}
+
 public struct CarreraExportada: Codable, Equatable, Sendable {
     public var id: String
     public var fecha: Date

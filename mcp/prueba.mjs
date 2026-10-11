@@ -145,7 +145,18 @@ function generarFixture() {
     ],
     entrenos,
     carreras,
-    objetivosSemanales: { pecho: 2, espalda: 20 },
+    ajustes: {
+      objetivosSemanales: { pecho: 2, espalda: 20 },
+      incrementoBarra: 2.5,
+      incrementoPolea: 2.5,
+      incrementoMaquina: 2.5,
+      incrementoTiempo: 5,
+      mancuernasDisponibles: [10, 12, 14, 16, 18, 20, 22.5],
+      rirPorDefectoMin: 1,
+      rirPorDefectoMax: 2,
+      descansoPorDefectoSegundos: 90,
+      pesoCorporal: 78.5,
+    },
   }
 }
 
@@ -228,7 +239,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 11, `se esperaban 11 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 12, `se esperaban 12 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -391,6 +402,54 @@ comprobar(
 comprobar(
   !nombresSinObjetivo.includes('pecho') && !nombresSinObjetivo.includes('espalda'),
   'un grupo con objetivo sale además como si no lo tuviera'
+)
+
+// ─── Ajustes del gimnasio ────────────────────────────────────────────────────
+// «Sube a 22,5» solo es un consejo correcto si esa mancuerna existe, y el
+// salto no es el mismo en barra que en polea. Nada de eso se puede deducir del
+// historial, así que viaja en el volcado.
+
+const { respuestas: deAjustes } = await hablarConElServidor([
+  { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+  llamar(2, 'ajustes'),
+])
+
+const ajustes = contenido(deAjustes[1])
+comprobar(ajustes.disponible === true, 'los ajustes del fixture no se leen')
+comprobar(ajustes.incrementos?.barraKg === 2.5, 'no se lee el incremento de barra')
+comprobar(ajustes.incrementos?.tiempoSegundos === 5, 'no se lee el incremento de tiempo')
+comprobar(
+  ajustes.mancuernasDisponiblesKg?.includes(22.5),
+  'las mancuernas disponibles no llegan al consejo'
+)
+comprobar(ajustes.rirPorDefecto?.max === 2, 'no se lee el RIR por defecto')
+comprobar(ajustes.descansoPorDefectoSegundos === 90, 'no se lee el descanso por defecto')
+comprobar(ajustes.pesoCorporalKg === 78.5, 'no se lee el peso corporal')
+comprobar(ajustes.objetivosSemanales?.espalda === 20, 'los objetivos no salen también en ajustes')
+
+// Un archivo de una versión anterior no los lleva, y entonces hay que decirlo:
+// un cero aquí se leería como que el salto de la barra es cero.
+const archivoViejo = join(carpetaTemporal, 'antiguo.json')
+const { ajustes: _sinUsar, ...datosViejos } = generarFixture()
+writeFileSync(archivoViejo, JSON.stringify(datosViejos, null, 2), 'utf8')
+
+const { respuestas: deAjustesViejos } = await hablarConElServidor(
+  [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { capabilities: {} } },
+    llamar(2, 'ajustes'),
+  ],
+  { ENTRENOS_JSON: archivoViejo }
+)
+
+const ajustesViejos = contenido(deAjustesViejos[1])
+comprobar(ajustesViejos.disponible === false, 'un archivo sin ajustes tenía que decir que no los tiene')
+comprobar(
+  typeof ajustesViejos.nota === 'string' && ajustesViejos.nota.includes('Volcar'),
+  'la nota no dice qué hacer para tener los ajustes'
+)
+comprobar(
+  ajustesViejos.incrementos === undefined,
+  'un archivo sin ajustes no puede devolver incrementos inventados'
 )
 
 // ─── El buzón de rutinas que Claude deja para la app ─────────────────────────

@@ -18,7 +18,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'n
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-const VERSION = '1.1.0'
+const VERSION = '1.2.0'
 const PESO_SECUNDARIO = 0.5
 
 // ─── Localizar el archivo ────────────────────────────────────────────────────
@@ -585,6 +585,15 @@ const HERRAMIENTAS = [
       'lo de antes: al importarla, la app retira el archivo.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
+  {
+    name: 'ajustes',
+    description:
+      'Los saltos de carga de cada material, qué mancuernas hay en el gimnasio, ' +
+      'el RIR y el descanso por defecto y el peso corporal. Hace falta para ' +
+      'aconsejar una carga concreta: entre la mancuerna de 20 y la de 22,5 no hay ' +
+      'nada, y el salto no es el mismo en barra, en polea o en máquina.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
 ]
 
 function entrenosOrdenados(datos) {
@@ -907,7 +916,7 @@ const EJECUTORES = {
 
   objetivos() {
     const datos = cargarDatos()
-    const puestos = datos.objetivosSemanales || {}
+    const puestos = datos.ajustes?.objetivosSemanales || {}
 
     const estaSemana = inicioSemana(new Date())
     const clave = fechaLocalISO(estaSemana)
@@ -952,6 +961,39 @@ const EJECUTORES = {
     }
 
     return { semanaDesde: clave, semanasDeLaMedia: SEMANAS, grupos, sinObjetivo }
+  },
+
+  ajustes() {
+    const datos = cargarDatos()
+    const puestos = datos.ajustes
+    // Un archivo volcado por una versión anterior de la app no los lleva. Más
+    // vale decirlo que devolver ceros, porque un cero aquí no es «no hay
+    // dato»: se leería como que el salto de la barra es cero.
+    if (!puestos) {
+      return {
+        disponible: false,
+        nota:
+          'Este entrenos.json es de una versión anterior de la app y no lleva ' +
+          'los ajustes. Vuelve a volcarlo desde el teléfono, en Datos → Volcar ' +
+          'ahora, para tener los incrementos y las mancuernas.',
+      }
+    }
+    return {
+      disponible: true,
+      objetivosSemanales: puestos.objetivosSemanales || {},
+      incrementos: {
+        barraKg: puestos.incrementoBarra,
+        poleaKg: puestos.incrementoPolea,
+        maquinaKg: puestos.incrementoMaquina,
+        tiempoSegundos: puestos.incrementoTiempo,
+      },
+      mancuernasDisponiblesKg: puestos.mancuernasDisponibles || [],
+      rirPorDefecto: { min: puestos.rirPorDefectoMin, max: puestos.rirPorDefectoMax },
+      descansoPorDefectoSegundos: puestos.descansoPorDefectoSegundos,
+      // `null` y no 0: cero en los ajustes significa «sin poner», y una
+      // estimación con un peso corporal de cero sale absurda.
+      pesoCorporalKg: puestos.pesoCorporal ?? null,
+    }
   },
 
   propuestas_pendientes() {

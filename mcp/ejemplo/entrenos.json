@@ -403,10 +403,21 @@
       "origen": "Zepp"
     }
   ],
-  "objetivosSemanales": {
-    "pecho": 12,
-    "espalda": 14,
-    "cuadriceps": 12,
-    "hombroLateral": 8
+  "ajustes": {
+    "objetivosSemanales": {
+      "pecho": 12,
+      "espalda": 14,
+      "cuadriceps": 12,
+      "hombroLateral": 8
+    },
+    "incrementoBarra": 2.5,
+    "incrementoPolea": 2.5,
+    "incrementoMaquina": 2.5,
+    "incrementoTiempo": 5,
+    "mancuernasDisponibles": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22.5, 25, 27.5, 30],
+    "rirPorDefectoMin": 1,
+    "rirPorDefectoMax": 2,
+    "descansoPorDefectoSegundos": 90,
+    "pesoCorporal": 78.5
   }
 }
