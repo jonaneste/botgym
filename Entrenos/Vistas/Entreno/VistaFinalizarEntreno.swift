@@ -25,7 +25,7 @@ struct VistaFinalizarEntreno: View {
                 // etiqueta pesaba más que el número.
                 Section {
                     VStack(spacing: 14) {
-                        Text("Entreno terminado")
+                        Text(entreno.sinNadaRegistrado ? "Sin series anotadas" : "Entreno terminado")
                             .font(.headline)
                         HStack(spacing: 0) {
                             CifraDestacada(
@@ -106,7 +106,7 @@ struct VistaFinalizarEntreno: View {
                 }
 
                 Section {
-                    Button {
+                    Button(role: entreno.sinNadaRegistrado ? .destructive : nil) {
                         controlador.finalizar(
                             molestiaHombro: anotarHombro ? Int(molestiaHombro) : nil,
                             molestiaRodilla: anotarRodilla ? Int(molestiaRodilla) : nil,
@@ -115,11 +115,19 @@ struct VistaFinalizarEntreno: View {
                         )
                         cerrar()
                     } label: {
-                        Text("Guardar entreno")
+                        // El botón dice lo que va a pasar. Sin ninguna serie
+                        // anotada el entreno no se guarda, y un botón que
+                        // dijese «Guardar» para luego no dejar nada en el
+                        // historial se leería como que se ha perdido.
+                        Text(entreno.sinNadaRegistrado ? "Descartar entreno" : "Guardar entreno")
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity, minHeight: 40)
                     }
                     .buttonStyle(.borderedProminent)
+                } footer: {
+                    if entreno.sinNadaRegistrado {
+                        Text("No hay ninguna serie con repeticiones anotadas, así que no se guarda en el historial.")
+                    }
                 }
             }
             .navigationTitle("Terminar entreno")

@@ -395,13 +395,24 @@ final class ControladorEntreno {
     func finalizar(molestiaHombro: Int?, molestiaRodilla: Int?, notas: String, ajustes: Ajustes) {
         guard let entreno else { return }
 
+        var ejerciciosConSeries = 0
+
         // Se decide todo sobre copias tomadas antes de borrar nada: mutar una
         // relación de SwiftData mientras se recorre da resultados imprevisibles.
         for ejercicio in entreno.ejerciciosOrdenados {
-            let completadas = ejercicio.seriesOrdenadas.filter(\.completada)
-            let incompletas = ejercicio.seriesOrdenadas.filter { !$0.completada }
+            let tipo = ejercicio.tipoRegistro
+            // Una casilla marcada sin nada anotado tampoco es una serie: no
+            // suma volumen, pero sí contaba como serie del grupo muscular en
+            // el objetivo semanal, que es el recuento que no se puede falsear
+            // en silencio.
+            let completadas = ejercicio.seriesOrdenadas.filter {
+                $0.completada && !RevisionSerie.estaVacia($0.valor, tipo: tipo)
+            }
+            let sobrantes = ejercicio.seriesOrdenadas.filter {
+                !$0.completada || RevisionSerie.estaVacia($0.valor, tipo: tipo)
+            }
 
-            for serie in incompletas {
+            for serie in sobrantes {
                 contexto.delete(serie)
             }
 
@@ -415,6 +426,15 @@ final class ControladorEntreno {
                 serie.orden = indice
             }
             ejercicio.entrenoFinalizado = true
+            ejerciciosConSeries += 1
+        }
+
+        // Un entreno que se abrió y se dejó a medias no es un entreno de cero
+        // series: es un entreno que no pasó. Guardarlo dejaba una fila en el
+        // historial, con su duración y su hora, sin nada detrás.
+        guard ejerciciosConSeries > 0 else {
+            descartar()
+            return
         }
 
         entreno.molestiaHombro = molestiaHombro
