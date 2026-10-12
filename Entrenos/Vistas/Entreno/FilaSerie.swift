@@ -41,6 +41,19 @@ struct FilaSerie: View {
         .animation(.spring(duration: 0.3), value: serie.completada)
     }
 
+    /// Más repeticiones de las que se hacen con peso encima. El umbral es el
+    /// mismo a partir del cual no se estima 1RM: por encima, el número deja de
+    /// significar lo que parece.
+    private var repsImprobables: Bool {
+        !tipo.esTiempo
+            && serie.peso > 0
+            && serie.repeticiones > CalculadoraRM.repeticionesMaximasParaEstimar
+    }
+
+    private var fondoReps: Color {
+        repsImprobables ? Paleta.aviso.opacity(0.18) : Color(.tertiarySystemFill)
+    }
+
     private var fondo: Color {
         serie.completada
             ? Paleta.logrado.opacity(0.14)
@@ -110,7 +123,20 @@ struct FilaSerie: View {
                 ))
                 .frame(minWidth: 56)
                 .padding(.vertical, 8)
-                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
+                .background(fondoReps, in: .rect(cornerRadius: 10))
+                // No se bloquea: alguien puede hacer de verdad 50 repeticiones
+                // a peso corporal. Solo se señala, porque el dedazo típico
+                // —«12» que sale «127»— pasaba sin que nada lo dijera y se
+                // comía la gráfica del ejercicio.
+                .overlay(alignment: .topTrailing) {
+                    if repsImprobables {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Paleta.aviso)
+                            .offset(x: 3, y: -3)
+                            .accessibilityLabel("Revisa las repeticiones, son muchas")
+                    }
+                }
             }
 
             // RIR

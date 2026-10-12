@@ -10,9 +10,22 @@ import Foundation
 /// peso, porque Epley daría peso × 1,033 para un single, que ya es el máximo.
 public enum CalculadoraRM {
 
+    /// Repeticiones por encima de las cuales no se estima nada.
+    ///
+    /// Epley es una recta, y la fuerza real no lo es: la fórmula se ajusta
+    /// razonablemente hasta unas diez o quince repeticiones y a partir de ahí
+    /// se dispara. A 127 repeticiones da 5,2 veces el peso levantado.
+    ///
+    /// El tope no es un tecnicismo. Un dedo de más al teclear —«12» que sale
+    /// «127»— convertía una serie normal en un récord de 167 kg que ya no se
+    /// puede superar nunca, y que ensucia la gráfica del ejercicio para
+    /// siempre. Más vale no estimar que estimar un disparate.
+    public static let repeticionesMaximasParaEstimar = 20
+
     /// 1RM estimado por Epley. Devuelve `nil` si los datos no permiten estimar.
     public static func epley(peso: Double, repeticiones: Int) -> Double? {
         guard peso > 0, repeticiones >= 1 else { return nil }
+        guard repeticiones <= repeticionesMaximasParaEstimar else { return nil }
         guard repeticiones > 1 else { return peso }
         return peso * (1.0 + Double(repeticiones) / 30.0)
     }
