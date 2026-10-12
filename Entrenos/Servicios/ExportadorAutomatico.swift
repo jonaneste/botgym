@@ -328,9 +328,37 @@ final class ExportadorAutomatico {
         Task { [weak self] in
             guard let self else { return }
             if case .fallo(let detalle) = await self.exportarFueraDelPrincipal(contexto: contexto) {
-                print("Exportación automática fallida: \(detalle)")
+                // Se guarda en lugar de imprimirse. Un `print` en un build de
+                // desarrollo no lo ve nadie: el archivo se quedaba congelado
+                // en la fecha del último volcado que sí funcionó y desde
+                // fuera parecía que la app no estaba escribiendo nada, sin
+                // forma de saber por qué.
+                ultimoFalloAutomatico = detalle
+            } else {
+                ultimoFalloAutomatico = nil
             }
         }
+    }
+
+    /// El último error de un volcado automático, o `nil` si el último fue bien.
+    ///
+    /// Lo lee la pantalla de Datos para poder decirlo, que es el caso que de
+    /// verdad importa: si el permiso de la carpeta se pierde, los volcados
+    /// fallan en silencio y el Mac sigue leyendo datos de hace días como si
+    /// fueran de hoy.
+    private(set) var ultimoFalloAutomatico: String?
+
+    /// Vuelca si ha pasado algo desde la última vez.
+    ///
+    /// Se llama al abrir la app y al mandarla al fondo, no solo al terminar un
+    /// entreno. Terminar un entreno NO es el único momento en que cambian los
+    /// datos: corregir una serie en el historial, borrar un entreno, importar
+    /// una rutina o tocar los objetivos también, y ninguno de esos volcaba.
+    /// El archivo se quedaba viejo y la única salida era el botón de «Volcar
+    /// ahora», que es justo el paso manual que sobra.
+    func exportarAlCambiarDeEstado(contexto: ModelContext) {
+        guard estaConfigurado else { return }
+        exportarSiProcede(contexto: contexto)
     }
 }
 

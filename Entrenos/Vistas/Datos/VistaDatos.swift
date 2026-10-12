@@ -102,7 +102,25 @@ struct VistaDatos: View {
                         Spacer()
                         Text("\(Formato.fechaRelativa(ultimaAuto)) \(Formato.hora(ultimaAuto))")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ultimaEstaVieja ? Paleta.aviso : .secondary)
+                    }
+                }
+
+                // Un volcado automático que falla no puede quedarse callado:
+                // el archivo del Mac se congela en la última fecha buena y
+                // desde fuera parece que la app no escribe, sin saber por qué.
+                if let fallo = ExportadorAutomatico.compartido.ultimoFalloAutomatico {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("El último volcado automático falló")
+                                .font(.caption.weight(.semibold))
+                            Text(fallo)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Paleta.aviso)
                     }
                 }
 
@@ -403,6 +421,14 @@ struct VistaDatos: View {
         case .fallo(let detalle):
             mensaje = MensajeDatos(titulo: "No se pudo escribir", detalle: detalle)
         }
+    }
+
+    /// Más de un día sin escribir con la carpeta configurada. No es un error
+    /// por sí solo —puede que no hayas entrenado—, pero es la pista de que
+    /// algo no está llegando al Mac, y pintarlo en naranja cuesta nada.
+    private var ultimaEstaVieja: Bool {
+        guard let ultimaAuto else { return false }
+        return Date().timeIntervalSince(ultimaAuto) > 24 * 60 * 60
     }
 
     /// ¿Es una carpeta lo que se eligió? `nil` si el sistema no lo dice.

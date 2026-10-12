@@ -63,11 +63,27 @@ struct VistaPrincipal: View {
             }
         }
         .animation(.spring(duration: 0.35), value: avisoImportacion)
-        .task { revisarPropuestas() }
+        .task {
+            revisarPropuestas()
+            ExportadorAutomatico.compartido.exportarAlCambiarDeEstado(contexto: contexto)
+        }
         // También al volver del fondo: la rutina puede haber llegado por
         // iCloud con la app abierta, y entonces no hay arranque que la pille.
         .onChange(of: fase) { _, nueva in
-            if nueva == .active { revisarPropuestas() }
+            switch nueva {
+            case .active:
+                revisarPropuestas()
+                // Y se vuelca al abrir: si se corrigió algo con la app
+                // cerrada —o en otra pantalla que no termina un entreno—, el
+                // archivo del Mac estaba viejo y nadie lo decía.
+                ExportadorAutomatico.compartido.exportarAlCambiarDeEstado(contexto: contexto)
+            case .background:
+                // Al salir, que es cuando se acaba de tocar algo. No hace
+                // falta esperar al siguiente entreno terminado.
+                ExportadorAutomatico.compartido.exportarAlCambiarDeEstado(contexto: contexto)
+            default:
+                break
+            }
         }
     }
 
