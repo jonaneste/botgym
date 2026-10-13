@@ -423,6 +423,26 @@ const HERRAMIENTAS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'plan',
+    description:
+      'El plan de entrenamiento cargado en la app: qué toca cada día hasta la ' +
+      'fecha objetivo, qué días se han cumplido y los kilómetros previstos ' +
+      'frente a los corridos de verdad. Es lo que hace falta para saber si va ' +
+      'adelantado o atrasado: los entrenos sueltos no lo dicen.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dias: {
+          type: 'integer',
+          description: 'Cuántos días devolver desde hoy. Por defecto 14.',
+          minimum: 1,
+          maximum: 400,
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'carreras',
     description:
       'Carreras registradas, que llegan desde Zepp a través de Apple Salud: ' +
@@ -681,6 +701,60 @@ const EJECUTORES = {
       rirPorDefecto: { min: a.rirPorDefectoMin, max: a.rirPorDefectoMax },
       descansoPorDefectoSegundos: a.descansoPorDefectoSegundos,
       pesoCorporalKg: a.pesoCorporal ?? null,
+    }
+  },
+
+  plan({ dias = 14 } = {}) {
+    const datos = cargarDatos()
+    const todos = datos.plan || []
+    if (todos.length === 0) {
+      return {
+        disponible: false,
+        nota:
+          'No hay plan cargado, o el entrenos.json es de una versión anterior. ' +
+          'Un plan se deja en la carpeta de propuestas igual que una rutina, con ' +
+          'la clave «plan» en vez de «rutinas».',
+      }
+    }
+
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const ordenados = [...todos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    const dia = (d) => {
+      const f = new Date(d.fecha)
+      f.setHours(0, 0, 0, 0)
+      return f
+    }
+
+    const pendientes = ordenados.filter((d) => dia(d) >= hoy).slice(0, dias)
+    const pasados = ordenados.filter((d) => dia(d) < hoy)
+    // Descansar y pasear no se cumplen, así que no entran en el denominador:
+    // con ellos dentro el cumplimiento salía siempre bajo sin que signifique
+    // que se haya saltado nada.
+    const exigibles = pasados.filter((d) => d.tipo !== 'descanso' && d.tipo !== 'turismo')
+    const competicion = ordenados.find((d) => d.tipo === 'competicion')
+
+    return {
+      disponible: true,
+      hoy: ordenados.find((d) => dia(d).getTime() === hoy.getTime()) || null,
+      objetivo: competicion
+        ? {
+            fecha: competicion.fecha,
+            titulo: competicion.titulo,
+            diasQueFaltan: Math.round((dia(competicion) - hoy) / 86400000),
+          }
+        : null,
+      cumplimiento: {
+        diasExigiblesPasados: exigibles.length,
+        hechos: exigibles.filter((d) => d.hecho).length,
+        saltados: exigibles.filter((d) => !d.hecho).map((d) => ({ fecha: d.fecha, titulo: d.titulo })),
+      },
+      kilometros: {
+        previstosEnTodoElPlan: redondear(ordenados.reduce((s, d) => s + (d.km || 0), 0)),
+        previstosHastaHoy: redondear(exigibles.reduce((s, d) => s + (d.km || 0), 0)),
+        corridos: redondear(ordenados.reduce((s, d) => s + (d.kmHechos || 0), 0)),
+      },
+      proximos: pendientes,
     }
   },
 

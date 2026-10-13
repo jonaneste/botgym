@@ -455,5 +455,59 @@
     "rirPorDefectoMax": 2,
     "descansoPorDefectoSegundos": 90,
     "pesoCorporal": 78.5
-  }
+  },
+  "plan": [
+    {
+      "fecha": "2000-01-03T00:00:00Z",
+      "tipo": "gimnasio",
+      "titulo": "Pierna y core",
+      "notas": "Pasado y cumplido.",
+      "rutina": "Lunes – Pierna",
+      "hecho": true
+    },
+    {
+      "fecha": "2000-01-04T00:00:00Z",
+      "tipo": "carrera",
+      "titulo": "Tirada larga",
+      "notas": "Pasado y saltado.",
+      "km": 6,
+      "hecho": false
+    },
+    {
+      "fecha": "2000-01-05T00:00:00Z",
+      "tipo": "descanso",
+      "titulo": "Descanso",
+      "hecho": false
+    },
+    {
+      "fecha": "2000-01-06T00:00:00Z",
+      "tipo": "carrera",
+      "titulo": "Rodaje",
+      "km": 5,
+      "kmHechos": 4.2,
+      "hecho": true
+    },
+    {
+      "fecha": "2099-01-05T00:00:00Z",
+      "tipo": "gimnasioYCarrera",
+      "titulo": "Pecho y tríceps",
+      "km": 4,
+      "rutina": "Martes – Tirón",
+      "hecho": false
+    },
+    {
+      "fecha": "2099-01-06T00:00:00Z",
+      "tipo": "carrera",
+      "titulo": "Tirada larga",
+      "km": 10,
+      "hecho": false
+    },
+    {
+      "fecha": "2099-01-10T00:00:00Z",
+      "tipo": "competicion",
+      "titulo": "Media maratón de prueba",
+      "km": 21.1,
+      "hecho": false
+    }
+  ]
 }

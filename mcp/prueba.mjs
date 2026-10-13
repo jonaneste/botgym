@@ -48,6 +48,14 @@ function serie(orden, peso, repeticiones, { rir = 2, calentamiento = false, segu
   return { orden, peso, repeticiones, segundos, rir, calentamiento }
 }
 
+/// Medianoche de hace `cuantos` días. Negativo mira al futuro.
+function diasAtras(cuantos) {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - cuantos)
+  return d
+}
+
 function generarFixture() {
   // Tres semanas de press banca progresando: 60 kg, luego 60 a más reps, luego 62,5.
   const progresion = [
@@ -179,6 +187,19 @@ function generarFixture() {
     ],
     entrenos,
     carreras,
+    // El plan, también relativo a hoy. Con fechas absolutas, «los días que ya
+    // pasaron» deja de significar lo mismo mañana y la prueba falla sola.
+    plan: [
+      { fecha: sinZona(diasAtras(4)), tipo: 'carrera', titulo: 'Rodaje', notas: '', km: 5, kmHechos: 4.2, rutina: null, hecho: true },
+      { fecha: sinZona(diasAtras(3)), tipo: 'gimnasio', titulo: 'Pierna y core', notas: '', km: null, kmHechos: null, rutina: 'Lunes – Empuje', hecho: true },
+      // El que se saltó: es el que `plan` tiene que nombrar.
+      { fecha: sinZona(diasAtras(2)), tipo: 'carrera', titulo: 'Tirada larga', notas: '', km: 6, kmHechos: null, rutina: null, hecho: false },
+      // Descanso en medio: no se puede cumplir, así que no cuenta.
+      { fecha: sinZona(diasAtras(1)), tipo: 'descanso', titulo: 'Descanso', notas: '', km: null, kmHechos: null, rutina: null, hecho: false },
+      { fecha: sinZona(diasAtras(0)), tipo: 'gimnasioYCarrera', titulo: 'Pecho y tríceps', notas: '', km: 4, kmHechos: null, rutina: 'Martes – Tirón', hecho: false },
+      { fecha: sinZona(diasAtras(-3)), tipo: 'carrera', titulo: 'Tirada larga', notas: '', km: 10, kmHechos: null, rutina: null, hecho: false },
+      { fecha: sinZona(diasAtras(-10)), tipo: 'competicion', titulo: 'Media maratón de prueba', notas: '', km: 21.1, kmHechos: null, rutina: null, hecho: false },
+    ],
     ajustes: {
       // Pecho con objetivo y series hechas, cuádriceps con objetivo y ninguna:
       // los dos casos que `resumen_semanal` tiene que saber contar.
@@ -261,6 +282,7 @@ const { respuestas, errores } = await hablarConElServidor([
   llamar(15, 'ejercicios_disponibles', { material: 'mancuerna' }),
   llamar(16, 'ejercicios_disponibles', { grupo: 'inventado' }),
   llamar(17, 'ajustes'),
+  llamar(25, 'plan'),
   llamar(18, 'propuestas_pendientes'),
   // Una rutina válida, con los nombres tal y como están en la biblioteca.
   llamar(19, 'proponer_rutina', {
@@ -317,7 +339,7 @@ const { respuestas, errores } = await hablarConElServidor([
 const por = Object.fromEntries(respuestas.map((r) => [r.id, r]))
 
 // Una notificación no se responde: 14 mensajes, 13 respuestas.
-comprobar(respuestas.length === 24, `se esperaban 24 respuestas, llegaron ${respuestas.length}`)
+comprobar(respuestas.length === 25, `se esperaban 25 respuestas, llegaron ${respuestas.length}`)
 comprobar(
   respuestas.every((r) => r.jsonrpc === '2.0'),
   'alguna respuesta no lleva jsonrpc 2.0'
@@ -330,7 +352,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 11, `se esperaban 11 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 12, `se esperaban 12 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -488,6 +510,10 @@ comprobar(
   'el ejemplo del README no lleva ajustes'
 )
 comprobar(
+  Array.isArray(ejemplo.plan) && ejemplo.plan.some((d) => d.tipo === 'competicion'),
+  'el ejemplo del README no lleva un plan con su competición'
+)
+comprobar(
   Array.isArray(ejemplo.ejercicios) && ejemplo.ejercicios.length >= 2,
   'el ejemplo no tiene catálogo suficiente para probar ejercicios_disponibles'
 )
@@ -633,7 +659,49 @@ comprobar(
   'el error de ejercicio inexistente no sugiere declarar el grupo'
 )
 
-// ─── Resultado ───────────────────────────────────────────────────────────────
+// ─── El plan ─────────────────────────────────────────────────────────────────
+
+const plan = contenido(por[25])
+comprobar(plan.disponible === true, 'el plan del fixture no se lee')
+comprobar(
+  plan.objetivo?.titulo === 'Media maratón de prueba',
+  `objetivo del plan inesperado: ${plan.objetivo?.titulo}`
+)
+comprobar(plan.objetivo?.diasQueFaltan > 0, 'la competición del fixture no sale en el futuro')
+// Descansar no se cumple, así que no entra en el denominador: con él dentro el
+// cumplimiento salía bajo sin que nadie se hubiera saltado nada.
+comprobar(
+  plan.cumplimiento.diasExigiblesPasados === 3,
+  `días exigibles pasados = ${plan.cumplimiento.diasExigiblesPasados}, esperado 3`
+)
+comprobar(
+  plan.cumplimiento.hechos === 2,
+  `días hechos = ${plan.cumplimiento.hechos}, esperado 2`
+)
+comprobar(
+  plan.cumplimiento.saltados.length === 1 && plan.cumplimiento.saltados[0].titulo === 'Tirada larga',
+  'el día saltado del fixture no se señala'
+)
+// Previsto y corrido van separados: la diferencia es justo lo que se lee.
+comprobar(
+  plan.kilometros.previstosEnTodoElPlan === 46.1,
+  `km previstos = ${plan.kilometros.previstosEnTodoElPlan}, esperado 46,1`
+)
+comprobar(
+  plan.kilometros.previstosHastaHoy === 11,
+  `km previstos hasta hoy = ${plan.kilometros.previstosHastaHoy}, esperado 11`
+)
+comprobar(
+  plan.kilometros.corridos === 4.2,
+  `km corridos = ${plan.kilometros.corridos}, esperado 4,2`
+)
+comprobar(plan.proximos.length === 3, `próximos = ${plan.proximos.length}, esperado 3`)
+comprobar(
+  plan.proximos[0].rutina === 'Martes – Tirón',
+  'el día del plan no dice con qué rutina se entrena'
+)
+
+// ─── Resultado ──────────────────────────────────────────────────────────────
 
 if (fallos.length > 0) {
   console.error(`FALLO: ${fallos.length} de ${comprobaciones} comprobaciones\n`)

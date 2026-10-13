@@ -38,6 +38,7 @@ Entrenos/
     Records/             1RM estimado (Epley) y récords personales
     Volumen/             Volumen y series semanales por grupo muscular
     JSON/                Esquema de importación y exportación, y CSV
+    Plan/                Calendario hasta una fecha objetivo y su esquema JSON
     Salud/               Export de Apple Health y estimación de energía
   Datos/                 Modelos de SwiftData y repositorio
   Vistas/                SwiftUI, una carpeta por pestaña
@@ -47,7 +48,7 @@ Tests/                   Tests unitarios del núcleo
 mcp/                     Servidor MCP para que Claude lea tus datos
 Herramientas/            Verificación e instalación en el dispositivo
 CLAUDE.md                Decisiones del proyecto y trampas conocidas
-docs/                    Instalación y esquema JSON
+docs/                    Instalación y esquemas JSON (rutinas y plan)
 ```
 
 ### Por qué el núcleo está separado

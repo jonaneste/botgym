@@ -105,9 +105,9 @@ struct AvisoImportacion: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: resumen.rutinas.isEmpty ? "exclamationmark.triangle.fill" : "sparkles")
+            Image(systemName: huboError ? "exclamationmark.triangle.fill" : "sparkles")
                 .font(.title3)
-                .foregroundStyle(resumen.rutinas.isEmpty ? Paleta.aviso : Color.accentColor)
+                .foregroundStyle(huboError ? Paleta.aviso : Color.accentColor)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(titulo)
@@ -117,6 +117,13 @@ struct AvisoImportacion: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                if let plan = resumen.plan {
+                    Text(resumen.diasDePlan == 1
+                         ? "Plan «\(plan)»: 1 día"
+                         : "Plan «\(plan)»: \(resumen.diasDePlan) días")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 if resumen.ejerciciosCreados > 0 {
                     Text(resumen.ejerciciosCreados == 1
@@ -159,12 +166,23 @@ struct AvisoImportacion: View {
         .padding(.horizontal, 12)
     }
 
+    /// Solo se pinta como error cuando NO entró nada: un archivo ilegible
+    /// junto a una rutina que sí entró no puede teñir el aviso entero de
+    /// naranja, porque lo que el usuario lee primero es que algo falló.
+    private var huboError: Bool {
+        resumen.rutinas.isEmpty && resumen.plan == nil
+    }
+
     private var titulo: String {
-        if resumen.rutinas.isEmpty { return "Llegó algo que no pude leer" }
+        if huboError { return "Llegó algo que no pude leer" }
+        if resumen.rutinas.isEmpty, let plan = resumen.plan {
+            return "Claude cargó el plan «\(plan)»"
+        }
         let cuantas = resumen.rutinas.count
         let donde = resumen.carpetas.sorted().first
         let base = cuantas == 1 ? "Claude añadió una rutina" : "Claude añadió \(cuantas) rutinas"
-        return donde.map { "\(base) en \($0)" } ?? base
+        let conCarpeta = donde.map { "\(base) en \($0)" } ?? base
+        return resumen.plan == nil ? conCarpeta : "\(conCarpeta), y el plan"
     }
 }
 

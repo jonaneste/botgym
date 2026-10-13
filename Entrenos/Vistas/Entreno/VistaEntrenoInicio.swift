@@ -8,6 +8,7 @@ struct VistaEntrenoInicio: View {
 
     @Query(sort: \CarpetaRutinas.orden) private var carpetas: [CarpetaRutinas]
     @Query(sort: \Rutina.orden) private var rutinas: [Rutina]
+    @Query(sort: \DiaPlanificado.fecha) private var diasDePlan: [DiaPlanificado]
 
     @State private var ajustes: Ajustes?
 
@@ -29,6 +30,25 @@ struct VistaEntrenoInicio: View {
 
     private var pantallaInicio: some View {
         List {
+            if let hoy = diaDeHoy {
+                Section {
+                    TarjetaHoy(dia: hoy, rutina: rutinaDelDia(hoy)) { rutina in
+                        controlador.empezar(desde: rutina)
+                    }
+                    .filaDesnuda(arriba: 8, abajo: 4)
+                }
+
+                Section {
+                    NavigationLink {
+                        VistaPlan()
+                    } label: {
+                        Label("Ver el plan completo", systemImage: "calendar")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .filaDesnuda(arriba: 0, abajo: 8)
+                }
+            }
+
             Section {
                 Button {
                     controlador.empezarVacio()
@@ -73,6 +93,18 @@ struct VistaEntrenoInicio: View {
         .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Entrenar")
+    }
+
+    private var diaDeHoy: DiaPlanificado? {
+        diasDePlan.first { CalendarioEntrenos.es.isDate($0.fecha, inSameDayAs: Date()) }
+    }
+
+    /// La rutina que cubre la parte de gimnasio del día, buscada por nombre:
+    /// el plan se escribe fuera de la app, donde no se conocen los UUID.
+    private func rutinaDelDia(_ dia: DiaPlanificado) -> Rutina? {
+        guard dia.tipo.tieneGimnasio, let nombre = dia.nombreRutina else { return nil }
+        let buscado = Ejercicio.normalizar(nombre)
+        return rutinas.first { Ejercicio.normalizar($0.nombre) == buscado }
     }
 
     /// Una rutina, como tarjeta con su botón de empezar.

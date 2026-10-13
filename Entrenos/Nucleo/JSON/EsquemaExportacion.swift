@@ -22,6 +22,10 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     /// se progresa. Sin esto, un consejo como «sube a 22,5» es una suposición:
     /// depende de qué mancuernas hay en el gimnasio.
     public var ajustes: AjustesExportados?
+    /// El plan cargado, con lo que ya se ha cumplido. Va en el archivo para
+    /// que quien aconseja sepa contra qué se compara la semana: «te faltan
+    /// dos entrenos y la tirada larga» no se puede decir sin el plan.
+    public var plan: [DiaPlanExportado]
 
     public init(
         version: Int = ExportacionCompleta.versionActual,
@@ -31,7 +35,8 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         carpetas: [CarpetaExportada],
         entrenos: [EntrenoExportado],
         carreras: [CarreraExportada] = [],
-        ajustes: AjustesExportados? = nil
+        ajustes: AjustesExportados? = nil,
+        plan: [DiaPlanExportado] = []
     ) {
         self.version = version
         self.generado = generado
@@ -41,6 +46,7 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         self.entrenos = entrenos
         self.carreras = carreras
         self.ajustes = ajustes
+        self.plan = plan
     }
 
     public static let versionActual = 1
@@ -48,7 +54,7 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     /// Las carreras se añadieron después, así que un archivo de la versión 1
     /// sin ellas sigue siendo válido.
     enum CodingKeys: String, CodingKey {
-        case version, generado, app, ejercicios, carpetas, entrenos, carreras, ajustes
+        case version, generado, app, ejercicios, carpetas, entrenos, carreras, ajustes, plan
     }
 
     public init(from decodificador: Decoder) throws {
@@ -61,6 +67,37 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         entrenos = try contenedor.decode([EntrenoExportado].self, forKey: .entrenos)
         carreras = try contenedor.decodeIfPresent([CarreraExportada].self, forKey: .carreras) ?? []
         ajustes = try contenedor.decodeIfPresent(AjustesExportados.self, forKey: .ajustes)
+        plan = try contenedor.decodeIfPresent([DiaPlanExportado].self, forKey: .plan) ?? []
+    }
+}
+
+/// Un día del plan en el archivo de exportación.
+public struct DiaPlanExportado: Codable, Equatable, Sendable {
+    public var fecha: Date
+    public var tipo: String
+    public var titulo: String
+    public var notas: String
+    /// Kilómetros previstos por el plan.
+    public var km: Double?
+    /// Kilómetros que se corrieron, si se anotaron. Van aparte de los
+    /// previstos a propósito: la diferencia entre lo planeado y lo hecho es
+    /// justo lo que hay que leer para aconsejar.
+    public var kmHechos: Double?
+    public var rutina: String?
+    public var hecho: Bool
+
+    public init(
+        fecha: Date, tipo: String, titulo: String, notas: String = "",
+        km: Double? = nil, kmHechos: Double? = nil, rutina: String? = nil, hecho: Bool = false
+    ) {
+        self.fecha = fecha
+        self.tipo = tipo
+        self.titulo = titulo
+        self.notas = notas
+        self.km = km
+        self.kmHechos = kmHechos
+        self.rutina = rutina
+        self.hecho = hecho
     }
 }
 

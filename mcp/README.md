@@ -75,13 +75,20 @@ claude mcp add entrenos -- node /ruta/a/botgym/mcp/servidor-entrenos.mjs
 | `ejercicios_disponibles` | El catálogo entero, con grupo y material. Incluye los que nunca se han hecho |
 | `ajustes` | Objetivos semanales, saltos de carga, mancuernas del gimnasio y peso corporal |
 | `carreras` | Carreras con ritmo y pulso, y resumen semanal |
+| `plan` | El calendario cargado: qué toca cada día, qué se ha saltado y los km previstos frente a los corridos |
 | `proponer_rutina` | **Escribe** una rutina para que la importes con un toque |
 | `propuestas_pendientes` | Las rutinas propuestas que todavía no has aceptado |
 
 Son consultas estructuradas y no el archivo entero a propósito: así Claude
 puede preguntar «¿cómo va mi press banca?» sin tragarse dos años de series.
 
-Las dos últimas existen para que un consejo no sea una suposición.
+`plan` es lo que distingue «esta semana entrenó tres días» de «esta semana se
+dejó la tirada larga»: sin el calendario, los entrenos sueltos no dicen si va
+adelantado o atrasado. Los días de descanso no entran en el cumplimiento,
+porque descansar no se cumple.
+
+`proponer_rutina` y `propuestas_pendientes` existen para que un consejo no sea
+una suposición.
 `ejercicios_disponibles` dice qué ejercicios hay de verdad en la app, que es
 lo que hay que mirar antes de proponer una rutina: uno que no esté ahí no se
 puede usar. Y `ajustes` dice contra qué objetivo se cuentan las series de cada

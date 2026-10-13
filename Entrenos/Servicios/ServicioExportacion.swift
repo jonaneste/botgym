@@ -54,8 +54,26 @@ struct ServicioExportacion {
             carpetas: todasLasCarpetas,
             entrenos: entrenos,
             carreras: carreras,
-            ajustes: exportarAjustes()
+            ajustes: exportarAjustes(),
+            plan: exportarPlan()
         )
+    }
+
+    /// El plan cargado, con lo cumplido. Sin esto, quien lee el archivo ve
+    /// los entrenos sueltos y no sabe si van adelantados o atrasados.
+    private func exportarPlan() -> [DiaPlanExportado] {
+        RepositorioPlan(contexto: contexto).todos().map { dia in
+            DiaPlanExportado(
+                fecha: dia.fecha,
+                tipo: dia.tipo.rawValue,
+                titulo: dia.titulo,
+                notas: dia.notas,
+                km: dia.kilometros,
+                kmHechos: dia.kilometrosHechos,
+                rutina: dia.nombreRutina,
+                hecho: dia.hecho
+            )
+        }
     }
 
     /// Los ajustes que cambian cómo se leen los datos o qué se puede

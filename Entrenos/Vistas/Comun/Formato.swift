@@ -130,6 +130,17 @@ enum Formato {
         return formateador.string(from: fecha)
     }
 
+    /// Día de la semana abreviado: "mar". Para las filas del plan, donde el
+    /// nombre entero no cabe junto al número del día.
+    static func diaSemanaCorto(_ fecha: Date) -> String {
+        let formateador = DateFormatter()
+        formateador.locale = localeES
+        formateador.setLocalizedDateFormatFromTemplate("EEE")
+        // El formateador deja el punto de la abreviatura en español («mar.»),
+        // y en una columna de 38 pt ese punto es ruido.
+        return formateador.string(from: fecha).replacingOccurrences(of: ".", with: "")
+    }
+
     /// Calendario español: la semana empieza en lunes.
     ///
     /// Delega en el núcleo: el recuento de series semanales depende de dónde

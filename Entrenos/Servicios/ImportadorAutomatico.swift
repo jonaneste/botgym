@@ -21,10 +21,13 @@ enum ImportadorAutomatico {
         var rutinas: [String] = []
         var ejerciciosCreados: Int = 0
         var carpetas: Set<String> = []
+        /// Nombre del plan que entró y cuántos días trae.
+        var plan: String?
+        var diasDePlan: Int = 0
         /// Archivos que no se pudieron leer. Se quedan donde están.
         var fallidos: [String] = []
 
-        var huboAlgo: Bool { !rutinas.isEmpty || !fallidos.isEmpty }
+        var huboAlgo: Bool { !rutinas.isEmpty || plan != nil || !fallidos.isEmpty }
     }
 
     /// Revisa la carpeta e importa lo que haya. Devuelve `nil` si no había
@@ -37,7 +40,21 @@ enum ImportadorAutomatico {
         var resumen = Resumen()
         let importador = ImportadorRutinas(contexto: contexto)
 
+        let repositorioPlan = RepositorioPlan(contexto: contexto)
+
         for propuesta in bandeja.listas {
+            // Los dos formatos comparten carpeta, así que se distinguen por lo
+            // que traen dentro y no por el nombre del archivo: pedirle a quien
+            // lo escribe que acierte con el nombre es una regla más que
+            // recordar y un fallo más que no dice nada.
+            if let plan = try? LectorPlanJSON.leer(propuesta.json) {
+                let dias = repositorioPlan.guardar(plan)
+                resumen.plan = plan.nombre
+                resumen.diasDePlan += dias
+                ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
+                continue
+            }
+
             guard let leidas = try? LectorRutinasJSON.leer(propuesta.json) else {
                 // Un archivo que no se entiende NO se borra: dejarlo es la
                 // única pista de que algo llegó mal, y borrarlo perdería una
