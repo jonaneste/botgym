@@ -84,11 +84,18 @@ struct VistaAvisoRecord: View {
     let aviso: AvisoRecord
     let alCerrar: () -> Void
 
+    @State private var aparecido = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // El trofeo rebota al aparecer: es el único momento de la app que
+            // merece celebrarse, y un icono quieto se lee como un aviso más.
             Image(systemName: "trophy.fill")
                 .font(.title2)
                 .foregroundStyle(Paleta.record)
+                .symbolEffect(.bounce, value: aviso.id)
+                .scaleEffect(aparecido ? 1 : 0.6)
+                .animation(.spring(duration: 0.45, bounce: 0.5), value: aparecido)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(aviso.titulo)
@@ -115,12 +122,26 @@ struct VistaAvisoRecord: View {
             .accessibilityLabel("Cerrar aviso")
         }
         .padding(14)
-        .background(.regularMaterial, in: .rect(cornerRadius: 14))
+        .background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(
+                    LinearGradient(
+                        colors: [Paleta.record.opacity(0.28), Paleta.record.opacity(0.10)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .background(.regularMaterial, in: .rect(cornerRadius: 14))
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(.yellow.opacity(0.5), lineWidth: 1)
+                .strokeBorder(Paleta.record.opacity(0.55), lineWidth: 1)
         }
-        .shadow(radius: 8, y: 4)
+        .shadow(color: Paleta.record.opacity(0.25), radius: 10, y: 4)
         .padding(.horizontal, 12)
+        // La vibración del récord NO va aquí: ya la da el controlador al
+        // detectarlo, y además respeta el ajuste de vibrar. Repetirla en la
+        // vista eran dos golpes y uno de ellos sin preguntar.
+        .onAppear { aparecido = true }
     }
 }

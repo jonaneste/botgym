@@ -42,8 +42,19 @@ struct VistaEntrenoInicio: View {
                     NavigationLink {
                         VistaPlan()
                     } label: {
-                        Label("Ver el plan completo", systemImage: "calendar")
-                            .font(.subheadline.weight(.medium))
+                        HStack {
+                            Label("Ver el plan completo", systemImage: "calendar")
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                            // La cuenta atrás, aquí y no solo dentro del plan:
+                            // es el número que mueve todo lo demás, y escondido
+                            // tras un toque no mueve nada.
+                            if let faltan = diasHastaLaCompeticion {
+                                Text(faltan == 0 ? "¡Hoy!" : "faltan \(faltan) días")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Paleta.carrera)
+                            }
+                        }
                     }
                     .filaDesnuda(arriba: 0, abajo: 8)
                 }
@@ -93,6 +104,13 @@ struct VistaEntrenoInicio: View {
         .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Entrenar")
+    }
+
+    /// Días hasta la competición del plan, si hay una y no ha pasado ya.
+    private var diasHastaLaCompeticion: Int? {
+        guard let dia = diasDePlan.last(where: { $0.tipo == .competicion }) else { return nil }
+        let faltan = ResumenPlan.diasHasta(dia.fecha)
+        return faltan >= 0 ? faltan : nil
     }
 
     private var diaDeHoy: DiaPlanificado? {

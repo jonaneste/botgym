@@ -83,6 +83,24 @@ struct RepositorioEntrenos {
         return (try? contexto.fetch(descriptor)) ?? []
     }
 
+    /// El entreno anterior de la misma rutina, para comparar al cerrar.
+    ///
+    /// Se filtra en Swift y no en el predicado: `idRutinaOrigen` es opcional y
+    /// en iOS 17 comparar un UUID opcional dentro de `#Predicate` da
+    /// resultados que no son de fiar. Con el límite puesto, son ocho filas.
+    func anteriorDeLaMismaRutina(_ entreno: Entreno) -> Entreno? {
+        guard let idRutina = entreno.idRutinaOrigen else { return nil }
+        var descriptor = FetchDescriptor<Entreno>(
+            predicate: #Predicate<Entreno> { $0.estadoRaw == rawEntrenoFinalizado },
+            sortBy: [SortDescriptor(\.fechaInicio, order: .reverse)]
+        )
+        descriptor.fetchLimit = 12
+        let candidatos = (try? contexto.fetch(descriptor)) ?? []
+        return candidatos.first {
+            $0.idRutinaOrigen == idRutina && $0.idPublico != entreno.idPublico
+        }
+    }
+
     // MARK: - Ejercicios
 
     func ejercicios() -> [Ejercicio] {

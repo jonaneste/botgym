@@ -84,3 +84,76 @@ struct Pastilla: View {
             .background(color.opacity(0.14), in: .capsule)
     }
 }
+
+/// Tarjeta con un degradado del color que se le pase.
+///
+/// Se usa en las dos pantallas que marcan el ritmo de la app —el entreno en
+/// curso y su cierre— y en ningún otro sitio a propósito: un degradado en cada
+/// tarjeta deja de destacar nada y además pelea con el texto. Aquí el fondo
+/// liso del sistema sigue siendo la norma y esto es la excepción.
+///
+/// El degradado va de un 18 % del color a un 6 %, no del color al blanco: con
+/// el modo oscuro, un degradado hacia el blanco deja la mitad de la tarjeta
+/// gris sucio.
+struct FondoDestacado: ViewModifier {
+    var color: Color
+    var relleno: CGFloat = 16
+    var radio: CGFloat = 18
+
+    func body(content: Content) -> some View {
+        content
+            .padding(relleno)
+            .background {
+                RoundedRectangle(cornerRadius: radio)
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.18), color.opacity(0.06)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .background(
+                        Color(.secondarySystemGroupedBackground),
+                        in: .rect(cornerRadius: radio)
+                    )
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: radio)
+                    .strokeBorder(color.opacity(0.25), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+    }
+}
+
+extension View {
+    func tarjetaDestacada(_ color: Color, relleno: CGFloat = 16, radio: CGFloat = 18) -> some View {
+        modifier(FondoDestacado(color: color, relleno: relleno, radio: radio))
+    }
+}
+
+/// Barra de progreso gorda y redondeada.
+///
+/// `ProgressView` lineal mide dos puntos de alto y con el móvil a un brazo de
+/// distancia, sudando, no se ve. Esta es la que marca cuánto queda de la
+/// sesión, así que se ve.
+struct BarraProgreso: View {
+    /// De 0 a 1. Se recorta: una serie de más dejaba la barra saliéndose.
+    let fraccion: Double
+    var color: Color = Paleta.logrado
+    var alto: CGFloat = 10
+
+    var body: some View {
+        GeometryReader { geometria in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color(.tertiarySystemFill))
+                Capsule()
+                    .fill(color.gradient)
+                    .frame(width: geometria.size.width * min(max(fraccion, 0), 1))
+            }
+        }
+        .frame(height: alto)
+        .animation(.spring(duration: 0.4), value: fraccion)
+        .accessibilityHidden(true)
+    }
+}

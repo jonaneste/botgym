@@ -156,19 +156,44 @@ struct VistaEntrenoEnCurso: View {
                 // La barra dice de un vistazo cuánto queda, que es la pregunta
                 // que uno se hace entre serie y serie.
                 if entreno.seriesTotales > 0 {
-                    ProgressView(
-                        value: Double(entreno.seriesCompletadas),
-                        total: Double(entreno.seriesTotales)
-                    )
-                    .tint(Paleta.logrado)
+                    VStack(spacing: 4) {
+                        BarraProgreso(
+                            fraccion: Double(entreno.seriesCompletadas) / Double(entreno.seriesTotales)
+                        )
+                        if let texto = textoDeAnimo {
+                            Text(texto)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Paleta.logrado)
+                                .transition(.opacity)
+                        }
+                    }
                 }
             }
-            .tarjeta()
+            .tarjetaDestacada(Paleta.logrado)
         }
     }
 
     private var divisor: some View {
         Divider().frame(height: 28)
+    }
+
+    /// Una línea que dice cuánto queda, no un ánimo genérico.
+    ///
+    /// Cuenta series que quedan porque es el número que se puede mirar entre
+    /// serie y serie, y desaparece en cuanto no queda nada que decir: una
+    /// frase fija en la cabecera deja de leerse al segundo entreno.
+    private var textoDeAnimo: String? {
+        let hechas = entreno.seriesCompletadas
+        let total = entreno.seriesTotales
+        guard total > 0 else { return nil }
+        if hechas == 0 { return nil }
+        let quedan = total - hechas
+        switch quedan {
+        case 0: return "Todo hecho"
+        case 1: return "Queda una serie"
+        case 2...3: return "Quedan \(quedan) series"
+        default: return nil
+        }
     }
 
     /// Color de la región del ejercicio. Si el ejercicio se borró de la

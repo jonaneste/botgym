@@ -327,6 +327,22 @@ final class ControladorEntreno {
     /// Récords batidos serie a serie durante el entreno, con su ejercicio.
     var resumenRecords: [RecordDeEjercicio] { recordsDelEntreno }
 
+    /// Cómo ha ido comparado con la última vez que se hizo esta misma rutina.
+    ///
+    /// `nil` si no hay con qué comparar: un entreno libre, o la primera vez
+    /// con esa rutina. «0 kg más que la última vez» sería mentira.
+    func comparacionConLaUltimaVez() -> ComparacionSesion? {
+        guard let entreno else { return nil }
+        let anterior = repositorio.anteriorDeLaMismaRutina(entreno)
+        return ComparadorSesiones.comparar(
+            seriesAhora: entreno.seriesCompletadas,
+            volumenAhora: entreno.volumenTotal,
+            anterior: anterior.map {
+                (fecha: $0.fechaInicio, series: $0.seriesCompletadas, volumen: $0.volumenTotal)
+            }
+        )
+    }
+
     /// Sugerencia de carga para un ejercicio del entreno en curso.
     func sugerencia(para ejercicio: EjercicioEntreno, ajustes: Ajustes) -> SugerenciaProgresion {
         progreso.sugerencia(

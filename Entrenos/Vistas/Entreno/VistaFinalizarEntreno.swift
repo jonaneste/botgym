@@ -15,6 +15,7 @@ struct VistaFinalizarEntreno: View {
     @State private var molestiaRodilla: Double = 0
     @State private var notas = ""
     @State private var recordsVolumen: [RecordDeEjercicio] = []
+    @State private var comparacion: ComparacionSesion?
 
     var body: some View {
         NavigationStack {
@@ -53,7 +54,23 @@ struct VistaFinalizarEntreno: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .listRowBackground(Color(.secondarySystemGroupedBackground))
+                    .listRowBackground(
+                        LinearGradient(
+                            colors: [
+                                colorDelCierre.opacity(0.18),
+                                colorDelCierre.opacity(0.05),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .background(Color(.secondarySystemGroupedBackground))
+                    )
+                }
+
+                if let comparacion {
+                    Section {
+                        FilaComparacion(comparacion: comparacion)
+                    }
                 }
 
                 if !todosLosRecords.isEmpty {
@@ -140,8 +157,19 @@ struct VistaFinalizarEntreno: View {
             .onAppear {
                 notas = entreno.notas
                 recordsVolumen = controlador.recordsDeVolumen()
+                comparacion = controlador.comparacionConLaUltimaVez()
             }
         }
+    }
+
+    /// Verde si hubo récord o si mejoró lo de la última vez; si no, el acento.
+    /// El rojo no entra aquí: un entreno peor que el anterior sigue siendo un
+    /// entreno hecho, y teñirlo de alarma es lo que hace que no se abra la app
+    /// al día siguiente.
+    private var colorDelCierre: Color {
+        if !todosLosRecords.isEmpty { return Paleta.record }
+        if comparacion?.esMejora == true { return Paleta.logrado }
+        return .accentColor
     }
 
     /// Los de serie, detectados durante el entreno, más los de volumen, que
@@ -191,5 +219,74 @@ struct VistaFinalizarEntreno: View {
         case 6..<8: return .orange
         default: return .red
         }
+    }
+}
+
+/// Cómo ha ido comparado con la última vez que se hizo esta rutina.
+///
+/// Dos cifras y una frase, no una tabla: lo que se quiere saber al terminar es
+/// si se ha movido más peso que la vez anterior.
+struct FilaComparacion: View {
+    let comparacion: ComparacionSesion
+
+    private var color: Color {
+        if comparacion.esMejora { return Paleta.logrado }
+        if comparacion.esIgual { return .secondary }
+        return Paleta.aviso
+    }
+
+    private var icono: String {
+        if comparacion.esMejora { return "arrow.up.right.circle.fill" }
+        if comparacion.esIgual { return "equal.circle.fill" }
+        return "arrow.down.right.circle"
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icono)
+                .font(.title3)
+                .foregroundStyle(color)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titulo)
+                    .font(.subheadline.weight(.semibold))
+                Text(detalle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var titulo: String {
+        if comparacion.esIgual { return "Igual que la última vez" }
+        let volumen = Formato.volumen(abs(comparacion.diferenciaVolumen))
+        return comparacion.esMejora
+            ? "\(volumen) más que la última vez"
+            : "\(volumen) menos que la última vez"
+    }
+
+    private var detalle: String {
+        var partes = ["Entonces: \(comparacion.seriesAntes) series y \(Formato.volumen(comparacion.volumenAntes))"]
+        if comparacion.diferenciaSeries != 0 {
+            let cuantas = abs(comparacion.diferenciaSeries)
+            let palabra = cuantas == 1 ? "serie" : "series"
+            partes.append(
+                comparacion.diferenciaSeries > 0
+                    ? "hoy \(cuantas) \(palabra) más"
+                    : "hoy \(cuantas) \(palabra) menos"
+            )
+        }
+        // El porcentaje solo si significa algo: a peso corporal el volumen es
+        // 0 y no hay nada que dividir.
+        if let porcentaje = comparacion.porcentajeVolumen, abs(porcentaje) >= 1 {
+            partes.append("\(porcentaje > 0 ? "+" : "")\(Formato.numeroCorto(porcentaje)) %")
+        }
+        partes.append(Formato.fechaRelativa(comparacion.fechaAnterior))
+        return partes.joined(separator: " · ")
     }
 }
