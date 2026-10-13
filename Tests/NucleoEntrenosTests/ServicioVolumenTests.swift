@@ -187,6 +187,72 @@ final class ServicioVolumenTests: XCTestCase {
         XCTAssertEqual(grupo.faltan, 2)
     }
 
+    // MARK: - Ritmo dentro de la semana
+
+    /// El lunes a las 00:00 es 0; el jueves a mediodía, media semana.
+    func testLaFraccionDeSemanaVaDeCeroAUno() {
+        let lunes = CalendarioEntrenos.inicioDeSemana(de: fecha(5), calendario: calendario)
+        XCTAssertEqual(
+            CalendarioEntrenos.fraccionTranscurridaDeSemana(lunes, calendario: calendario),
+            0, accuracy: 0.0001
+        )
+        let domingoNoche = calendario.date(byAdding: .hour, value: -1, to:
+            CalendarioEntrenos.inicioDeSemanaSiguiente(de: fecha(5), calendario: calendario))!
+        XCTAssertGreaterThan(
+            CalendarioEntrenos.fraccionTranscurridaDeSemana(domingoNoche, calendario: calendario),
+            0.99
+        )
+    }
+
+    func testElLunesSinNadaHechoNoVaCorto() {
+        // El fallo que esto arregla: antes 0 de 12 era rojo el lunes, y la
+        // pantalla entera avisaba de un problema que no existía.
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 0, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0), .alDia)
+    }
+
+    func testAMitadDeSemanaConLaMitadHechaVaAlDia() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 6, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.5), .alDia)
+    }
+
+    func testIrPorDelanteTambienEsAlDia() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 10, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.3), .alDia)
+    }
+
+    func testAMediadosSinNadaHechoVaCortoPeroAunCabe() {
+        // Miércoles con 0 de 12: falta todo, pero quedan cuatro días.
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 0, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 3.0 / 7.0), .corto)
+    }
+
+    func testElSabadoConCasiNadaHechoYaNoDa() {
+        // Queda un 20 % de semana y falta el 75 % del objetivo: no cabe ni
+        // yendo al doble del ritmo medio.
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 3, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.8), .muyCorto)
+    }
+
+    func testCumplidoMandaSobreElRitmo() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 12, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.1), .cumplido)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 1), .cumplido)
+    }
+
+    func testSinObjetivoNoSeJuzgaElRitmo() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 4, objetivo: nil)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 0.9), .sinObjetivo)
+        let objetivoCero = SeriesDeGrupo(grupo: .pecho, series: 4, objetivo: 0)
+        XCTAssertEqual(objetivoCero.ritmo(fraccionDeSemana: 0.9), .sinObjetivo)
+    }
+
+    func testLaFraccionFueraDeRangoNoRompeElJuicio() {
+        let grupo = SeriesDeGrupo(grupo: .pecho, series: 6, objetivo: 12)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: -5), .alDia)
+        XCTAssertEqual(grupo.ritmo(fraccionDeSemana: 42), .muyCorto)
+    }
+
     // MARK: - Tendencia por semanas
 
     func testLaTendenciaDevuelveUnaEntradaPorSemanaIncluidasLasVacias() {
@@ -219,6 +285,66 @@ final class ServicioVolumenTests: XCTestCase {
 
     func testCeroSemanasDevuelveListaVacia() {
         XCTAssertTrue(ServicioVolumen.seriesPorSemana([], semanas: 0, hasta: fecha(7), calendario: calendario).isEmpty)
+    }
+
+    // MARK: - Sin clasificar
+
+    func testUnEjercicioSinClasificarNoSumaNingunaSerie() {
+        // Lo que entra por importación sin grupo declarado. Antes nacía como
+        // core y una sesión de pierna le subía el recuento a core.
+        let series = [serie(fecha(5), .sinClasificar), serie(fecha(5), .sinClasificar)]
+        XCTAssertTrue(ServicioVolumen.seriesPorGrupo(series).isEmpty)
+    }
+
+    func testSinClasificarComoSecundarioTampocoSuma() throws {
+        let series = [serie(fecha(5), .pecho, [.sinClasificar, .triceps])]
+        let cuenta = ServicioVolumen.seriesPorGrupo(series)
+        XCTAssertNil(cuenta[.sinClasificar])
+        XCTAssertEqual(try XCTUnwrap(cuenta[.pecho]), 1, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(cuenta[.triceps]), 0.5, accuracy: 0.0001)
+    }
+
+    func testSinClasificarNoSaleEnLasSeriesSemanalesYNoEstorbaAlResto() throws {
+        let series = [
+            serie(fecha(5), .sinClasificar),
+            serie(fecha(5), .sinClasificar),
+            serie(fecha(5), .cuadriceps),
+        ]
+        let resultado = ServicioVolumen.seriesSemanales(series, semanaDe: fecha(7), calendario: calendario)
+        XCTAssertFalse(resultado.contains { $0.grupo == .sinClasificar })
+        let cuadriceps = try XCTUnwrap(resultado.first { $0.grupo == .cuadriceps })
+        XCTAssertEqual(cuadriceps.series, 1, accuracy: 0.0001)
+    }
+
+    func testUnObjetivoGuardadoDeSinClasificarNoCreaFila() {
+        // Un objetivo que viniera de unos ajustes antiguos no puede crear una
+        // fila: no sumaría nunca y se quedaría clavada en 0.
+        let resultado = ServicioVolumen.seriesSemanales(
+            [serie(fecha(5), .sinClasificar)],
+            semanaDe: fecha(7),
+            objetivos: [.sinClasificar: 10],
+            calendario: calendario
+        )
+        XCTAssertTrue(resultado.isEmpty)
+    }
+
+    func testLaTendenciaFiltradaPorSinClasificarEsCero() {
+        let series = [serie(fecha(5), .sinClasificar), serie(fecha(5), .pecho)]
+        let tendencia = ServicioVolumen.seriesPorSemana(
+            series, semanas: 1, hasta: fecha(7), grupo: .sinClasificar, calendario: calendario
+        )
+        XCTAssertEqual(tendencia.map(\.series), [0])
+    }
+
+    func testLaTendenciaTotalSiCuentaLasSeriesSinClasificar() {
+        // Decisión explícita: el total no se reparte por músculo, así que una
+        // serie sin clasificar no falsea nada y sí se hizo. Quitarla haría que
+        // importar una rutina pareciera entrenar menos.
+        let series = [serie(fecha(5), .sinClasificar), serie(fecha(5), .pecho)]
+        let tendencia = ServicioVolumen.seriesPorSemana(
+            series, semanas: 1, hasta: fecha(7), calendario: calendario
+        )
+        XCTAssertEqual(tendencia.map(\.series), [2])
     }
 
     // MARK: - Calendario

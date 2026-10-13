@@ -44,6 +44,21 @@ public enum CalendarioEntrenos {
         }
     }
 
+    /// Qué parte de la semana ha pasado ya, de 0 a 1.
+    ///
+    /// Se calcula con fechas reales y no dividiendo por siete días fijos,
+    /// porque la semana del cambio de hora tiene 167 u 169 horas.
+    public static func fraccionTranscurridaDeSemana(
+        _ fecha: Date,
+        calendario: Calendar = CalendarioEntrenos.es
+    ) -> Double {
+        let inicio = inicioDeSemana(de: fecha, calendario: calendario)
+        let fin = inicioDeSemanaSiguiente(de: fecha, calendario: calendario)
+        let total = fin.timeIntervalSince(inicio)
+        guard total > 0 else { return 1 }
+        return min(1, max(0, fecha.timeIntervalSince(inicio) / total))
+    }
+
     /// `true` si las dos fechas caen en la misma semana.
     public static func mismaSemana(
         _ a: Date,

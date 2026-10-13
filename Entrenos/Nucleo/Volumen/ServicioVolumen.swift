@@ -60,6 +60,47 @@ public struct SeriesDeGrupo: Equatable, Sendable, Identifiable {
         guard let objetivo, objetivo > 0 else { return nil }
         return max(0, Int((Double(objetivo) - series).rounded(.up)))
     }
+
+    /// Cómo va el grupo **teniendo en cuenta cuánta semana queda**.
+    ///
+    /// Sin esto, la interfaz pintaba de rojo todo lo que estuviera por debajo
+    /// del 60 % del objetivo, así que el lunes la pantalla entera salía en rojo
+    /// aunque la semana fuese perfectamente bien. Un aviso que salta siempre no
+    /// avisa de nada.
+    ///
+    /// - Parameter fraccionDeSemana: parte de la semana ya transcurrida, de 0 a
+    ///   1, tal como la da `CalendarioEntrenos.fraccionTranscurridaDeSemana`.
+    public func ritmo(fraccionDeSemana: Double) -> RitmoSemanal {
+        guard let progreso else { return .sinObjetivo }
+        if cumplido { return .cumplido }
+
+        let transcurrido = min(1, max(0, fraccionDeSemana))
+
+        // Un día de margen antes de considerar que vas por detrás: el lunes a
+        // primera hora no se va corto de nada, queda la semana entera.
+        let margen = 1.0 / 7.0
+        if progreso >= transcurrido - margen { return .alDia }
+
+        // Y por detrás hay dos situaciones distintas: la que se arregla
+        // apretando, y la que ya no da. El corte está en si lo que falta cabe
+        // en lo que queda de semana yendo al doble del ritmo medio.
+        let falta = 1 - progreso
+        let queda = 1 - transcurrido
+        return falta <= queda * 2 ? .corto : .muyCorto
+    }
+}
+
+/// Cómo va un grupo frente a su objetivo semanal, a estas alturas de la semana.
+public enum RitmoSemanal: Equatable, Sendable {
+    /// No hay objetivo configurado: no hay nada que juzgar.
+    case sinObjetivo
+    case cumplido
+    /// Al ritmo necesario, o por delante.
+    case alDia
+    /// Por detrás, pero aún cabe en lo que queda de semana.
+    case corto
+    /// Por detrás de lo que queda de semana da de sí.
+    case muyCorto
 }
 
 /// Volumen y recuento de series por grupo muscular.
@@ -80,11 +121,18 @@ public enum ServicioVolumen {
 
     /// Cuenta las series por grupo muscular. El grupo principal suma 1 y cada
     /// secundario 0,5.
+    ///
+    /// Los grupos que no son músculo (`sinClasificar`) no aparecen: una serie
+    /// de un ejercicio sin clasificar es trabajo real, pero no se sabe de qué,
+    /// y ponerla en cualquier grupo falsea el recuento semanal.
     public static func seriesPorGrupo(_ series: [SerieConEjercicio]) -> [GrupoMuscular: Double] {
         var cuenta: [GrupoMuscular: Double] = [:]
         for serie in series where serie.esEfectiva {
-            cuenta[serie.grupoPrincipal, default: 0] += 1
-            for secundario in Set(serie.gruposSecundarios) where secundario != serie.grupoPrincipal {
+            if serie.grupoPrincipal.cuentaEnVolumen {
+                cuenta[serie.grupoPrincipal, default: 0] += 1
+            }
+            for secundario in Set(serie.gruposSecundarios)
+            where secundario != serie.grupoPrincipal && secundario.cuentaEnVolumen {
                 cuenta[secundario, default: 0] += pesoSecundario
             }
         }
@@ -111,7 +159,11 @@ public enum ServicioVolumen {
         let relevantes = Set(cuenta.keys).union(objetivos.keys)
 
         return GrupoMuscular.allCases
-            .filter { relevantes.contains($0) }
+            // El filtro por `cuentaEnVolumen` no sobra: un objetivo guardado
+            // de una versión anterior podría nombrar un grupo que ya no suma,
+            // y entonces aparecería la fila con un objetivo imposible de
+            // cumplir.
+            .filter { $0.cuentaEnVolumen && relevantes.contains($0) }
             .map { grupo in
                 SeriesDeGrupo(
                     grupo: grupo,
@@ -143,6 +195,8 @@ public enum ServicioVolumen {
             } else {
                 // Sin grupo, el total son las series efectivas tal cual: aquí
                 // no se ponderan secundarios, porque una serie es una serie.
+                // Y por lo mismo entran las sin clasificar, que sí se hicieron:
+                // lo que no se sabe es a qué músculo apuntarlas, no si existen.
                 total = Double(deLaSemana.filter(\.esEfectiva).count)
             }
             return SeriesDeSemana(inicioSemana: inicio, series: total)

@@ -180,22 +180,22 @@ struct ImportadorRutinas {
     /// grupo y el material si el archivo los declara, que es información del
     /// que escribe la rutina y no una conjetura nuestra.
     ///
-    /// Cuando no vienen, el grupo cae en `core`, que es tan arbitrario como
-    /// cualquier otro y por eso la nota lo dice: un ejercicio de pierna
-    /// contado como core desequilibra la cuenta semanal hacia el lado
-    /// contrario.
+    /// Cuando no vienen, el grupo es `sinClasificar`, que no suma series en
+    /// ningún recuento. Antes caía en `core`, que sí sumaba: un ejercicio de
+    /// pierna contado como core desequilibraba la cuenta semanal hacia el
+    /// lado contrario sin decir nada.
     private func crear(desde def: EjercicioImportado) -> Ejercicio {
         let grupo = def.grupoPrincipal.flatMap(GrupoMuscular.init(rawValue:))
         let secundarios = def.gruposSecundarios.compactMap(GrupoMuscular.init(rawValue:))
         let material = def.material.flatMap(Material.init(rawValue:))
 
         let nota = grupo == nil
-            ? "Creado al importar SIN grupo muscular: ponle el suyo o no contará bien en las series semanales."
+            ? "Creado al importar SIN grupo muscular: ponle el suyo o no contará en las series semanales."
             : "Creado al importar."
 
         return Ejercicio(
             nombre: def.nombre,
-            grupoPrincipal: grupo ?? .core,
+            grupoPrincipal: grupo ?? .sinClasificar,
             gruposSecundarios: secundarios,
             material: material ?? .otro,
             tipoRegistro: def.esTiempo ? .tiempo : .repeticiones,

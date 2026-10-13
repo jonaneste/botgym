@@ -311,7 +311,7 @@ struct VistaDatos: View {
                         get: { ajustes.pesoCorporal },
                         set: { ajustes.pesoCorporal = $0; try? contexto.save() }
                     ))
-                    .frame(width: 70)
+                    .anchoDeCampoDePeso()
                     .padding(.vertical, 6)
                     .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
                     Text("kg").foregroundStyle(.secondary)

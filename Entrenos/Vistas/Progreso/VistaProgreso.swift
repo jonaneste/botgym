@@ -10,6 +10,9 @@ struct VistaProgreso: View {
     @State private var tendencia: [SeriesDeSemana] = []
     @State private var ejercicios: [(ejercicio: Ejercicio, ultimaVez: Date)] = []
     @State private var busqueda = ""
+    /// Se fija al recargar y no se lee en el cuerpo de la vista: así la lista
+    /// no cambia de color a mitad de un redibujado.
+    @State private var fraccionDeSemana: Double = 1
 
     /// El alto de la gráfica sube con el tamaño de texto del sistema: con
     /// cuerpos de accesibilidad, las etiquetas de los ejes se comían el área
@@ -54,7 +57,7 @@ struct VistaProgreso: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(seriesSemanales) { grupo in
-                            FilaSeriesGrupo(datos: grupo)
+                            FilaSeriesGrupo(datos: grupo, fraccionDeSemana: fraccionDeSemana)
                         }
                     }
                 } header: {
@@ -67,7 +70,7 @@ struct VistaProgreso: View {
                         .font(.caption)
                     }
                 } footer: {
-                    Text("Los grupos secundarios cuentan como media serie: un press de banca suma 1 a pecho y 0,5 a tríceps.")
+                    Text("Los grupos secundarios cuentan como media serie: un press de banca suma 1 a pecho y 0,5 a tríceps. El aviso mira cuánta semana queda, así que el lunes no sale en rojo nada.")
                 }
 
                 Section("Ejercicios") {
@@ -126,6 +129,7 @@ struct VistaProgreso: View {
             objetivos: cargados.objetivosSemanales
         )
         tendencia = repositorio.tendenciaSemanal(semanas: 8)
+        fraccionDeSemana = CalendarioEntrenos.fraccionTranscurridaDeSemana(Date())
         ejercicios = repositorio.ejerciciosConHistorial()
     }
 }
@@ -133,6 +137,12 @@ struct VistaProgreso: View {
 /// Fila de un grupo muscular con su progreso semanal.
 struct FilaSeriesGrupo: View {
     let datos: SeriesDeGrupo
+    /// Parte de la semana transcurrida, para juzgar el ritmo. Se pasa desde
+    /// fuera y no se lee de `Date()` aquí dentro para que la fila siga siendo
+    /// una función de sus datos y se pueda previsualizar cualquier día.
+    var fraccionDeSemana: Double = 1
+
+    private var ritmo: RitmoSemanal { datos.ritmo(fraccionDeSemana: fraccionDeSemana) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -140,13 +150,16 @@ struct FilaSeriesGrupo: View {
                 Text(datos.grupo.nombre)
                     .font(.subheadline)
                 Spacer()
-                // El símbolo acompaña al color a propósito: si el cumplimiento
-                // se dijera solo con verde, naranja o rojo, quien no distinga
-                // esos tonos se queda sin saber si va bien.
+                // El rojo/naranja/verde es justo el par que peor distinguen
+                // los daltónicos más comunes, así que el estado lleva además
+                // una marca. La cifra ya va siempre, que es lo que de verdad
+                // informa, y el símbolo se le oculta a VoiceOver porque la
+                // etiqueta de la fila ya lo dice con palabras.
                 if let simbolo {
                     Image(systemName: simbolo)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(color)
+                        .accessibilityHidden(true)
                 }
                 Text(texto)
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
@@ -162,7 +175,27 @@ struct FilaSeriesGrupo: View {
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(datos.grupo.nombre)
-        .accessibilityValue(descripcionAccesible)
+        .accessibilityValue(textoAccesible)
+    }
+
+    /// Lo que lee VoiceOver: sin esto leía el nombre, la cifra y la barra como
+    /// tres elementos sueltos, y «8 / 12» no dice de qué.
+    private var textoAccesible: String {
+        let series = Formato.numeroCorto(datos.series)
+        guard let objetivo = datos.objetivo else {
+            return "\(series) series esta semana"
+        }
+        let base = "\(series) de \(objetivo) series."
+        switch ritmo {
+        case .sinObjetivo, .alDia:
+            return "\(base) Vas al día, faltan \(datos.faltan ?? 0)."
+        case .cumplido:
+            return "\(base) Objetivo cumplido."
+        case .corto:
+            return "\(base) Vas corto: faltan \(datos.faltan ?? 0)."
+        case .muyCorto:
+            return "\(base) Quedan \(datos.faltan ?? 0) y poca semana."
+        }
     }
 
     private var texto: String {
@@ -173,35 +206,26 @@ struct FilaSeriesGrupo: View {
         return series
     }
 
+    /// El color dice si hay algo que hacer, no cuánto falta: lo segundo ya lo
+    /// dice la cifra. Ir al día no se pinta de ningún color de aviso.
     private var color: Color {
-        guard let progreso = datos.progreso else { return .secondary }
-        if datos.cumplido { return Paleta.logrado }
-        return progreso >= 0.6 ? Paleta.aviso : Paleta.insuficiente
+        switch ritmo {
+        case .sinObjetivo: return .secondary
+        case .cumplido: return Paleta.logrado
+        case .alDia: return .primary
+        case .corto: return Paleta.aviso
+        case .muyCorto: return Paleta.insuficiente
+        }
     }
 
-    /// Forma que dobla al color. Sin objetivo no hay nada que cumplir, así que
-    /// tampoco hay símbolo.
+    /// Una forma además del color, porque rojo, naranja y verde son justo los
+    /// que peor se distinguen con los daltonismos más comunes.
     private var simbolo: String? {
-        guard let progreso = datos.progreso else { return nil }
-        if datos.cumplido { return "checkmark.circle.fill" }
-        return progreso >= 0.6 ? "circle.bottomhalf.filled" : "exclamationmark.circle"
-    }
-
-    /// Lo que oye VoiceOver: el número y el estado dichos con palabras, porque
-    /// ni el color ni la barra de progreso le llegan.
-    private var descripcionAccesible: String {
-        let series = Formato.numeroCorto(datos.series)
-        guard let objetivo = datos.objetivo else {
-            return "\(series) series esta semana"
+        switch ritmo {
+        case .sinObjetivo, .alDia: return nil
+        case .cumplido: return "checkmark.circle.fill"
+        case .corto: return "clock"
+        case .muyCorto: return "exclamationmark.triangle.fill"
         }
-        let estado: String
-        if datos.cumplido {
-            estado = "objetivo cumplido"
-        } else if let progreso = datos.progreso, progreso >= 0.6 {
-            estado = "cerca del objetivo"
-        } else {
-            estado = "por debajo del objetivo"
-        }
-        return "\(series) de \(objetivo) series, \(estado)"
     }
 }
