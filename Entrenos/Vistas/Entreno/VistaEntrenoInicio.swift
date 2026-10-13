@@ -121,8 +121,7 @@ struct VistaEntrenoInicio: View {
     /// el plan se escribe fuera de la app, donde no se conocen los UUID.
     private func rutinaDelDia(_ dia: DiaPlanificado) -> Rutina? {
         guard dia.tipo.tieneGimnasio, let nombre = dia.nombreRutina else { return nil }
-        let buscado = Ejercicio.normalizar(nombre)
-        return rutinas.first { Ejercicio.normalizar($0.nombre) == buscado }
+        return Rutina.buscar(nombre: nombre, en: rutinas)
     }
 
     /// Una rutina, como tarjeta con su botón de empezar.

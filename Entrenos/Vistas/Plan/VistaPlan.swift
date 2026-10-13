@@ -129,8 +129,7 @@ struct VistaPlan: View {
     private func rutinaDe(_ dia: DiaPlanificado) -> Rutina? {
         guard dia.tipo.tieneGimnasio, !dia.hecho, controlador.entreno == nil else { return nil }
         guard let nombre = dia.nombreRutina else { return nil }
-        let buscado = Ejercicio.normalizar(nombre)
-        return rutinas.first { Ejercicio.normalizar($0.nombre) == buscado }
+        return Rutina.buscar(nombre: nombre, en: rutinas)
     }
 
     // MARK: - Cuentas
