@@ -44,6 +44,9 @@ public struct RutinaImportada: Equatable, Sendable {
 public struct EjercicioImportado: Equatable, Sendable {
     public var nombre: String
     public var series: Int
+    /// Series de aproximación antes de las de trabajo. No cuentan para nada:
+    /// nacen marcadas como calentamiento.
+    public var seriesCalentamiento: Int
     /// Repeticiones o segundos, según `esTiempo`. `nil` = series libres.
     public var objetivoMin: Int?
     public var objetivoMax: Int?
@@ -69,6 +72,7 @@ public struct EjercicioImportado: Equatable, Sendable {
     public init(
         nombre: String,
         series: Int,
+        seriesCalentamiento: Int = 0,
         objetivoMin: Int? = nil,
         objetivoMax: Int? = nil,
         esTiempo: Bool = false,
@@ -83,6 +87,7 @@ public struct EjercicioImportado: Equatable, Sendable {
     ) {
         self.nombre = nombre
         self.series = series
+        self.seriesCalentamiento = seriesCalentamiento
         self.objetivoMin = objetivoMin
         self.objetivoMax = objetivoMax
         self.esTiempo = esTiempo
@@ -269,6 +274,25 @@ public enum LectorRutinasJSON {
             )
         }
 
+        // Series de calentamiento. Opcional y con el mismo tope que las de
+        // trabajo: un «calentamiento: 40» es un dedazo, no un plan.
+        var calentamiento = 0
+        if let crudoCalentamiento = objeto["calentamiento"] {
+            guard let valor = enteroDe(crudoCalentamiento) else {
+                throw ErrorImportacion(
+                    ruta: "\(ruta).calentamiento",
+                    mensaje: "Tiene que ser un número entero de series."
+                )
+            }
+            guard valor >= 0, valor <= maxSeries else {
+                throw ErrorImportacion(
+                    ruta: "\(ruta).calentamiento",
+                    mensaje: "\(valor) está fuera de rango. Tiene que estar entre 0 y \(maxSeries)."
+                )
+            }
+            calentamiento = valor
+        }
+
         // Rango de repeticiones o segundos.
         var objetivoMin: Int?
         var objetivoMax: Int?
@@ -350,6 +374,7 @@ public enum LectorRutinasJSON {
         return EjercicioImportado(
             nombre: nombre,
             series: series,
+            seriesCalentamiento: calentamiento,
             objetivoMin: objetivoMin,
             objetivoMax: objetivoMax,
             esTiempo: esTiempo,

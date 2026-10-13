@@ -228,6 +228,7 @@ struct VistaRutinas: View {
                 ejercicio: elemento.ejercicio,
                 orden: elemento.orden,
                 seriesObjetivo: elemento.seriesObjetivo,
+                seriesCalentamiento: elemento.seriesCalentamiento,
                 objetivoMin: elemento.objetivoMin,
                 objetivoMax: elemento.objetivoMax,
                 rirMin: elemento.rirMin,

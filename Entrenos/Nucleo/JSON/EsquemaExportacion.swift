@@ -185,6 +185,9 @@ public struct RutinaExportada: Codable, Equatable, Sendable {
 public struct ElementoExportado: Codable, Equatable, Sendable {
     public var nombre: String
     public var series: Int
+    /// Series de aproximación. Se omite cuando es 0, que es lo normal, para no
+    /// llenar el archivo de ceros.
+    public var calentamiento: Int?
     /// Mismo formato que el importador: "8-10", "15", "30-45s".
     public var reps: String?
     public var rir: String?
@@ -193,11 +196,13 @@ public struct ElementoExportado: Codable, Equatable, Sendable {
     public var superserie: String?
 
     public init(
-        nombre: String, series: Int, reps: String?, rir: String?,
+        nombre: String, series: Int, calentamiento: Int? = nil,
+        reps: String?, rir: String?,
         descanso: Int, notas: String, superserie: String?
     ) {
         self.nombre = nombre
         self.series = series
+        self.calentamiento = calentamiento
         self.reps = reps
         self.rir = rir
         self.descanso = descanso

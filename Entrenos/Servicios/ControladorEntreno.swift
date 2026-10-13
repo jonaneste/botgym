@@ -100,14 +100,34 @@ final class ControladorEntreno {
             }
             let seriesAnteriores = anterior?.seriesEfectivas ?? []
 
-            for indice in 0..<max(1, elemento.seriesObjetivo) {
+            // Las de calentamiento van delante, y su peso se copia de los
+            // calentamientos de la última vez: el de trabajo no vale, que es
+            // justo lo que no se levanta para calentar.
+            let calentamientosAnteriores = anterior?.seriesOrdenadas.filter(\.esCalentamiento) ?? []
+            let calentamiento = max(0, elemento.seriesCalentamiento)
+
+            for indice in 0..<(calentamiento + max(1, elemento.seriesObjetivo)) {
                 let serie = SerieRegistrada(orden: indice)
-                // Precargar el peso de la misma serie de la última sesión.
-                if indice < seriesAnteriores.count {
-                    serie.peso = seriesAnteriores[indice].peso
-                } else if let ultima = seriesAnteriores.last {
-                    serie.peso = ultima.peso
+
+                if indice < calentamiento {
+                    serie.esCalentamiento = true
+                    if indice < calentamientosAnteriores.count {
+                        serie.peso = calentamientosAnteriores[indice].peso
+                    } else if let ultimo = calentamientosAnteriores.last {
+                        serie.peso = ultimo.peso
+                    }
+                } else {
+                    // Precargar el peso de la misma serie de trabajo de la
+                    // última sesión. El índice se desplaza: las anteriores que
+                    // se guardaron son solo las efectivas.
+                    let posicion = indice - calentamiento
+                    if posicion < seriesAnteriores.count {
+                        serie.peso = seriesAnteriores[posicion].peso
+                    } else if let ultima = seriesAnteriores.last {
+                        serie.peso = ultima.peso
+                    }
                 }
+
                 contexto.insert(serie)
                 serie.ejercicioEntreno = ejercicio
             }
@@ -167,17 +187,32 @@ final class ControladorEntreno {
 
     // MARK: - Series
 
-    func añadirSerie(a ejercicio: EjercicioEntreno) {
+    /// Añade una serie al final. Con `calentamiento` nace marcada, para que no
+    /// cuente en volumen, récords ni series semanales.
+    func añadirSerie(a ejercicio: EjercicioEntreno, calentamiento: Bool = false) {
         let orden = (ejercicio.series.map(\.orden).max() ?? -1) + 1
-        let ultima = ejercicio.seriesOrdenadas.last
+        // Se copia el peso de la última del mismo tipo: una serie de
+        // aproximación que nace con el peso de trabajo no sirve de nada.
+        let ultima = ejercicio.seriesOrdenadas.last { $0.esCalentamiento == calentamiento }
         let serie = SerieRegistrada(
             orden: orden,
             peso: ultima?.peso ?? 0,
             repeticiones: 0,
-            segundos: ejercicio.tipoRegistro.esTiempo ? 0 : nil
+            segundos: ejercicio.tipoRegistro.esTiempo ? 0 : nil,
+            esCalentamiento: calentamiento
         )
         contexto.insert(serie)
         serie.ejercicioEntreno = ejercicio
+        guardar()
+    }
+
+    /// Cambia una serie de trabajo a calentamiento y al revés.
+    ///
+    /// Tiene que pasar por aquí y no mutarse desde la vista: sin `guardar()`,
+    /// SwiftData deja el cambio en memoria y cerrar la app a mitad de serie lo
+    /// perdía, que es justo lo que no puede pasar en esta app.
+    func alternarCalentamiento(_ serie: SerieRegistrada) {
+        serie.esCalentamiento.toggle()
         guardar()
     }
 

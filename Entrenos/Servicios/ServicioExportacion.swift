@@ -99,6 +99,7 @@ struct ServicioExportacion {
                 ElementoExportado(
                     nombre: elemento.ejercicio?.nombre ?? "Ejercicio borrado",
                     series: elemento.seriesObjetivo,
+                    calentamiento: elemento.seriesCalentamiento > 0 ? elemento.seriesCalentamiento : nil,
                     reps: SerializadorExportacion.textoReps(
                         min: elemento.objetivoMin,
                         max: elemento.objetivoMax,

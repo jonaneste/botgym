@@ -21,7 +21,7 @@ tocar nada. Pégale a la IA este documento entero y te devolverá algo válido.
     {
       "nombre": "Lunes – Empuje",
       "ejercicios": [
-        { "nombre": "Press banca con barra", "series": 4, "reps": "8-10", "rir": "2-3", "descanso": 150 },
+        { "nombre": "Press banca con barra", "series": 4, "calentamiento": 2, "reps": "8-10", "rir": "2-3", "descanso": 150 },
         { "nombre": "Elevaciones laterales", "series": 4, "reps": "12-15", "descanso": 60 }
       ]
     }
@@ -52,7 +52,8 @@ tocar nada. Pégale a la IA este documento entero y te devolverá algo válido.
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `nombre` | texto | sí | Se busca en tu biblioteca ignorando mayúsculas y acentos. |
-| `series` | entero | sí | Entre 1 y 20. |
+| `series` | entero | sí | Series de trabajo. Entre 1 y 20. |
+| `calentamiento` | entero | no | Series de aproximación antes de las de trabajo. Entre 0 y 20, por defecto 0. Se crean marcadas como calentamiento, así que no cuentan para el volumen, los récords ni las series semanales. |
 | `reps` | texto | no | Rango objetivo. Ver abajo. Si se omite, son series libres. |
 | `rir` | texto | no | Repeticiones en reserva objetivo: `"2"` o `"2-3"`. Si se omite se usa el valor por defecto de Ajustes. |
 | `descanso` | entero | no | Segundos de descanso. Por defecto 90. |

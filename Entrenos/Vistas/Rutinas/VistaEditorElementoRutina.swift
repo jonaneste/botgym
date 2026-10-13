@@ -25,7 +25,7 @@ struct VistaEditorElementoRutina: View {
                     }
                 }
 
-                Section("Series") {
+                Section {
                     Stepper(
                         "\(elemento.seriesObjetivo) series",
                         value: Binding(
@@ -34,6 +34,20 @@ struct VistaEditorElementoRutina: View {
                         ),
                         in: 1...12
                     )
+                    Stepper(
+                        elemento.seriesCalentamiento == 1
+                            ? "1 de calentamiento"
+                            : "\(elemento.seriesCalentamiento) de calentamiento",
+                        value: Binding(
+                            get: { elemento.seriesCalentamiento },
+                            set: { elemento.seriesCalentamiento = $0 }
+                        ),
+                        in: 0...6
+                    )
+                } header: {
+                    Text("Series")
+                } footer: {
+                    Text("Las de calentamiento se crean al empezar el entreno, delante de las de trabajo, y no cuentan para el volumen ni para los récords.")
                 }
 
                 Section {

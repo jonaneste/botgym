@@ -241,22 +241,40 @@ struct VistaEntrenoEnCurso: View {
             }
             .swipeActions(edge: .leading) {
                 Button {
-                    serie.esCalentamiento.toggle()
+                    controlador.alternarCalentamiento(serie)
                 } label: {
-                    Label("Calentamiento", systemImage: "flame")
+                    Label(
+                        serie.esCalentamiento ? "Serie de trabajo" : "Calentamiento",
+                        systemImage: serie.esCalentamiento ? "flame.slash" : "flame"
+                    )
                 }
                 .tint(Paleta.calentamiento)
             }
         }
 
-        Button {
-            controlador.añadirSerie(a: ejercicio)
-        } label: {
-            Label("Añadir serie", systemImage: "plus")
-                .font(.subheadline.weight(.medium))
-                .frame(maxWidth: .infinity, minHeight: 36)
+        // Dos botones y no uno con un menú detrás: el calentamiento se añade
+        // con el móvil en la mano y una serie empezada, y antes solo existía
+        // deslizando una serie ya creada, que es un gesto que nadie encuentra.
+        HStack(spacing: 8) {
+            Button {
+                controlador.añadirSerie(a: ejercicio, calentamiento: true)
+            } label: {
+                Label("Calentamiento", systemImage: "flame")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.bordered)
+            .tint(Paleta.calentamiento)
+
+            Button {
+                controlador.añadirSerie(a: ejercicio)
+            } label: {
+                Label("Añadir serie", systemImage: "plus")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.bordered)
         }
-        .buttonStyle(.bordered)
         .filaDesnuda(arriba: 4, abajo: 2)
 
         TextField("Notas del ejercicio", text: Binding(

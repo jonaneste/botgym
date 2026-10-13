@@ -151,6 +151,7 @@ struct ImportadorRutinas {
                     ejercicio: ejercicio,
                     orden: posicion,
                     seriesObjetivo: elementoDef.series,
+                    seriesCalentamiento: elementoDef.seriesCalentamiento,
                     objetivoMin: elementoDef.objetivoMin,
                     objetivoMax: elementoDef.objetivoMax,
                     rirMin: elementoDef.rirMin ?? ajustes.rirPorDefectoMin,
