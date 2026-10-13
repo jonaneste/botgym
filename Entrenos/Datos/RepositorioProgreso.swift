@@ -134,6 +134,16 @@ struct RepositorioProgreso {
         )
     }
 
+    /// La misma tendencia, partida por región del cuerpo, para pintar la
+    /// gráfica por tramos.
+    func tendenciaSemanalPorRegion(semanas: Int) -> [SeriesDeSemanaYRegion] {
+        let desde = CalendarioEntrenos.ultimasSemanas(semanas).first ?? Date()
+        return ServicioVolumen.seriesPorSemanaYRegion(
+            seriesConEjercicio(desde: desde),
+            semanas: semanas
+        )
+    }
+
     // MARK: - Ejercicios con historial
 
     /// Ejercicios que tienen al menos un entreno registrado, de más reciente a

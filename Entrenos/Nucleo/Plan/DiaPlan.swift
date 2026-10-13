@@ -122,3 +122,62 @@ public enum ResumenPlan {
             .sorted { $0.fecha < $1.fecha }
     }
 }
+
+/// Racha de días del plan cumplidos.
+public struct RachaPlan: Equatable, Sendable {
+    /// Días exigibles seguidos cumplidos, contando hacia atrás desde el último
+    /// día que ya pasó.
+    public var actual: Int
+    /// La mejor racha de todo el plan.
+    public var mejor: Int
+
+    public init(actual: Int, mejor: Int) {
+        self.actual = actual
+        self.mejor = mejor
+    }
+}
+
+extension ResumenPlan {
+
+    /// Racha de días cumplidos.
+    ///
+    /// Los descansos y los días de turismo **no la rompen y no la suman**: no
+    /// se pueden cumplir, así que contarlos como fallo apagaría la racha cada
+    /// miércoles, y contarlos como acierto la regalaría. Se saltan.
+    ///
+    /// El día de hoy no cuenta todavía si no está marcado: aún se puede hacer,
+    /// y una racha que se rompe a las 00:01 por lo que falta por hacer no es
+    /// una racha.
+    public static func racha(
+        de dias: [(fecha: Date, esExigible: Bool, hecho: Bool)],
+        hoy: Date = Date(),
+        calendario: Calendar = CalendarioEntrenos.es
+    ) -> RachaPlan {
+        let inicioDeHoy = calendario.startOfDay(for: hoy)
+        let ordenados = dias.sorted { $0.fecha < $1.fecha }
+
+        // Mejor racha: sobre todo el plan, contando solo los exigibles.
+        var mejor = 0
+        var corriendo = 0
+        for dia in ordenados where dia.esExigible {
+            if dia.hecho {
+                corriendo += 1
+                mejor = max(mejor, corriendo)
+            } else {
+                corriendo = 0
+            }
+        }
+
+        // Racha actual: hacia atrás desde hoy. El de hoy sin marcar se salta
+        // en vez de romperla.
+        var actual = 0
+        for dia in ordenados.reversed() where dia.esExigible {
+            let suDia = calendario.startOfDay(for: dia.fecha)
+            if suDia > inicioDeHoy { continue }
+            if suDia == inicioDeHoy, !dia.hecho { continue }
+            if dia.hecho { actual += 1 } else { break }
+        }
+
+        return RachaPlan(actual: actual, mejor: mejor)
+    }
+}

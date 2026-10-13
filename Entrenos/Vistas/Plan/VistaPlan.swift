@@ -78,6 +78,21 @@ struct VistaPlan: View {
                 )
             }
             .frame(minHeight: 44)
+
+            if racha.actual > 0 || racha.mejor > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill")
+                        .foregroundStyle(Paleta.calentamiento)
+                    Text(racha.actual == 1 ? "1 día seguido" : "\(racha.actual) días seguidos")
+                        .fontWeight(.semibold)
+                    if racha.mejor > racha.actual {
+                        Text("· mejor: \(racha.mejor)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .font(.caption)
+                .accessibilityElement(children: .combine)
+            }
         }
         .padding(.vertical, 4)
     }
@@ -139,6 +154,20 @@ struct VistaPlan: View {
 
     private var kilometrosHechos: Double {
         dias.compactMap(\.kilometrosHechos).reduce(0, +)
+    }
+
+    /// El descanso y el turismo no son exigibles: no se pueden cumplir, así
+    /// que no entran en la racha ni para romperla ni para alargarla.
+    private var racha: RachaPlan {
+        ResumenPlan.racha(
+            de: dias.map {
+                (
+                    fecha: $0.fecha,
+                    esExigible: !$0.tipo.esDescanso && $0.tipo != .turismo,
+                    hecho: $0.hecho
+                )
+            }
+        )
     }
 
     private var semanas: [SemanaPlan] {

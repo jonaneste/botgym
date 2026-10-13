@@ -4,6 +4,8 @@ import SwiftData
 /// Configura el objetivo de series semanales por grupo muscular.
 struct VistaObjetivosSemanales: View {
     @Environment(\.modelContext) private var contexto
+    @Query(sort: \Rutina.orden) private var rutinas: [Rutina]
+
     @State private var ajustes: Ajustes?
     @State private var objetivos: [GrupoMuscular: Int] = [:]
 
@@ -46,6 +48,15 @@ struct VistaObjetivosSemanales: View {
             }
 
             Section {
+                // Primero el que sale de sus propias rutinas: un objetivo de
+                // catálogo que el plan no alcanza pinta la semana en rojo para
+                // siempre sin que nadie se haya saltado nada.
+                if !objetivosDeMisRutinas.isEmpty {
+                    Button("Usar las series de mis rutinas") {
+                        objetivos = objetivosDeMisRutinas
+                        guardar()
+                    }
+                }
                 Button("Aplicar un plan de hipertrofia (10-16 por grupo)") {
                     aplicarPlanSugerido()
                 }
@@ -54,7 +65,11 @@ struct VistaObjetivosSemanales: View {
                     guardar()
                 }
             } footer: {
-                Text("El plan sugerido reparte entre 10 y 16 series semanales por grupo grande, que es el rango habitual para ganar masa, y menos en los pequeños.")
+                if objetivosDeMisRutinas.isEmpty {
+                    Text("El plan sugerido reparte entre 10 y 16 series semanales por grupo grande, que es el rango habitual para ganar masa, y menos en los pequeños.")
+                } else {
+                    Text("«Usar las series de mis rutinas» cuenta lo que suman tus \(rutinas.count) rutinas en una semana, contando media serie por cada grupo secundario. Es el objetivo que se cumple haciendo tu propio plan.")
+                }
             }
         }
         .navigationTitle("Objetivos semanales")
@@ -76,6 +91,25 @@ struct VistaObjetivosSemanales: View {
     /// se podría cumplir.
     private func gruposDe(_ region: RegionCorporal) -> [GrupoMuscular] {
         GrupoMuscular.allCases.filter { $0.region == region && $0.cuentaEnVolumen }
+    }
+
+    /// Lo que suman todas las rutinas en una semana.
+    ///
+    /// Se cuentan todas y no solo las de una carpeta: la app no sabe cuáles
+    /// entran en la semana, y sumar de más es mejor que sumar de menos, que
+    /// dejaría un objetivo por debajo de lo que ya se hace.
+    private var objetivosDeMisRutinas: [GrupoMuscular: Int] {
+        let elementos = rutinas.flatMap { rutina in
+            rutina.elementosOrdenados.compactMap { elemento -> ElementoPlanificado? in
+                guard let ejercicio = elemento.ejercicio else { return nil }
+                return ElementoPlanificado(
+                    grupoPrincipal: ejercicio.grupoPrincipal,
+                    gruposSecundarios: ejercicio.gruposSecundarios,
+                    series: elemento.seriesObjetivo
+                )
+            }
+        }
+        return VolumenPlanificado.objetivos(elementos)
     }
 
     private func aplicarPlanSugerido() {

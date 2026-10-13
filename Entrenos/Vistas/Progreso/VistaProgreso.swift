@@ -8,6 +8,7 @@ struct VistaProgreso: View {
     @State private var ajustes: Ajustes?
     @State private var seriesSemanales: [SeriesDeGrupo] = []
     @State private var tendencia: [SeriesDeSemana] = []
+    @State private var tendenciaPorRegion: [SeriesDeSemanaYRegion] = []
     @State private var ejercicios: [(ejercicio: Ejercicio, ultimaVez: Date)] = []
     @State private var busqueda = ""
     /// Se fija al recargar y no se lee en el cuerpo de la vista: así la lista
@@ -44,7 +45,7 @@ struct VistaProgreso: View {
                                 )
                             }
 
-                            GraficaSeriesSemanales(datos: tendencia)
+                            GraficaSeriesSemanales(datos: tendencia, porRegion: tendenciaPorRegion)
                                 .frame(height: altoGrafica)
                         }
                         .padding(.vertical, 6)
@@ -129,6 +130,7 @@ struct VistaProgreso: View {
             objetivos: cargados.objetivosSemanales
         )
         tendencia = repositorio.tendenciaSemanal(semanas: 8)
+        tendenciaPorRegion = repositorio.tendenciaSemanalPorRegion(semanas: 8)
         fraccionDeSemana = CalendarioEntrenos.fraccionTranscurridaDeSemana(Date())
         ejercicios = repositorio.ejerciciosConHistorial()
     }
