@@ -147,6 +147,12 @@ struct FilaSeriesGrupo: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
+                // El punto es de la región y el número es del estado: dos
+                // informaciones distintas que antes se peleaban por el mismo
+                // color, porque la fila solo tenía el del cumplimiento.
+                Circle()
+                    .fill(Paleta.grupo(datos.grupo))
+                    .frame(width: 8, height: 8)
                 Text(datos.grupo.nombre)
                     .font(.subheadline)
                 Spacer()
@@ -169,7 +175,7 @@ struct FilaSeriesGrupo: View {
 
             if let progreso = datos.progreso {
                 ProgressView(value: progreso)
-                    .tint(color)
+                    .tint(ritmo == .alDia ? Paleta.grupo(datos.grupo) : color)
             }
         }
         .padding(.vertical, 2)

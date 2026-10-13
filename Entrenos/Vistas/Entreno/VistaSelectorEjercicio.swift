@@ -91,18 +91,19 @@ struct VistaSelectorEjercicio: View {
 
     private func botonFiltro(_ grupo: GrupoMuscular?, texto: String) -> some View {
         let activo = grupoFiltro == grupo
+        // Cada filtro lleva el color de su región, apagado mientras no está
+        // elegido: así la tira de filtros es también la leyenda de los colores
+        // que luego se ven en las filas.
+        let color = grupo.map(Paleta.grupo) ?? .accentColor
         return Button {
             grupoFiltro = grupo
         } label: {
             Text(texto)
-                .font(.subheadline.weight(activo ? .semibold : .regular))
+                .font(.subheadline.weight(activo ? .semibold : .medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(
-                    activo ? Color.accentColor : Color(.secondarySystemFill),
-                    in: .capsule
-                )
-                .foregroundStyle(activo ? Color.white : Color.primary)
+                .background(activo ? color : color.opacity(0.14), in: .capsule)
+                .foregroundStyle(activo ? Color.white : color)
         }
         .buttonStyle(.plain)
     }
@@ -112,19 +113,30 @@ struct VistaSelectorEjercicio: View {
 struct FilaEjercicio: View {
     let ejercicio: Ejercicio
 
+    private var color: Color { Paleta.grupo(ejercicio.grupoPrincipal) }
+
     var body: some View {
         HStack(spacing: 12) {
+            // El icono del material sobre el color de su región. Antes todos
+            // eran del mismo azul de acento, así que una lista de cincuenta
+            // ejercicios era cincuenta filas idénticas: el color es lo que
+            // permite encontrar «el de pierna» sin leer.
             Image(systemName: ejercicio.material.icono)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 32)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 34, height: 34)
+                .background(color.opacity(0.16), in: .rect(cornerRadius: 10))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(ejercicio.nombre)
                     .font(.body)
                     .foregroundStyle(.primary)
                 HStack(spacing: 4) {
-                    Text(ejercicio.descripcionCorta)
+                    Text(ejercicio.grupoPrincipal.nombre)
+                        .foregroundStyle(color)
+                        .fontWeight(.medium)
+                    Text("·")
+                    Text(ejercicio.material.nombre.lowercased())
                     if ejercicio.tipoRegistro != .repeticiones {
                         Text("·")
                         Text(ejercicio.tipoRegistro.nombre.lowercased())

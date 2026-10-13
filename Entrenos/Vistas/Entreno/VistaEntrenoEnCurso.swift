@@ -171,6 +171,18 @@ struct VistaEntrenoEnCurso: View {
         Divider().frame(height: 28)
     }
 
+    /// Color de la región del ejercicio. Si el ejercicio se borró de la
+    /// biblioteca a mitad del entreno, queda el gris de «sin clasificar».
+    private func colorDe(_ ejercicio: EjercicioEntreno) -> Color {
+        Paleta.grupo(ejercicio.ejercicio?.grupoPrincipal ?? .sinClasificar)
+    }
+
+    /// Series de trabajo ya marcadas. Las de calentamiento no cuentan, que es
+    /// justo lo que significa marcarlas.
+    private func seriesHechas(_ ejercicio: EjercicioEntreno) -> Int {
+        ejercicio.series.filter(\.esEfectiva).count
+    }
+
     // MARK: - Bloque de un ejercicio
 
     @ViewBuilder
@@ -180,10 +192,30 @@ struct VistaEntrenoEnCurso: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(ejercicio.nombreEjercicio)
-                        .font(.headline)
+                    HStack(spacing: 8) {
+                        // Un filo del color de la región a la izquierda del
+                        // nombre: con cuatro o cinco ejercicios en la pantalla
+                        // es lo que dice de un vistazo por dónde va la sesión.
+                        Capsule()
+                            .fill(colorDe(ejercicio))
+                            .frame(width: 4, height: 18)
+                        Text(ejercicio.nombreEjercicio)
+                            .font(.headline)
+                        if seriesHechas(ejercicio) >= ejercicio.seriesObjetivo {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(Paleta.logrado)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
                     HStack(spacing: 6) {
-                        Pastilla(texto: ejercicio.resumenObjetivo)
+                        Pastilla(
+                            texto: "\(seriesHechas(ejercicio))/\(ejercicio.seriesObjetivo)",
+                            color: seriesHechas(ejercicio) >= ejercicio.seriesObjetivo
+                                ? Paleta.logrado
+                                : colorDe(ejercicio)
+                        )
+                        Pastilla(texto: ejercicio.resumenObjetivo, color: colorDe(ejercicio))
                         Pastilla(
                             texto: "descanso \(Formato.descanso(ejercicio.descansoSegundos))",
                             color: .secondary

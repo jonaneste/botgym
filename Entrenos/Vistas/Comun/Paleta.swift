@@ -54,4 +54,35 @@ enum Paleta {
         if valor >= 4 { return aviso }
         return logrado
     }
+
+    // MARK: - Grupos musculares
+
+    /// Color de una región del cuerpo.
+    ///
+    /// Se colorea por región y no por grupo uno a uno a propósito. Los colores
+    /// de sistema que quedan libres son nueve, y los grupos son dieciséis: con
+    /// uno por grupo habría repeticiones arbitrarias —pecho y glúteo del mismo
+    /// color— que no significarían nada. Por región sí significa: en la gráfica
+    /// semanal se ve de un golpe si la semana se ha ido en torso y la pierna se
+    /// ha quedado corta, que es la pregunta que se le hace a esa gráfica.
+    ///
+    /// Y se mantienen fuera los cuatro colores de estado —verde, naranja, rojo
+    /// y amarillo—, porque un grupo muscular no es un estado y teñir una
+    /// barra de rojo por ser pierna diría «vas mal» sin querer. También fuera
+    /// el índigo del acento, para que un punto de región no se confunda con
+    /// algo que se puede tocar.
+    static func region(_ region: RegionCorporal) -> Color {
+        switch region {
+        case .torso: return Color(.systemPink)
+        case .hombro: return Color(.systemTeal)
+        case .brazo: return Color(.systemPurple)
+        case .pierna: return Color(.systemBlue)
+        case .sinClasificar: return Color(.systemGray)
+        }
+    }
+
+    /// Color de un grupo muscular: el de su región.
+    static func grupo(_ grupo: GrupoMuscular) -> Color {
+        region(grupo.region)
+    }
 }
