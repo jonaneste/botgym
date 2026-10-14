@@ -68,15 +68,15 @@ enum Paleta {
     ///
     /// Y se mantienen fuera los cuatro colores de estado —verde, naranja, rojo
     /// y amarillo—, porque un grupo muscular no es un estado y teñir una
-    /// barra de rojo por ser pierna diría «vas mal» sin querer. También fuera
-    /// el índigo del acento, para que un punto de región no se confunda con
-    /// algo que se puede tocar.
+    /// barra de rojo por ser pierna diría «vas mal» sin querer. Y fuera el
+    /// azul del acento, para que un punto de región no se confunda con algo
+    /// que se puede tocar.
     static func region(_ region: RegionCorporal) -> Color {
         switch region {
         case .torso: return Color(.systemPink)
-        case .hombro: return Color(.systemTeal)
-        case .brazo: return Color(.systemPurple)
-        case .pierna: return Color(.systemBlue)
+        case .hombro: return Color(.systemCyan)
+        case .brazo: return Color(.systemIndigo)
+        case .pierna: return Color(.systemTeal)
         case .sinClasificar: return Color(.systemGray)
         }
     }

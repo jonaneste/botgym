@@ -24,10 +24,14 @@ enum ImportadorAutomatico {
         /// Nombre del plan que entró y cuántos días trae.
         var plan: String?
         var diasDePlan: Int = 0
+        /// Lo que se borró, si algún archivo lo pedía.
+        var borrado = BorradorRemoto.Resultado()
         /// Archivos que no se pudieron leer. Se quedan donde están.
         var fallidos: [String] = []
 
-        var huboAlgo: Bool { !rutinas.isEmpty || plan != nil || !fallidos.isEmpty }
+        var huboAlgo: Bool {
+            !rutinas.isEmpty || plan != nil || borrado.huboAlgo || !fallidos.isEmpty
+        }
     }
 
     /// Revisa la carpeta e importa lo que haya. Devuelve `nil` si no había
@@ -47,6 +51,19 @@ enum ImportadorAutomatico {
             // que traen dentro y no por el nombre del archivo: pedirle a quien
             // lo escribe que acierte con el nombre es una regla más que
             // recordar y un fallo más que no dice nada.
+            // El borrado se mira antes que nada: es el único formato que
+            // quita cosas, así que tiene que ser imposible que un archivo de
+            // rutinas se cuele por aquí o al revés. Los tres se distinguen por
+            // su clave: «borrar», «plan» o «rutinas».
+            if let borrado = try? LectorBorradoJSON.leer(propuesta.json) {
+                let hecho = BorradorRemoto(contexto: contexto).aplicar(borrado)
+                resumen.borrado.carpetas += hecho.carpetas
+                resumen.borrado.rutinas += hecho.rutinas
+                resumen.borrado.entrenos += hecho.entrenos
+                ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
+                continue
+            }
+
             if let plan = try? LectorPlanJSON.leer(propuesta.json) {
                 let dias = repositorioPlan.guardar(plan)
                 resumen.plan = plan.nombre

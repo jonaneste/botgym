@@ -125,6 +125,12 @@ struct AvisoImportacion: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if resumen.borrado.huboAlgo {
+                    Text(textoDelBorrado)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if resumen.ejerciciosCreados > 0 {
                     Text(resumen.ejerciciosCreados == 1
                          ? "Y un ejercicio nuevo en la biblioteca"
@@ -170,11 +176,34 @@ struct AvisoImportacion: View {
     /// junto a una rutina que sí entró no puede teñir el aviso entero de
     /// naranja, porque lo que el usuario lee primero es que algo falló.
     private var huboError: Bool {
-        resumen.rutinas.isEmpty && resumen.plan == nil
+        resumen.rutinas.isEmpty && resumen.plan == nil && !resumen.borrado.huboAlgo
+    }
+
+    /// Qué se borró, dicho entero: un borrado tiene que poder auditarse de un
+    /// vistazo, porque es lo único que no se puede deshacer.
+    private var textoDelBorrado: String {
+        var partes: [String] = []
+        if !resumen.borrado.carpetas.isEmpty {
+            partes.append("Carpetas: \(resumen.borrado.carpetas.joined(separator: ", "))")
+        }
+        if !resumen.borrado.rutinas.isEmpty {
+            partes.append("Rutinas: \(resumen.borrado.rutinas.joined(separator: ", "))")
+        }
+        if resumen.borrado.entrenos > 0 {
+            partes.append(
+                resumen.borrado.entrenos == 1
+                    ? "Y un entreno sin series"
+                    : "Y \(resumen.borrado.entrenos) entrenos sin series"
+            )
+        }
+        return partes.joined(separator: " · ")
     }
 
     private var titulo: String {
         if huboError { return "Llegó algo que no pude leer" }
+        if resumen.rutinas.isEmpty, resumen.plan == nil, resumen.borrado.huboAlgo {
+            return "Claude hizo limpieza"
+        }
         if resumen.rutinas.isEmpty, let plan = resumen.plan {
             return "Claude cargó el plan «\(plan)»"
         }

@@ -35,13 +35,15 @@ LADO = 1024
 # que suaviza los bordes curvos: sin esto los discos salen con escalones.
 MUESTREO = 3
 
-# El verde del AccentColor en claro, y una version mas oscura para el degradado.
-VERDE = (0, 122, 59)
-VERDE_OSCURO = (0, 74, 36)
-# El oscuro no es el mismo verde apagado: la HIG pide que el icono oscuro sea
+# El azul del AccentColor en claro, y una version mas oscura para el
+# degradado. El icono tiene que llevar el color de la app: con el acento azul y
+# el icono verde, la pantalla de inicio y la de dentro parecian dos apps.
+AZUL = (10, 107, 255)
+AZUL_OSCURO = (6, 58, 168)
+# El oscuro no es el mismo azul apagado: la HIG pide que el icono oscuro sea
 # mas sobrio, y que el fondo de color sea el que mas contraste da.
-VERDE_NOCHE = (0, 58, 28)
-VERDE_NOCHE_FONDO = (0, 31, 15)
+AZUL_NOCHE = (8, 48, 140)
+AZUL_NOCHE_FONDO = (4, 22, 66)
 BLANCO = (255, 255, 255)
 # El tenido se entrega en gris y el sistema le aplica el color que el usuario
 # haya elegido, asi que aqui solo importa la luminosidad.
@@ -171,8 +173,8 @@ def escribir_png(destino, filas):
 
 
 VARIANTES = (
-    ("AppIcon-1024.png", VERDE, VERDE_OSCURO, BLANCO),
-    ("AppIcon-1024-oscuro.png", VERDE_NOCHE, VERDE_NOCHE_FONDO, BLANCO),
+    ("AppIcon-1024.png", AZUL, AZUL_OSCURO, BLANCO),
+    ("AppIcon-1024-oscuro.png", AZUL_NOCHE, AZUL_NOCHE_FONDO, BLANCO),
     ("AppIcon-1024-tenido.png", GRIS_FONDO, GRIS_FONDO, GRIS_CLARO),
 )
 
