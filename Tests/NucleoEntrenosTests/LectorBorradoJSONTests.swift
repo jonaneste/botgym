@@ -104,4 +104,27 @@ final class LectorBorradoJSONTests: XCTestCase {
         XCTAssertThrowsError(try LectorRutinasJSON.leer(json))
         XCTAssertThrowsError(try LectorPlanJSON.leer(json))
     }
+
+    func testSeLeenLosEjerciciosDuplicados() throws {
+        let json = "{ \"version\": 1, \"borrar\": { \"ejerciciosDuplicados\": true } }"
+        let borrado = try LectorBorradoJSON.leer(json)
+        XCTAssertTrue(borrado.ejerciciosDuplicados)
+        XCTAssertFalse(borrado.estaVacio)
+    }
+
+    func testEjerciciosDuplicadosNoAdmiteTexto() {
+        let json = "{ \"version\": 1, \"borrar\": { \"ejerciciosDuplicados\": \"sí\" } }"
+        XCTAssertThrowsError(try LectorBorradoJSON.leer(json)) { error in
+            XCTAssertEqual((error as? ErrorImportacion)?.ruta, "borrar.ejerciciosDuplicados")
+        }
+    }
+
+    func testUnUnoNumericoCuentaComoTrue() throws {
+        // `JSONSerialization` entrega los números como `NSNumber`, que puentea
+        // a `Bool`, así que un 1 pasa por true. Se deja así en vez de pelearse
+        // con el puente: lo que decide qué se borra son las claves presentes,
+        // y aquí el 1 significa exactamente lo que parece.
+        let json = "{ \"version\": 1, \"borrar\": { \"ejerciciosDuplicados\": 1 } }"
+        XCTAssertTrue(try LectorBorradoJSON.leer(json).ejerciciosDuplicados)
+    }
 }

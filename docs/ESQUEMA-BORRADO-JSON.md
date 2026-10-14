@@ -43,18 +43,21 @@ plan](ESQUEMA-PLAN-JSON.md), y se distingue de ellos por su clave: `borrar`.
 | `borrar.carpetas` | lista de texto | Carpetas a borrar. **Se llevan sus rutinas**, que si no quedarían sueltas en «Sin carpeta» justo al limpiar. |
 | `borrar.rutinas` | lista de texto | Rutinas a borrar, estén donde estén. |
 | `borrar.entrenosVacios` | booleano | Borra los entrenos finalizados sin ninguna serie anotada. |
+| `borrar.ejerciciosDuplicados` | booleano | De cada nombre repetido en la biblioteca deja uno. **Nunca borra el que tiene historial**, y si varios lo tienen no toca ninguno. |
 
-Hace falta al menos una de las tres, y como mucho 40 nombres por lista. Los
+Hace falta al menos una de las cuatro, y como mucho 40 nombres por lista. Los
 nombres se comparan ignorando mayúsculas y acentos, igual que al importar: quien
 escribe el archivo no tiene por qué acertar con la tilde. Un nombre vacío se
 rechaza, porque según cómo se compare casaría con cualquier cosa.
 
 ## Lo que no borra, y por qué
 
-**Ejercicios de la biblioteca.** Un ejercicio borrado se lleva por delante la
-forma de agrupar su historial, y decidir cuál de dos duplicados sobrevive no es
-algo que deba hacer un archivo: el historial de cada entreno guarda su propia
-copia del nombre, pero las gráficas y los récords se quedan partidos.
+**Ejercicios con historial.** Borrar uno parte sus gráficas y sus récords. Por
+eso `ejerciciosDuplicados` solo se lleva los repetidos que no tienen ni un
+entreno detrás: si de dos «Elevaciones laterales en polea» una se ha usado y la
+otra no, se va la que no. Si las dos se han usado, no se toca ninguna, porque
+decidir cuál sobrevive no es algo que deba hacer un archivo y fundirlas es otra
+cosa que esto no hace.
 
 **Entrenos con series.** Son los datos. Para eso está deslizar en el historial,
 donde se ve lo que se va a borrar antes de borrarlo.

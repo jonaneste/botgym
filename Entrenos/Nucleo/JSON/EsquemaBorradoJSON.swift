@@ -22,15 +22,27 @@ public struct BorradoImportado: Equatable, Sendable {
     /// nada: un entreno sin series es una fila con su hora y su duración y
     /// nada detrás.
     public var entrenosVacios: Bool
+    /// Ejercicios repetidos en la biblioteca, de los que **sobran**.
+    ///
+    /// Solo se van los que no tienen ni un entreno detrás: borrar uno con
+    /// historial partiría sus gráficas y sus récords, y cuál de los dos
+    /// sobrevive no es algo que deba decidir un archivo.
+    public var ejerciciosDuplicados: Bool
 
-    public init(carpetas: [String] = [], rutinas: [String] = [], entrenosVacios: Bool = false) {
+    public init(
+        carpetas: [String] = [],
+        rutinas: [String] = [],
+        entrenosVacios: Bool = false,
+        ejerciciosDuplicados: Bool = false
+    ) {
         self.carpetas = carpetas
         self.rutinas = rutinas
         self.entrenosVacios = entrenosVacios
+        self.ejerciciosDuplicados = ejerciciosDuplicados
     }
 
     public var estaVacio: Bool {
-        carpetas.isEmpty && rutinas.isEmpty && !entrenosVacios
+        carpetas.isEmpty && rutinas.isEmpty && !entrenosVacios && !ejerciciosDuplicados
     }
 }
 
@@ -92,28 +104,21 @@ public enum LectorBorradoJSON {
         guard let borrar = borrarCrudo as? [String: Any] else {
             throw ErrorImportacion(
                 ruta: "borrar",
-                mensaje: "Tiene que ser un objeto con «carpetas», «rutinas» o «entrenosVacios»."
+                mensaje: "Tiene que ser un objeto con «carpetas», «rutinas», «entrenosVacios» o «ejerciciosDuplicados»."
             )
         }
 
         let carpetas = try nombres(borrar["carpetas"], ruta: "borrar.carpetas")
         let rutinas = try nombres(borrar["rutinas"], ruta: "borrar.rutinas")
 
-        var entrenosVacios = false
-        if let crudoVacios = borrar["entrenosVacios"] {
-            guard let valor = crudoVacios as? Bool else {
-                throw ErrorImportacion(
-                    ruta: "borrar.entrenosVacios",
-                    mensaje: "Tiene que ser true o false."
-                )
-            }
-            entrenosVacios = valor
-        }
+        let entrenosVacios = try booleano(borrar["entrenosVacios"], ruta: "borrar.entrenosVacios")
+        let duplicados = try booleano(borrar["ejerciciosDuplicados"], ruta: "borrar.ejerciciosDuplicados")
 
         let resultado = BorradoImportado(
             carpetas: carpetas,
             rutinas: rutinas,
-            entrenosVacios: entrenosVacios
+            entrenosVacios: entrenosVacios,
+            ejerciciosDuplicados: duplicados
         )
 
         // Un archivo de borrado que no nombra nada se rechaza en vez de
@@ -123,11 +128,19 @@ public enum LectorBorradoJSON {
         guard !resultado.estaVacio else {
             throw ErrorImportacion(
                 ruta: "borrar",
-                mensaje: "No nombra nada que borrar. Usa «carpetas», «rutinas» o «entrenosVacios»."
+                mensaje: "No nombra nada que borrar. Usa «carpetas», «rutinas», «entrenosVacios» o «ejerciciosDuplicados»."
             )
         }
 
         return resultado
+    }
+
+    private static func booleano(_ crudo: Any?, ruta: String) throws -> Bool {
+        guard let crudo else { return false }
+        guard let valor = crudo as? Bool else {
+            throw ErrorImportacion(ruta: ruta, mensaje: "Tiene que ser true o false.")
+        }
+        return valor
     }
 
     private static func nombres(_ crudo: Any?, ruta: String) throws -> [String] {

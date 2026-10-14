@@ -32,6 +32,11 @@ final class Ajustes {
     /// los diccionarios con claves de tipo enum.
     var objetivosSemanalesRaw: [String] = []
 
+    /// Si los objetivos semanales ya se pusieron solos a partir de las
+    /// rutinas. Existe para no volver a ponerlos: quien los borra a propósito
+    /// no quiere encontrárselos otra vez al abrir Progreso.
+    var objetivosPuestosSolos: Bool = false
+
     /// Avisar con una notificación local cuando acaba el descanso.
     var notificarFinDescanso: Bool = true
     /// Vibrar al terminar el descanso.

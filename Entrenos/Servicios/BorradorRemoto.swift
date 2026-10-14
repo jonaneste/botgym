@@ -14,8 +14,11 @@ struct BorradorRemoto {
         var carpetas: [String] = []
         var rutinas: [String] = []
         var entrenos: Int = 0
+        var ejercicios: [String] = []
 
-        var huboAlgo: Bool { !carpetas.isEmpty || !rutinas.isEmpty || entrenos > 0 }
+        var huboAlgo: Bool {
+            !carpetas.isEmpty || !rutinas.isEmpty || entrenos > 0 || !ejercicios.isEmpty
+        }
     }
 
     init(contexto: ModelContext) {
@@ -57,6 +60,13 @@ struct BorradorRemoto {
             }
         }
 
+        if borrado.ejerciciosDuplicados {
+            for ejercicio in duplicadosSinHistorial() {
+                resultado.ejercicios.append(ejercicio.nombre)
+                contexto.delete(ejercicio)
+            }
+        }
+
         if resultado.huboAlgo {
             try? contexto.save()
         }
@@ -80,6 +90,40 @@ struct BorradorRemoto {
         let descriptor = FetchDescriptor<Rutina>()
         let todas = (try? contexto.fetch(descriptor)) ?? []
         return todas.filter { Ejercicio.normalizar($0.nombre) == buscado }
+    }
+
+    /// Los ejercicios repetidos que sobran.
+    ///
+    /// De cada nombre repetido se queda **uno**, y nunca se borra el que tiene
+    /// historial: eso partiría sus gráficas y sus récords. Si varios lo
+    /// tienen, no se toca ninguno; decidir cuál sobrevive no es algo que deba
+    /// hacer un archivo, y fundirlos es otra cosa que esto no hace.
+    private func duplicadosSinHistorial() -> [Ejercicio] {
+        let todos = (try? contexto.fetch(FetchDescriptor<Ejercicio>())) ?? []
+        var porNombre: [String: [Ejercicio]] = [:]
+        for ejercicio in todos {
+            porNombre[Ejercicio.normalizar(ejercicio.nombre), default: []].append(ejercicio)
+        }
+
+        var sobran: [Ejercicio] = []
+        for (_, repetidos) in porNombre where repetidos.count > 1 {
+            let conHistorial = repetidos.filter { tieneHistorial($0) }
+            // Más de uno con historial: se quedan los dos. Menos es peor que
+            // de más, porque lo de menos no se puede recuperar.
+            guard conHistorial.count <= 1 else { continue }
+            let superviviente = conHistorial.first ?? repetidos.min { $0.nombre < $1.nombre }
+            sobran += repetidos.filter { $0 !== superviviente }
+        }
+        return sobran
+    }
+
+    private func tieneHistorial(_ ejercicio: Ejercicio) -> Bool {
+        let id = ejercicio.idPublico
+        var descriptor = FetchDescriptor<EjercicioEntreno>(
+            predicate: #Predicate<EjercicioEntreno> { $0.idEjercicio == id }
+        )
+        descriptor.fetchLimit = 1
+        return ((try? contexto.fetch(descriptor))?.isEmpty == false)
     }
 
     /// Entrenos finalizados sin ninguna serie con algo anotado.

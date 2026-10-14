@@ -104,6 +104,37 @@ struct VistaProgreso: View {
         }
     }
 
+    /// Pone los objetivos semanales a partir de las rutinas, una sola vez.
+    ///
+    /// Sin objetivos, media pantalla no dice nada: ni ritmo, ni color, ni
+    /// aviso de que vas corto. Y el número no se inventa, sale de lo que
+    /// suman tus propias rutinas en una semana, así que es el que se cumple
+    /// haciendo tu plan.
+    ///
+    /// Una sola vez, con su marca guardada: quien los borra a propósito no
+    /// quiere encontrárselos de vuelta al entrar en Progreso.
+    private func ponerObjetivosSiFaltan(_ ajustes: Ajustes) {
+        guard !ajustes.objetivosPuestosSolos, ajustes.objetivosSemanales.isEmpty else { return }
+
+        let rutinas = RepositorioEntrenos(contexto: contexto).rutinas()
+        let elementos = rutinas.flatMap { rutina in
+            rutina.elementosOrdenados.compactMap { elemento -> ElementoPlanificado? in
+                guard let ejercicio = elemento.ejercicio else { return nil }
+                return ElementoPlanificado(
+                    grupoPrincipal: ejercicio.grupoPrincipal,
+                    gruposSecundarios: ejercicio.gruposSecundarios,
+                    series: elemento.seriesObjetivo
+                )
+            }
+        }
+        let objetivos = VolumenPlanificado.objetivos(elementos)
+        guard !objetivos.isEmpty else { return }
+
+        ajustes.objetivosSemanales = objetivos
+        ajustes.objetivosPuestosSolos = true
+        try? contexto.save()
+    }
+
     /// Las series de la última semana de la tendencia, que es la actual.
     private var seriesEstaSemana: Double {
         tendencia.last?.series ?? 0
@@ -123,6 +154,7 @@ struct VistaProgreso: View {
     private func recargar() {
         let cargados = ajustes ?? Ajustes.cargar(en: contexto)
         ajustes = cargados
+        ponerObjetivosSiFaltan(cargados)
 
         let repositorio = RepositorioProgreso(contexto: contexto)
         seriesSemanales = repositorio.seriesSemanales(

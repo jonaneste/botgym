@@ -189,6 +189,9 @@ struct AvisoImportacion: View {
         if !resumen.borrado.rutinas.isEmpty {
             partes.append("Rutinas: \(resumen.borrado.rutinas.joined(separator: ", "))")
         }
+        if !resumen.borrado.ejercicios.isEmpty {
+            partes.append("Ejercicios repetidos: \(resumen.borrado.ejercicios.joined(separator: ", "))")
+        }
         if resumen.borrado.entrenos > 0 {
             partes.append(
                 resumen.borrado.entrenos == 1

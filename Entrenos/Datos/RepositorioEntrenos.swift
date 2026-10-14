@@ -134,6 +134,14 @@ struct RepositorioEntrenos {
         return (try? contexto.fetch(descriptor)) ?? []
     }
 
+    /// Todas las rutinas, estén en la carpeta que estén.
+    func rutinas() -> [Rutina] {
+        let descriptor = FetchDescriptor<Rutina>(
+            sortBy: [SortDescriptor(\.orden, order: .forward)]
+        )
+        return (try? contexto.fetch(descriptor)) ?? []
+    }
+
     func rutinasSueltas() -> [Rutina] {
         let descriptor = FetchDescriptor<Rutina>(
             sortBy: [SortDescriptor(\.orden, order: .forward)]
