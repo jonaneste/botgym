@@ -223,7 +223,7 @@ struct FilaDiaPlan: View {
         switch dia.tipo {
         case .competicion: return Paleta.record
         case .carrera, .gimnasioYCarrera: return Paleta.carrera
-        case .gimnasio: return .accentColor
+        case .gimnasio: return Paleta.acento
         case .descanso, .turismo: return .secondary
         }
     }
@@ -233,11 +233,11 @@ struct FilaDiaPlan: View {
             VStack(spacing: 2) {
                 Text(Formato.diaSemanaCorto(dia.fecha))
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(esHoy ? Color.accentColor : .secondary)
+                    .foregroundStyle(esHoy ? Paleta.acento : .secondary)
                     .textCase(.uppercase)
                 Text("\(CalendarioEntrenos.es.component(.day, from: dia.fecha))")
                     .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundStyle(esHoy ? Color.accentColor : .primary)
+                    .foregroundStyle(esHoy ? Paleta.acento : .primary)
             }
             .frame(width: 38)
 
@@ -293,7 +293,7 @@ struct FilaDiaPlan: View {
             }
         }
         .padding(.vertical, 2)
-        .listRowBackground(esHoy ? Color.accentColor.opacity(0.08) : nil)
+        .listRowBackground(esHoy ? Paleta.acento.opacity(0.08) : nil)
         .swipeActions(edge: .trailing) {
             if dia.tipo.tieneCarrera {
                 Button {

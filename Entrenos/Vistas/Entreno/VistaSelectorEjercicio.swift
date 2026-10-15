@@ -94,7 +94,7 @@ struct VistaSelectorEjercicio: View {
         // Cada filtro lleva el color de su región, apagado mientras no está
         // elegido: así la tira de filtros es también la leyenda de los colores
         // que luego se ven en las filas.
-        let color = grupo.map(Paleta.grupo) ?? .accentColor
+        let color = grupo.map(Paleta.grupo) ?? Paleta.acento
         return Button {
             grupoFiltro = grupo
         } label: {

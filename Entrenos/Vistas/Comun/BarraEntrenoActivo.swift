@@ -60,7 +60,7 @@ struct BarraEntrenoActivo: View {
                     // texto encima del color.
                     .overlay {
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1)
+                            .strokeBorder(Paleta.acento.opacity(0.4), lineWidth: 1)
                     }
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
                     .padding(.horizontal, 12)

@@ -22,7 +22,7 @@ struct TarjetaHoy: View {
         switch dia.tipo {
         case .competicion: return Paleta.record
         case .carrera, .gimnasioYCarrera: return Paleta.carrera
-        case .gimnasio: return .accentColor
+        case .gimnasio: return Paleta.acento
         case .descanso, .turismo: return .secondary
         }
     }

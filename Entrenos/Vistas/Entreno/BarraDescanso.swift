@@ -40,7 +40,7 @@ struct BarraDescanso: View {
             }
 
             ProgressView(value: controlador.temporizador.progreso)
-                .tint(seAcaba ? Paleta.aviso : .accentColor)
+                .tint(seAcaba ? Paleta.aviso : Paleta.acento)
 
             HStack(spacing: 10) {
                 Button {

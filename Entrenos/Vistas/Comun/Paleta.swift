@@ -34,10 +34,19 @@ enum Paleta {
     /// semanal, así que no comparten el color de «hecho».
     static let calentamiento = Color(.systemOrange)
 
+    /// El acento elegido en Ajustes.
+    ///
+    /// Es una variable y no una constante porque el tema se puede cambiar, y
+    /// aquí hace falta fuera del entorno de SwiftUI: estas son funciones
+    /// estáticas que no pueden leer `@Environment`. La escribe `VistaPrincipal`
+    /// al arrancar y al volver del fondo, que son los dos únicos momentos en
+    /// que el ajuste puede haber cambiado.
+    @MainActor static var acento: Color = Tema.porDefecto.color
+
     /// Sugerencia de progresión. Todas comparten color a propósito: son la
     /// misma clase de información, y pintar cada acción de un color distinto
     /// repartía cinco acentos por la pantalla sin decir nada más.
-    static let progresion = Color.accentColor
+    @MainActor static var progresion: Color { acento }
 
     /// Carpetas de rutinas.
     static let carpeta = Color(.systemIndigo)

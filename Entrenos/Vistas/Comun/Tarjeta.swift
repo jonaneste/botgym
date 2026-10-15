@@ -73,7 +73,7 @@ struct CifraDestacada: View {
 /// Etiqueta pequeña de categoría: grupo muscular, material, número de serie.
 struct Pastilla: View {
     let texto: String
-    var color: Color = .accentColor
+    var color: Color = Paleta.acento
 
     var body: some View {
         Text(texto)

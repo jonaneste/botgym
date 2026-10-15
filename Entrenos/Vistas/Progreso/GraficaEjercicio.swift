@@ -36,14 +36,14 @@ struct GraficaEjercicio: View {
                 y: .value(metrica.nombre, valor(de: punto))
             )
             .interpolationMethod(.monotone)
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(Paleta.acento)
             .lineStyle(StrokeStyle(lineWidth: 2.5))
 
             PointMark(
                 x: .value("Fecha", punto.fecha),
                 y: .value(metrica.nombre, valor(de: punto))
             )
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(Paleta.acento)
             .symbolSize(50)
         }
         .chartYScale(domain: dominioY)

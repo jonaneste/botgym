@@ -36,7 +36,7 @@ struct VistaProgreso: View {
                                 CifraDestacada(
                                     valor: Formato.numeroCorto(seriesEstaSemana),
                                     etiqueta: "Series esta semana",
-                                    color: .accentColor
+                                    color: Paleta.acento
                                 )
                                 Divider().frame(height: 28)
                                 CifraDestacada(

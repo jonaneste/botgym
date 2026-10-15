@@ -9,6 +9,10 @@ struct VistaPrincipal: View {
 
     @State private var pestaña: Pestaña = .entreno
     @State private var avisoImportacion: ImportadorAutomatico.Resumen?
+    /// El tema elegido. Se lee una vez y se refresca al volver del fondo: los
+    /// ajustes solo cambian desde dentro de la app, así que no hace falta
+    /// observarlos en cada redibujado.
+    @State private var ajustes: Ajustes?
 
     enum Pestaña: Hashable {
         case entreno, rutinas, historial, progreso, ajustes
@@ -63,7 +67,12 @@ struct VistaPrincipal: View {
             }
         }
         .animation(.spring(duration: 0.35), value: avisoImportacion)
+        // El tema tiñe toda la app desde aquí: los controles de SwiftUI usan
+        // el tinte del entorno, así que basta ponerlo en la raíz.
+        .tint(tema.color)
+        .preferredColorScheme(apariencia.esquema)
         .task {
+            cargarAjustes()
             revisarPropuestas()
             ExportadorAutomatico.compartido.exportarAlCambiarDeEstado(contexto: contexto)
         }
@@ -72,6 +81,7 @@ struct VistaPrincipal: View {
         .onChange(of: fase) { _, nueva in
             switch nueva {
             case .active:
+                cargarAjustes()
                 revisarPropuestas()
                 // Y se vuelca al abrir: si se corrigió algo con la app
                 // cerrada —o en otra pantalla que no termina un entreno—, el
@@ -85,6 +95,18 @@ struct VistaPrincipal: View {
                 break
             }
         }
+    }
+
+    private var tema: Tema { ajustes?.tema ?? .porDefecto }
+
+    private var apariencia: AparienciaApp { ajustes?.apariencia ?? .sistema }
+
+    private func cargarAjustes() {
+        let cargados = Ajustes.cargar(en: contexto)
+        ajustes = cargados
+        // Y se publica para los sitios que no pueden leer el entorno, como la
+        // `Paleta`: ahí el color se usa dentro de funciones estáticas.
+        Paleta.acento = cargados.tema.color
     }
 
     private func revisarPropuestas() {
@@ -107,7 +129,7 @@ struct AvisoImportacion: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: huboError ? "exclamationmark.triangle.fill" : "sparkles")
                 .font(.title3)
-                .foregroundStyle(huboError ? Paleta.aviso : Color.accentColor)
+                .foregroundStyle(huboError ? Paleta.aviso : Paleta.acento)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(titulo)
@@ -166,7 +188,7 @@ struct AvisoImportacion: View {
         .background(.regularMaterial, in: .rect(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1)
+                .strokeBorder(Paleta.acento.opacity(0.4), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
         .padding(.horizontal, 12)

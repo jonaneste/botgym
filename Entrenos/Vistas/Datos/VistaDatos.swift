@@ -266,7 +266,7 @@ struct VistaDatos: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Color.accentColor, in: .capsule)
+                                .background(Paleta.acento, in: .capsule)
                                 .foregroundStyle(.white)
                         }
                     }

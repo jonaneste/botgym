@@ -169,7 +169,7 @@ struct VistaFinalizarEntreno: View {
     private var colorDelCierre: Color {
         if !todosLosRecords.isEmpty { return Paleta.record }
         if comparacion?.esMejora == true { return Paleta.logrado }
-        return .accentColor
+        return Paleta.acento
     }
 
     /// Los de serie, detectados durante el entreno, más los de volumen, que

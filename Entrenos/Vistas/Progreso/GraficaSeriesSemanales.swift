@@ -21,7 +21,7 @@ struct GraficaSeriesSemanales: View {
                         x: .value("Semana", semana.inicioSemana, unit: .weekOfYear),
                         y: .value("Series", semana.series)
                     )
-                    .foregroundStyle(Color.accentColor.gradient)
+                    .foregroundStyle(Paleta.acento.gradient)
                     .cornerRadius(4)
                     // Sin esto VoiceOver anuncia «gráfico» y nada más: las
                     // barras no llevan etiqueta propia y los ejes no se leen.

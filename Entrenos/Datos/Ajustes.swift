@@ -37,6 +37,11 @@ final class Ajustes {
     /// no quiere encontrárselos otra vez al abrir Progreso.
     var objetivosPuestosSolos: Bool = false
 
+    /// Tema de color y apariencia. Como enums crudos, igual que el resto:
+    /// en iOS 17 SwiftData no filtra ni ordena de forma fiable por enums.
+    var temaRaw: String = Tema.porDefecto.rawValue
+    var aparienciaRaw: String = AparienciaApp.sistema.rawValue
+
     /// Avisar con una notificación local cuando acaba el descanso.
     var notificarFinDescanso: Bool = true
     /// Vibrar al terminar el descanso.
@@ -66,6 +71,18 @@ final class Ajustes {
 
     init() {
         self.idPublico = UUID()
+    }
+
+    // MARK: - Apariencia
+
+    var tema: Tema {
+        get { Tema(rawValue: temaRaw) ?? .porDefecto }
+        set { temaRaw = newValue.rawValue }
+    }
+
+    var apariencia: AparienciaApp {
+        get { AparienciaApp(rawValue: aparienciaRaw) ?? .sistema }
+        set { aparienciaRaw = newValue.rawValue }
     }
 
     // MARK: - Objetivos semanales
