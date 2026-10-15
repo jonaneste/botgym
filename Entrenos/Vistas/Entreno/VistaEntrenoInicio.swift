@@ -30,6 +30,11 @@ struct VistaEntrenoInicio: View {
 
     private var pantallaInicio: some View {
         List {
+            Section {
+                CabeceraInicio()
+                    .filaDesnuda(arriba: 8, abajo: 4)
+            }
+
             if let hoy = diaDeHoy {
                 Section {
                     TarjetaHoy(dia: hoy, rutina: rutinaDelDia(hoy)) { rutina in

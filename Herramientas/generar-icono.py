@@ -93,6 +93,78 @@ def rectangulo_redondeado(x0, y0, x1, y1, radio):
     return dentro
 
 
+def poligono(puntos):
+    """Prueba de pertenencia para un poligono, por lanzamiento de rayo.
+
+    Hace falta porque el yunque no se puede componer con rectangulos
+    redondeados: tiene un cuerno que se estrecha y una base que se abre, y eso
+    son lados inclinados.
+    """
+
+    def dentro(x, y):
+        # Se cuenta cuantas veces un rayo horizontal hacia la derecha cruza el
+        # borde: impar es dentro. El `!=` compara en que lado del rayo queda
+        # cada extremo del lado, que es la forma de no contar dos veces los
+        # vertices que el rayo roza justo.
+        cruces = False
+        cuantos = len(puntos)
+        j = cuantos - 1
+        for i in range(cuantos):
+            xi, yi = puntos[i]
+            xj, yj = puntos[j]
+            if (yi > y) != (yj > y):
+                corte = xi + (y - yi) * (xj - xi) / (yj - yi)
+                if x < corte:
+                    cruces = not cruces
+            j = i
+        return cruces
+
+    return dentro
+
+
+def figura_yunque():
+    """El yunque de Forja, de una pieza.
+
+    Un yunque y no la mancuerna de siempre: la mancuerna es el icono por
+    defecto de cualquier app de gimnasio, y ademas esta app lleva tambien las
+    carreras. El yunque dice el nombre, se reconoce por su silueta y no por un
+    detalle, y aguanta a 40 puntos porque es una masa compacta y no un trazo.
+
+    Las coordenadas van sobre el lienzo de 1024 y en fraccion para que
+    cambiar el tamano del icono no obligue a rehacerlas.
+    """
+    u = LADO / 1024
+
+    cuerpo = [
+        # Cara de arriba, de izquierda a derecha.
+        (296 * u, 330 * u),
+        (812 * u, 330 * u),
+        # Talon: el corte recto de la derecha, con su escalon.
+        (812 * u, 398 * u),
+        (768 * u, 440 * u),
+        (640 * u, 440 * u),
+        # Cintura, concava: dos puntos por lado en vez de uno, que es lo que
+        # separa un yunque de un reloj de arena.
+        (612 * u, 498 * u),
+        (600 * u, 566 * u),
+        # La base se abre.
+        (700 * u, 606 * u),
+        (748 * u, 606 * u),
+        (748 * u, 694 * u),
+        (276 * u, 694 * u),
+        (276 * u, 606 * u),
+        (324 * u, 606 * u),
+        (424 * u, 566 * u),
+        (412 * u, 498 * u),
+        (384 * u, 440 * u),
+        (296 * u, 440 * u),
+        # El cuerno, largo y afilado, que es lo que se reconoce de un yunque.
+        (150 * u, 396 * u),
+        (296 * u, 330 * u),
+    ]
+    return [poligono(cuerpo)]
+
+
 def figura_barra():
     """Las pruebas de pertenencia de la barra y sus cuatro discos."""
     piezas = [
@@ -114,8 +186,8 @@ def figura_barra():
 
 
 def pintar(color_arriba, color_abajo, color_figura):
-    """Degradado vertical con la barra encima, como filas RGB."""
-    piezas = figura_barra()
+    """Degradado vertical con la figura encima, como filas RGB."""
+    piezas = figura_yunque()
     paso = 1.0 / MUESTREO
     muestras = [(i + 0.5) * paso for i in range(MUESTREO)]
     total = MUESTREO * MUESTREO
