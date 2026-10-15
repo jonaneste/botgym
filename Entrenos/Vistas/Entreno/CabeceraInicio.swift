@@ -22,46 +22,95 @@ struct CabeceraInicio: View {
     @State private var kilometros: Double = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(saludo)
                         .font(.system(.title2, design: .rounded, weight: .bold))
                     Text(Formato.capitalizarPrimera(Formato.fechaLarga(Date())))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .opacity(0.75)
                 }
                 Spacer(minLength: 0)
                 if let faltan = diasHastaLaCompeticion {
-                    VStack(spacing: 0) {
-                        Text("\(faltan)")
-                            .font(.system(.title, design: .rounded, weight: .bold))
+                    // La cuenta atrás como pastilla y no como dos líneas
+                    // sueltas: es un dato de otra naturaleza que el resto de
+                    // la tarjeta, y así no compite con el saludo.
+                    HStack(spacing: 4) {
+                        Image(systemName: "flag.checkered")
+                            .font(.caption2)
+                        Text(faltan == 0 ? "¡Hoy!" : "\(faltan) días")
+                            .font(.caption.weight(.bold))
                             .monospacedDigit()
-                            .foregroundStyle(Paleta.carrera)
-                        Text(faltan == 1 ? "día" : "días")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.white.opacity(0.22), in: .capsule)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Faltan \(faltan) días para la competición")
                 }
             }
 
-            HStack(spacing: 16) {
-                anilloDeSemana
+            Divider()
+                .overlay(.white.opacity(0.3))
+                .padding(.vertical, 14)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    fila("dumbbell.fill", "\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"), Paleta.acento)
-                    fila("figure.run", Formato.numeroCorto(kilometros), "km", Paleta.carrera)
-                    fila("flame.fill", "\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"), Paleta.logrado)
+            HStack(spacing: 0) {
+                cifra("\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"))
+                separador
+                cifra(Formato.numeroCorto(kilometros), "km")
+                separador
+                cifra("\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"))
+                if diasExigibles > 0 {
+                    separador
+                    anilloDeSemana
                 }
-
-                Spacer(minLength: 0)
             }
+            .frame(minHeight: 50)
         }
-        .tarjetaDestacada(Paleta.acento)
+        // Bloque de color entero y no un tinte pálido: es la cabecera de la
+        // app, lo primero que se ve, y un degradado al 18 % sobre gris se leía
+        // como un elemento desactivado.
+        .foregroundStyle(.white)
+        .padding(18)
+        .background {
+            // El relieve se hace con blanco y negro translúcidos encima del
+            // acento, y no con `Color.mix`, que es de iOS 18: la app tiene
+            // que seguir compilando contra el SDK con el que va CI.
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Paleta.acento)
+                .overlay {
+                    LinearGradient(
+                        colors: [.white.opacity(0.18), .black.opacity(0.20)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                .clipShape(.rect(cornerRadius: 22))
+        }
+        .shadow(color: Paleta.acento.opacity(0.3), radius: 10, y: 4)
         .onAppear { kilometros = kilometrosDeLaSemana() }
+    }
+
+    private var separador: some View {
+        Rectangle()
+            .fill(.white.opacity(0.25))
+            .frame(width: 1, height: 34)
+    }
+
+    private func cifra(_ valor: String, _ etiqueta: String) -> some View {
+        VStack(spacing: 1) {
+            Text(valor)
+                .font(.system(.title2, design: .rounded, weight: .bold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(etiqueta)
+                .font(.caption2.weight(.medium))
+                .opacity(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Piezas
@@ -72,48 +121,23 @@ struct CabeceraInicio: View {
     /// plan.
     @ViewBuilder
     private var anilloDeSemana: some View {
-        if diasExigibles > 0 {
-            ZStack {
-                Circle()
-                    .stroke(Color(.tertiarySystemFill), lineWidth: 10)
-                Circle()
-                    .trim(from: 0, to: min(1, Double(diasCumplidos) / Double(diasExigibles)))
-                    .stroke(
-                        Paleta.logrado.gradient,
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .animation(.spring(duration: 0.5), value: diasCumplidos)
-                VStack(spacing: 0) {
-                    Text("\(diasCumplidos)/\(diasExigibles)")
-                        .font(.system(.subheadline, design: .rounded, weight: .bold))
-                        .monospacedDigit()
-                    Text("semana")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 76, height: 76)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Esta semana")
-            .accessibilityValue("\(diasCumplidos) de \(diasExigibles) días cumplidos")
-        }
-    }
-
-    private func fila(_ icono: String, _ valor: String, _ unidad: String, _ color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icono)
-                .font(.caption)
-                .foregroundStyle(color)
-                .frame(width: 18)
-            Text(valor)
-                .font(.system(.subheadline, design: .rounded, weight: .bold))
+        ZStack {
+            Circle()
+                .stroke(.white.opacity(0.25), lineWidth: 5)
+            Circle()
+                .trim(from: 0, to: min(1, Double(diasCumplidos) / Double(diasExigibles)))
+                .stroke(.white, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.spring(duration: 0.5), value: diasCumplidos)
+            Text("\(diasCumplidos)/\(diasExigibles)")
+                .font(.system(.caption, design: .rounded, weight: .bold))
                 .monospacedDigit()
-            Text(unidad)
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
-        .accessibilityElement(children: .combine)
+        .frame(width: 46, height: 46)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Esta semana")
+        .accessibilityValue("\(diasCumplidos) de \(diasExigibles) días del plan cumplidos")
     }
 
     // MARK: - Cuentas

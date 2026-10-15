@@ -65,17 +65,19 @@ struct VistaEntrenoInicio: View {
                 }
             }
 
+            // Secundario a propósito: empezar un entreno vacío es lo que se
+            // hace de vez en cuando, y en azul gigante era lo más llamativo de
+            // la pantalla por delante de las rutinas, que es lo que se usa.
             Section {
                 Button {
                     controlador.empezarVacio()
                 } label: {
-                    Label("Empezar entreno vacío", systemImage: "plus.circle.fill")
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 48)
+                    Label("Entreno vacío", systemImage: "plus")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 38)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .filaDesnuda(arriba: 8, abajo: 8)
+                .buttonStyle(.bordered)
+                .filaDesnuda(arriba: 6, abajo: 6)
             }
 
             ForEach(carpetas) { carpeta in
@@ -112,6 +114,21 @@ struct VistaEntrenoInicio: View {
     }
 
     /// Días hasta la competición del plan, si hay una y no ha pasado ya.
+    /// Color de la rutina: el de la región que más series se lleva. Sin
+    /// ejercicios reconocibles queda el acento, que no dice nada pero tampoco
+    /// miente.
+    private func colorDe(_ rutina: Rutina) -> Color {
+        var porRegion: [RegionCorporal: Int] = [:]
+        for elemento in rutina.elementos {
+            guard let ejercicio = elemento.ejercicio else { continue }
+            porRegion[ejercicio.grupoPrincipal.region, default: 0] += elemento.seriesObjetivo
+        }
+        guard let mayor = porRegion.max(by: { $0.value < $1.value })?.key else {
+            return Paleta.acento
+        }
+        return Paleta.region(mayor)
+    }
+
     private var diasHastaLaCompeticion: Int? {
         guard let dia = diasDePlan.last(where: { $0.tipo == .competicion }) else { return nil }
         let faltan = ResumenPlan.diasHasta(dia.fecha)
@@ -140,7 +157,13 @@ struct VistaEntrenoInicio: View {
             controlador.empezar(desde: rutina)
         } label: {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
+                // El filo dice de qué es la rutina sin tener que leerla: el
+                // color de la región que más series se lleva.
+                Capsule()
+                    .fill(colorDe(rutina))
+                    .frame(width: 4)
+
+                VStack(alignment: .leading, spacing: 3) {
                     Text(rutina.nombre)
                         .font(.headline)
                         .foregroundStyle(.primary)
@@ -151,14 +174,22 @@ struct VistaEntrenoInicio: View {
                         .multilineTextAlignment(.leading)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(.tint)
+                // El disco va en el acento y no en el color de la región: es
+                // un control, y la propia `Paleta` dice que el color de una
+                // región no puede confundirse con algo que se toca. Con el
+                // rosa del torso, además, el botón de empezar parecía el de
+                // grabar.
+                Image(systemName: "play.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Paleta.acento, in: .circle)
             }
-            .tarjeta()
+            .frame(minHeight: 44)
+            .tarjeta(relleno: 12)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .filaDesnuda(arriba: 4, abajo: 4)
+        .filaDesnuda(arriba: 3, abajo: 3)
     }
 }
