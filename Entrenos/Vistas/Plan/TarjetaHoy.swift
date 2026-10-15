@@ -121,8 +121,15 @@ struct TarjetaHoy: View {
             }
         }
         .sheet(isPresented: $mostrarCarrera) {
-            VistaAnotarCarrera(dia: dia) { kilometros in
+            VistaAnotarCarrera(dia: dia) { kilometros, minutos in
                 RepositorioPlan(contexto: contexto).marcar(dia, hecho: true, kilometros: kilometros)
+                if minutos > 0 {
+                    RepositorioCarreras(contexto: contexto).anotar(
+                        fecha: dia.fecha,
+                        kilometros: kilometros,
+                        minutos: minutos
+                    )
+                }
             }
         }
     }

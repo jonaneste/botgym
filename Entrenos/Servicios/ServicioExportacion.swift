@@ -46,8 +46,11 @@ struct ServicioExportacion {
 
         // Las carreras salen del caché, que es lo que haya llegado de Salud
         // o del archivo importado.
-        CacheCarreras.compartida.cargarSiHaceFalta()
-        let carreras = CacheCarreras.compartida.carreras.map(CarreraExportada.init(de:))
+        // Por el repositorio y no por el caché a secas: ahí es donde se juntan
+        // las medidas con las escritas a mano, y exportar solo las medidas
+        // dejaba el MCP aconsejando sobre cero kilómetros.
+        let carreras = RepositorioCarreras(contexto: contexto).todas()
+            .map(CarreraExportada.init(de:))
 
         return ExportacionCompleta(
             ejercicios: ejercicios,

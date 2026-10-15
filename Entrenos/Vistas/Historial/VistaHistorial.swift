@@ -19,6 +19,7 @@ struct VistaHistorial: View {
 
     @State private var entrenoABorrar: Entreno?
     @State private var carreras: [Carrera] = []
+    @State private var mostrarAnotarCarrera = false
 
     var body: some View {
         NavigationStack {
@@ -68,10 +69,24 @@ struct VistaHistorial: View {
                 }
             }
             .navigationTitle("Historial")
-            .onAppear {
-                CacheCarreras.compartida.cargarSiHaceFalta()
-                carreras = CacheCarreras.compartida.recientes()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        mostrarAnotarCarrera = true
+                    } label: {
+                        Label("Anotar carrera", systemImage: "figure.run")
+                    }
+                    .tint(Paleta.carrera)
+                }
             }
+            .sheet(isPresented: $mostrarAnotarCarrera) {
+                VistaAnotarCarreraManual()
+            }
+            .onChange(of: mostrarAnotarCarrera) { _, abierto in
+                // Al cerrar la hoja: si se anotó una, tiene que aparecer ya.
+                if !abierto { carreras = RepositorioCarreras(contexto: contexto).recientes() }
+            }
+            .onAppear { carreras = RepositorioCarreras(contexto: contexto).recientes() }
             .refreshable { await recargarCarreras() }
             .alert(
                 "¿Borrar entreno?",
@@ -215,7 +230,7 @@ struct VistaHistorial: View {
                 CacheCarreras.compartida.guardar(nuevas)
             }
         }
-        carreras = CacheCarreras.compartida.recientes()
+        carreras = RepositorioCarreras(contexto: contexto).recientes()
     }
 
     private static func tituloMes(_ fecha: Date) -> String {

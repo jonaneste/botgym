@@ -45,8 +45,8 @@ struct VistaPlan: View {
         }
         .navigationTitle("Plan")
         .sheet(item: $diaAAnotar) { dia in
-            VistaAnotarCarrera(dia: dia) { kilometros in
-                RepositorioPlan(contexto: contexto).marcar(dia, hecho: true, kilometros: kilometros)
+            VistaAnotarCarrera(dia: dia) { kilometros, minutos in
+                anotar(dia, kilometros: kilometros, minutos: minutos)
             }
         }
     }
@@ -110,6 +110,20 @@ struct VistaPlan: View {
     }
 
     // MARK: - Acciones
+
+    /// Marca el día **y** registra la carrera, que son dos cosas distintas:
+    /// el día dice que se cumplió el plan, y la carrera es el entrenamiento,
+    /// con su ritmo, que luego sale en el historial y en lo que lee el MCP.
+    private func anotar(_ dia: DiaPlanificado, kilometros: Double, minutos: Double) {
+        RepositorioPlan(contexto: contexto).marcar(dia, hecho: true, kilometros: kilometros)
+        if minutos > 0 {
+            RepositorioCarreras(contexto: contexto).anotar(
+                fecha: dia.fecha,
+                kilometros: kilometros,
+                minutos: minutos
+            )
+        }
+    }
 
     private func marcar(_ dia: DiaPlanificado) {
         // Una carrera pide los kilómetros en vez de darse por hecha a secas:
@@ -296,10 +310,14 @@ struct FilaDiaPlan: View {
 /// Hoja para anotar los kilómetros de una carrera del plan.
 struct VistaAnotarCarrera: View {
     let dia: DiaPlanificado
-    let alGuardar: (Double) -> Void
+    /// Kilómetros y minutos. Los minutos pueden ser 0: anotar la distancia sin
+    /// el tiempo sigue valiendo para dar el día por hecho, solo que entonces
+    /// no hay ritmo que calcular y no se registra la carrera.
+    let alGuardar: (Double, Double) -> Void
 
     @Environment(\.dismiss) private var cerrar
     @State private var kilometros: Double = 0
+    @State private var minutos: Double = 0
 
     var body: some View {
         NavigationStack {
@@ -313,17 +331,28 @@ struct VistaAnotarCarrera: View {
                             .padding(.vertical, 6)
                             .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
                     }
+                    HStack {
+                        Text("Minutos")
+                        Spacer()
+                        CampoDecimal(marcador: "min", valor: $minutos)
+                            .frame(maxWidth: 110)
+                            .padding(.vertical, 6)
+                            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+                    }
                 } header: {
                     Text(dia.titulo)
                 } footer: {
-                    if let previstos = dia.kilometros {
-                        Text("El plan pone \(Formato.numeroCorto(previstos)) km. Anota los que hayas hecho de verdad.")
+                    if let ritmo {
+                        Text("Ritmo: \(ritmo)")
+                            .foregroundStyle(Paleta.carrera)
+                    } else if let previstos = dia.kilometros {
+                        Text("El plan pone \(Formato.numeroCorto(previstos)) km. Anota los que hayas hecho de verdad; con los minutos sale el ritmo y la carrera entra en el historial.")
                     }
                 }
 
                 Section {
                     Button {
-                        alGuardar(kilometros)
+                        alGuardar(kilometros, minutos)
                         cerrar()
                     } label: {
                         Text("Guardar")
@@ -348,5 +377,16 @@ struct VistaAnotarCarrera: View {
                 if kilometros == 0 { kilometros = dia.kilometrosHechos ?? dia.kilometros ?? 0 }
             }
         }
+    }
+
+    /// El ritmo mientras se escribe, para no tener que guardar y volver.
+    private var ritmo: String? {
+        guard kilometros > 0, minutos > 0 else { return nil }
+        return Carrera(
+            id: "previsualizacion",
+            fechaInicio: dia.fecha,
+            duracion: minutos * 60,
+            distanciaMetros: kilometros * 1_000
+        ).ritmoTexto
     }
 }

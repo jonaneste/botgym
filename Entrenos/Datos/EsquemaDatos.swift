@@ -13,6 +13,7 @@ enum EsquemaDatos {
         EjercicioEntreno.self,
         SerieRegistrada.self,
         DiaPlanificado.self,
+        CarreraManual.self,
         Ajustes.self,
     ]
 
