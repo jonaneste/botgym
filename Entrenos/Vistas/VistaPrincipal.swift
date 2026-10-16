@@ -153,6 +153,13 @@ struct AvisoImportacion: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if resumen.ejerciciosDeCatalogo > 0 {
+                    Text(resumen.ejerciciosDeCatalogo == 1
+                         ? "Un ejercicio nuevo en la biblioteca"
+                         : "\(resumen.ejerciciosDeCatalogo) ejercicios nuevos en la biblioteca")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if resumen.ejerciciosCreados > 0 {
                     Text(resumen.ejerciciosCreados == 1
                          ? "Y un ejercicio nuevo en la biblioteca"
@@ -199,6 +206,7 @@ struct AvisoImportacion: View {
     /// naranja, porque lo que el usuario lee primero es que algo falló.
     private var huboError: Bool {
         resumen.rutinas.isEmpty && resumen.plan == nil && !resumen.borrado.huboAlgo
+            && resumen.ejerciciosDeCatalogo == 0
     }
 
     /// Qué se borró, dicho entero: un borrado tiene que poder auditarse de un
@@ -228,6 +236,9 @@ struct AvisoImportacion: View {
         if huboError { return "Llegó algo que no pude leer" }
         if resumen.rutinas.isEmpty, resumen.plan == nil, resumen.borrado.huboAlgo {
             return "Claude hizo limpieza"
+        }
+        if resumen.rutinas.isEmpty, resumen.plan == nil, resumen.ejerciciosDeCatalogo > 0 {
+            return "Claude amplió tu biblioteca"
         }
         if resumen.rutinas.isEmpty, let plan = resumen.plan {
             return "Claude cargó el plan «\(plan)»"

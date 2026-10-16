@@ -26,11 +26,14 @@ enum ImportadorAutomatico {
         var diasDePlan: Int = 0
         /// Lo que se borró, si algún archivo lo pedía.
         var borrado = BorradorRemoto.Resultado()
+        /// Ejercicios que entraron sueltos, para la biblioteca.
+        var ejerciciosDeCatalogo: Int = 0
         /// Archivos que no se pudieron leer. Se quedan donde están.
         var fallidos: [String] = []
 
         var huboAlgo: Bool {
-            !rutinas.isEmpty || plan != nil || borrado.huboAlgo || !fallidos.isEmpty
+            !rutinas.isEmpty || plan != nil || borrado.huboAlgo
+                || ejerciciosDeCatalogo > 0 || !fallidos.isEmpty
         }
     }
 
@@ -60,6 +63,12 @@ enum ImportadorAutomatico {
                 resumen.borrado.carpetas += hecho.carpetas
                 resumen.borrado.rutinas += hecho.rutinas
                 resumen.borrado.entrenos += hecho.entrenos
+                ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
+                continue
+            }
+
+            if let sueltos = try? LectorEjerciciosJSON.leer(propuesta.json) {
+                resumen.ejerciciosDeCatalogo += importador.importarCatalogo(sueltos)
                 ExportadorAutomatico.compartido.descartarPropuesta(propuesta)
                 continue
             }

@@ -310,6 +310,30 @@ struct VistaEntrenoEnCurso: View {
                 }
                 .tint(Paleta.calentamiento)
             }
+            // Y lo mismo manteniendo pulsado. Deslizar es rápido cuando ya lo
+            // sabes, pero no se ve: con una mano en el banco, mantener pulsado
+            // es el gesto que la gente prueba.
+            .contextMenu {
+                Button {
+                    controlador.alternarCalentamiento(serie)
+                } label: {
+                    Label(
+                        serie.esCalentamiento ? "Pasar a serie de trabajo" : "Marcar como calentamiento",
+                        systemImage: serie.esCalentamiento ? "flame.slash" : "flame"
+                    )
+                }
+                Button {
+                    controlador.copiarDeAnterior(serie, de: ejercicio)
+                } label: {
+                    Label("Copiar la serie anterior", systemImage: "arrow.uturn.down")
+                }
+                Divider()
+                Button(role: .destructive) {
+                    controlador.quitarSerie(serie, de: ejercicio)
+                } label: {
+                    Label("Borrar serie", systemImage: "trash")
+                }
+            }
         }
 
         // Dos botones y no uno con un menú detrás: el calentamiento se añade

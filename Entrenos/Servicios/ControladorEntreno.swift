@@ -134,6 +134,7 @@ final class ControladorEntreno {
         }
 
         entreno = nuevo
+        Haptica.ligera()
         guardar()
     }
 
@@ -507,6 +508,10 @@ final class ControladorEntreno {
         avisoRecord = nil
         recordsDelEntreno = []
         recordsPrevios = [:]
+        // Cerrar un entreno es el final de algo: se nota, igual que marcar
+        // una serie. Sin esto, el único momento de la app sin respuesta
+        // física era justo el que más la pedía.
+        Haptica.record()
         guardar()
 
         // El volcado del JSON va DESPUÉS de guardar, no antes: la consulta que

@@ -174,6 +174,46 @@ struct ImportadorRutinas {
         )
     }
 
+    /// Mete en la biblioteca los ejercicios de un catálogo.
+    ///
+    /// Los que ya existen **no se tocan**: lo que tengas configurado a mano
+    /// manda sobre lo que diga un archivo, igual que al importar una rutina.
+    /// Devuelve cuántos se crearon de verdad.
+    @discardableResult
+    func importarCatalogo(_ sueltos: [EjercicioSuelto]) -> Int {
+        let repositorio = RepositorioEntrenos(contexto: contexto)
+        var indice = Set(repositorio.ejercicios().map(\.nombreNormalizado))
+
+        var creados = 0
+        for suelto in sueltos {
+            let clave = Ejercicio.normalizar(suelto.nombre)
+            guard !clave.isEmpty, !indice.contains(clave) else { continue }
+
+            // Un grupo que no exista en el catálogo de la app se ignora y el
+            // ejercicio no entra: es preferible que falte a que entre contando
+            // en un grupo equivocado.
+            guard let grupo = GrupoMuscular(rawValue: suelto.grupoPrincipal), grupo.cuentaEnVolumen else {
+                continue
+            }
+
+            let ejercicio = Ejercicio(
+                nombre: suelto.nombre,
+                grupoPrincipal: grupo,
+                gruposSecundarios: suelto.gruposSecundarios.compactMap(GrupoMuscular.init(rawValue:)),
+                material: suelto.material.flatMap(Material.init(rawValue:)) ?? .otro,
+                tipoRegistro: suelto.tipoRegistro.flatMap(TipoRegistro.init(rawValue:)) ?? .repeticiones,
+                notas: suelto.notas,
+                esPersonalizado: true
+            )
+            contexto.insert(ejercicio)
+            indice.insert(clave)
+            creados += 1
+        }
+
+        if creados > 0 { try? contexto.save() }
+        return creados
+    }
+
     /// Un ejercicio nuevo nacido de una importación.
     ///
     /// Sigue sin adivinarse nada a partir del nombre: una suposición mala

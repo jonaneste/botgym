@@ -55,6 +55,11 @@ struct CifraDestacada: View {
             Text(valor)
                 .font(.system(.title2, design: .rounded, weight: .bold))
                 .monospacedDigit()
+                // Los dígitos ruedan al cambiar en vez de saltar. Es lo que
+                // hace que marcar una serie se sienta como que la app
+                // responde, y no como un redibujado.
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.25), value: valor)
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

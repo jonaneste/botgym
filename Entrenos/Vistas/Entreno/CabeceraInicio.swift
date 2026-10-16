@@ -109,6 +109,8 @@ struct CabeceraInicio: View {
             Text(valor)
                 .font(.system(.title2, design: .rounded, weight: .bold))
                 .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.25), value: valor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(etiqueta)
