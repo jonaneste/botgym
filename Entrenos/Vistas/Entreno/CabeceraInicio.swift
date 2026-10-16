@@ -20,6 +20,7 @@ struct CabeceraInicio: View {
     @Query(sort: \DiaPlanificado.fecha) private var dias: [DiaPlanificado]
 
     @State private var kilometros: Double = 0
+    @State private var nombre: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -27,6 +28,8 @@ struct CabeceraInicio: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(saludo)
                         .font(.system(.title2, design: .rounded, weight: .bold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
                     Text(Formato.capitalizarPrimera(Formato.fechaLarga(Date())))
                         .font(.caption)
                         .opacity(0.75)
@@ -89,7 +92,10 @@ struct CabeceraInicio: View {
                 .clipShape(.rect(cornerRadius: 22))
         }
         .shadow(color: Paleta.acento.opacity(0.3), radius: 10, y: 4)
-        .onAppear { kilometros = kilometrosDeLaSemana() }
+        .onAppear {
+            kilometros = kilometrosDeLaSemana()
+            nombre = Ajustes.cargar(en: contexto).nombre
+        }
     }
 
     private var separador: some View {
@@ -143,12 +149,16 @@ struct CabeceraInicio: View {
     // MARK: - Cuentas
 
     private var saludo: String {
-        switch CalendarioEntrenos.es.component(.hour, from: Date()) {
-        case 0..<6: return "Buenas noches"
-        case 6..<13: return "Buenos días"
-        case 13..<21: return "Buenas tardes"
-        default: return "Buenas noches"
+        let hora = CalendarioEntrenos.es.component(.hour, from: Date())
+        let base: String
+        switch hora {
+        case 6..<13: base = "Buenos días"
+        case 13..<21: base = "Buenas tardes"
+        default: base = "Buenas noches"
         }
+        // Sin nombre no se pone la coma colgando: quien lo borre en Ajustes
+        // quiere que no salga, no un saludo cortado.
+        return nombre.isEmpty ? base : "\(base), \(nombre)"
     }
 
     private func etiqueta(_ cuantos: Int, _ singular: String, _ plural: String) -> String {

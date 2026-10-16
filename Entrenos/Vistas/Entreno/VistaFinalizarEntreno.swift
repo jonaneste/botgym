@@ -47,8 +47,8 @@ struct VistaFinalizarEntreno: View {
                             )
                             Divider().frame(height: 28)
                             CifraDestacada(
-                                valor: "\(entreno.ejercicios.count)",
-                                etiqueta: entreno.ejercicios.count == 1 ? "Ejercicio" : "Ejercicios"
+                                valor: "\(entreno.ejerciciosConSeries)",
+                                etiqueta: entreno.ejerciciosConSeries == 1 ? "Ejercicio" : "Ejercicios"
                             )
                         }
                     }

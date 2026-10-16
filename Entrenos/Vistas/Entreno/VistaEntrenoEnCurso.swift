@@ -205,7 +205,7 @@ struct VistaEntrenoEnCurso: View {
     /// Series de trabajo ya marcadas. Las de calentamiento no cuentan, que es
     /// justo lo que significa marcarlas.
     private func seriesHechas(_ ejercicio: EjercicioEntreno) -> Int {
-        ejercicio.series.filter(\.esEfectiva).count
+        ejercicio.seriesCompletadas
     }
 
     // MARK: - Bloque de un ejercicio
@@ -234,13 +234,16 @@ struct VistaEntrenoEnCurso: View {
                         }
                     }
                     HStack(spacing: 6) {
+                        // Gris hasta completarlo y verde al acabarlo. Con el
+                        // color de la región, el rosa del torso pintaba «0/4»
+                        // de rojo y parecía un error en vez de un objetivo.
                         Pastilla(
                             texto: "\(seriesHechas(ejercicio))/\(ejercicio.seriesObjetivo)",
                             color: seriesHechas(ejercicio) >= ejercicio.seriesObjetivo
                                 ? Paleta.logrado
-                                : colorDe(ejercicio)
+                                : .secondary
                         )
-                        Pastilla(texto: ejercicio.resumenObjetivo, color: colorDe(ejercicio))
+                        Pastilla(texto: ejercicio.resumenObjetivo, color: .secondary)
                         Pastilla(
                             texto: "descanso \(Formato.descanso(ejercicio.descansoSegundos))",
                             color: .secondary

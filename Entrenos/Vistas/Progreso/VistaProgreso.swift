@@ -52,6 +52,18 @@ struct VistaProgreso: View {
                     }
                 }
 
+                // El cuerpo antes que la lista: dice dónde se ha ido la
+                // semana de un golpe, y la lista de abajo es el detalle para
+                // quien quiera la cifra exacta.
+                if !seriesSemanales.isEmpty {
+                    Section {
+                        MapaDelCuerpo(grupos: seriesSemanales)
+                            .padding(.vertical, 6)
+                    } header: {
+                        Text("Dónde se ha ido la semana")
+                    }
+                }
+
                 Section {
                     if seriesSemanales.isEmpty {
                         Text("Sin series esta semana.")

@@ -128,8 +128,15 @@ final class EjercicioEntreno {
         seriesOrdenadas.filter(\.esEfectiva)
     }
 
+    /// Series marcadas que además tienen algo anotado.
+    ///
+    /// Las vacías no cuentan aquí tampoco, y no solo al cerrar el entreno: si
+    /// la cabecera dice «2/20» mientras se entrena y el entreno guardado dice
+    /// 0, el número ha cambiado de significado a mitad de camino. Lo que se
+    /// cuenta es lo que se va a guardar.
     var seriesCompletadas: Int {
-        series.filter(\.completada).count
+        let tipo = tipoRegistro
+        return series.filter { $0.completada && !RevisionSerie.estaVacia($0.valor, tipo: tipo) }.count
     }
 
     var volumen: Double {

@@ -11,6 +11,7 @@ struct VistaAjustes: View {
         NavigationStack {
             Form {
                 if let ajustes {
+                    seccionNombre(ajustes)
                     seccionApariencia(ajustes)
                     seccionDescanso(ajustes)
                     seccionProgresion(ajustes)
@@ -33,6 +34,18 @@ struct VistaAjustes: View {
     }
 
     // MARK: - Secciones
+
+    private func seccionNombre(_ ajustes: Ajustes) -> some View {
+        Section {
+            TextField("Tu nombre", text: Binding(
+                get: { ajustes.nombre },
+                set: { ajustes.nombre = $0 }
+            ))
+            .textInputAutocapitalization(.words)
+        } footer: {
+            Text("Sale en el saludo de la pantalla de entrenar. Déjalo vacío si no lo quieres.")
+        }
+    }
 
     /// Tema y apariencia.
     ///
