@@ -9,6 +9,7 @@ import SwiftData
 /// hasta ahora había que ir a buscarlo a otra pestaña.
 struct CabeceraInicio: View {
     @Environment(\.modelContext) private var contexto
+    @Environment(\.dynamicTypeSize) private var tamañoTexto
 
     @Query(
         filter: #Predicate<Entreno> { $0.estadoRaw == rawEntrenoFinalizado },
@@ -32,7 +33,6 @@ struct CabeceraInicio: View {
                         .minimumScaleFactor(0.7)
                     Text(Formato.capitalizarPrimera(Formato.fechaLarga(Date())))
                         .font(.caption)
-                        .opacity(0.75)
                 }
                 Spacer(minLength: 0)
                 if let faltan = diasHastaLaCompeticion {
@@ -48,7 +48,7 @@ struct CabeceraInicio: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(.white.opacity(0.22), in: .capsule)
+                    .background(.white.opacity(0.28), in: .capsule)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Faltan \(faltan) días para la competición")
                 }
@@ -58,18 +58,29 @@ struct CabeceraInicio: View {
                 .overlay(.white.opacity(0.3))
                 .padding(.vertical, 14)
 
-            HStack(spacing: 0) {
-                cifra("\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"))
-                separador
-                cifra(Formato.numeroCorto(kilometros), "km")
-                separador
-                cifra("\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"))
-                if diasExigibles > 0 {
-                    separador
-                    anilloDeSemana
+            // La tira y su separador van juntos: sin plan no hay tira, y el
+            // separador suelto dejaba dos líneas con un hueco vacío en medio.
+            tiraDeLaSemana
+
+            // A tamaños de accesibilidad las tres cifras no caben en fila: los
+            // números crecen y se quedaban encogidos al 60 %. Ahí se apilan,
+            // igual que hace la fila de serie.
+            if tamañoTexto.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    cifraEnFila("\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"))
+                    cifraEnFila(Formato.numeroCorto(kilometros), "km")
+                    cifraEnFila("\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"))
                 }
+            } else {
+                HStack(spacing: 0) {
+                    cifra("\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"))
+                    separador
+                    cifra(Formato.numeroCorto(kilometros), "km")
+                    separador
+                    cifra("\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"))
+                }
+                .frame(minHeight: 50)
             }
-            .frame(minHeight: 50)
         }
         // Bloque de color entero y no un tinte pálido: es la cabecera de la
         // app, lo primero que se ve, y un degradado al 18 % sobre gris se leía
@@ -77,14 +88,20 @@ struct CabeceraInicio: View {
         .foregroundStyle(.white)
         .padding(18)
         .background {
-            // El relieve se hace con blanco y negro translúcidos encima del
-            // acento, y no con `Color.mix`, que es de iOS 18: la app tiene
-            // que seguir compilando contra el SDK con el que va CI.
+            // El degradado va de oscuro a más oscuro, y no de claro a oscuro.
+            // Medido: el azul con un 18 % de blanco encima daba 3,49:1 con
+            // texto blanco —y 2,63:1 con el blanco al 75 % que había en la
+            // fecha—, por debajo del 4,5:1 que pide la HIG para texto de hasta
+            // 17 pt. Así la esquina peor queda en 5,69:1 y el resto sube hasta
+            // 9,2:1, con el texto en blanco puro.
+            //
+            // El relieve se hace con negro translúcido y no con `Color.mix`,
+            // que es de iOS 18: la app compila contra el SDK con el que va CI.
             RoundedRectangle(cornerRadius: 22)
                 .fill(Paleta.acento)
                 .overlay {
                     LinearGradient(
-                        colors: [.white.opacity(0.18), .black.opacity(0.20)],
+                        colors: [.black.opacity(0.12), .black.opacity(0.38)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -96,6 +113,83 @@ struct CabeceraInicio: View {
             kilometros = kilometrosDeLaSemana()
             nombre = Ajustes.cargar(en: contexto).nombre
         }
+    }
+
+    /// Los siete días de la semana, con lo que toca y lo que llevas hecho.
+    ///
+    /// Es lo que hace que esta cabecera sea de esta app y no de cualquier
+    /// otra: un número grande sobre una etiqueta pequeña lo tiene medio App
+    /// Store. Aquí lo que se mira al abrir es si la semana va cuadrada, y eso
+    /// es una fila de siete días, no un total.
+    ///
+    /// Relleno es hecho, hueco es pendiente, y el día de hoy lleva anillo.
+    /// El color nunca va solo: el hecho lleva además el relleno, y el de hoy
+    /// el anillo, así que se distinguen sin distinguir colores.
+    @ViewBuilder
+    private var tiraDeLaSemana: some View {
+        if !diasDeLaSemana.isEmpty {
+            HStack(spacing: 0) {
+                ForEach(diasDeLaSemanaOrdenados, id: \.fecha) { dia in
+                    VStack(spacing: 5) {
+                        Text(Formato.diaSemanaCorto(dia.fecha).prefix(1).uppercased())
+                            .font(.system(size: 11, weight: .semibold))
+                        ZStack {
+                            Circle()
+                                .fill(dia.hecho ? Color.white : .white.opacity(0.25))
+                                .frame(width: 22, height: 22)
+                            if dia.hecho {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .black))
+                                    .foregroundStyle(Paleta.acento)
+                            }
+                            if esHoy(dia) {
+                                Circle()
+                                    .strokeBorder(.white, lineWidth: 2)
+                                    .frame(width: 30, height: 30)
+                            }
+                        }
+                        .frame(height: 30)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Formato.capitalizarPrimera(Formato.nombreDiaSemana(dia.fecha)))
+                    .accessibilityValue(
+                        dia.hecho ? "\(dia.titulo), hecho" : "\(dia.titulo), pendiente"
+                    )
+                }
+            }
+            .padding(.top, 14)
+
+            Divider()
+                .overlay(.white.opacity(0.3))
+                .padding(.top, 14)
+        }
+    }
+
+    private func esHoy(_ dia: DiaPlanificado) -> Bool {
+        CalendarioEntrenos.es.isDate(dia.fecha, inSameDayAs: Date())
+    }
+
+    /// Los días exigibles de la semana más los de descanso, en orden: la tira
+    /// tiene que enseñar la semana entera, no solo lo que se puede cumplir.
+    private var diasDeLaSemanaOrdenados: [DiaPlanificado] {
+        let fin = CalendarioEntrenos.inicioDeSemanaSiguiente(de: Date())
+        return dias
+            .filter { $0.fecha >= inicioDeSemana && $0.fecha < fin }
+            .sorted { $0.fecha < $1.fecha }
+    }
+
+    private func cifraEnFila(_ valor: String, _ etiqueta: String) -> some View {
+        HStack(spacing: 8) {
+            Text(valor)
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.25), value: valor)
+            Text(etiqueta)
+                .font(.subheadline)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var separador: some View {
@@ -114,39 +208,13 @@ struct CabeceraInicio: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(etiqueta)
-                .font(.caption2.weight(.medium))
-                .opacity(0.8)
+                .font(.caption2.weight(.semibold))
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
     }
 
     // MARK: - Piezas
-
-    /// El anillo dice qué parte de lo que tocaba esta semana está hecha. Sin
-    /// plan cargado no hay contra qué medir, así que no se enseña: un anillo
-    /// vacío al 0 % se lee como ir mal, y no es que vayas mal, es que no hay
-    /// plan.
-    @ViewBuilder
-    private var anilloDeSemana: some View {
-        ZStack {
-            Circle()
-                .stroke(.white.opacity(0.25), lineWidth: 5)
-            Circle()
-                .trim(from: 0, to: min(1, Double(diasCumplidos) / Double(diasExigibles)))
-                .stroke(.white, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.spring(duration: 0.5), value: diasCumplidos)
-            Text("\(diasCumplidos)/\(diasExigibles)")
-                .font(.system(.caption, design: .rounded, weight: .bold))
-                .monospacedDigit()
-        }
-        .frame(width: 46, height: 46)
-        .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Esta semana")
-        .accessibilityValue("\(diasCumplidos) de \(diasExigibles) días del plan cumplidos")
-    }
 
     // MARK: - Cuentas
 
@@ -195,10 +263,6 @@ struct CabeceraInicio: View {
                 && !$0.tipo.esDescanso && $0.tipo != .turismo
         }
     }
-
-    private var diasExigibles: Int { diasDeLaSemana.count }
-
-    private var diasCumplidos: Int { diasDeLaSemana.filter(\.hecho).count }
 
     private var diasHastaLaCompeticion: Int? {
         guard let dia = dias.last(where: { $0.tipo == .competicion }) else { return nil }
