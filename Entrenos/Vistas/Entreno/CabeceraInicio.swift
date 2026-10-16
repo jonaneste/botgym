@@ -185,7 +185,7 @@ struct CabeceraInicio: View {
                 .font(.system(.title3, design: .rounded, weight: .bold))
                 .monospacedDigit()
                 .contentTransition(.numericText())
-                .animation(.snappy(duration: 0.25), value: valor)
+                .animacion(Muelles.cifra, value: valor)
             Text(etiqueta)
                 .font(.subheadline)
         }
@@ -204,7 +204,7 @@ struct CabeceraInicio: View {
                 .font(.system(.title2, design: .rounded, weight: .bold))
                 .monospacedDigit()
                 .contentTransition(.numericText())
-                .animation(.snappy(duration: 0.25), value: valor)
+                .animacion(Muelles.cifra, value: valor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(etiqueta)

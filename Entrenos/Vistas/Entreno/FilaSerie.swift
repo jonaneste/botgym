@@ -45,7 +45,7 @@ struct FilaSerie: View {
                     .strokeBorder(Paleta.logrado.opacity(0.45), lineWidth: 1)
             }
         }
-        .animation(.spring(duration: 0.3), value: serie.completada)
+        .animacion(Muelles.firme, value: serie.completada)
     }
 
     /// Cifras que conviene mirar dos veces, con el criterio del núcleo.
@@ -225,7 +225,7 @@ struct FilaSerie: View {
                 .frame(minWidth: 48, minHeight: 48)
                 .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BotonPulsable(escala: 0.9))
         .accessibilityLabel(serie.completada ? "Serie completada" : "Marcar serie como completada")
     }
 }

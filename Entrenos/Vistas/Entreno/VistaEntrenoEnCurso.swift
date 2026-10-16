@@ -49,7 +49,7 @@ struct VistaEntrenoEnCurso: View {
                 }
             }
         }
-        .animation(.spring(duration: 0.35), value: controlador.avisoRecord)
+        .animacion(Muelles.elastico, value: controlador.avisoRecord)
         .onAppear(perform: recargarContexto)
         .onChange(of: entreno.ejercicios.count) { _, _ in recargarContexto() }
         .navigationTitle(entreno.nombre)

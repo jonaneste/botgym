@@ -66,7 +66,7 @@ struct VistaPrincipal: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.spring(duration: 0.35), value: avisoImportacion)
+        .animacion(Muelles.elastico, value: avisoImportacion)
         // El tema tiñe toda la app desde aquí: los controles de SwiftUI usan
         // el tinte del entorno, así que basta ponerlo en la raíz.
         .tint(tema.color)

@@ -189,7 +189,7 @@ struct VistaEntrenoInicio: View {
             .tarjeta(relleno: 12)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BotonPulsable())
         .filaDesnuda(arriba: 3, abajo: 3)
     }
 }

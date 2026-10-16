@@ -144,7 +144,7 @@ struct VistaDetalleEntreno: View {
             .padding(.vertical, 2)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BotonPulsable())
     }
 
     private func columna(_ titulo: String, _ valor: String) -> some View {

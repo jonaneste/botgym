@@ -59,7 +59,7 @@ struct CifraDestacada: View {
                 // hace que marcar una serie se sienta como que la app
                 // responde, y no como un redibujado.
                 .contentTransition(.numericText())
-                .animation(.snappy(duration: 0.25), value: valor)
+                .animacion(Muelles.cifra, value: valor)
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -158,7 +158,7 @@ struct BarraProgreso: View {
             }
         }
         .frame(height: alto)
-        .animation(.spring(duration: 0.4), value: fraccion)
+        .animacion(Muelles.firme, value: fraccion)
         .accessibilityHidden(true)
     }
 }

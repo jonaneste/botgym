@@ -37,7 +37,7 @@ struct VistaSelectorEjercicio: View {
                     } label: {
                         FilaEjercicio(ejercicio: ejercicio)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(BotonPulsable())
                 }
 
                 if filtrados.isEmpty {

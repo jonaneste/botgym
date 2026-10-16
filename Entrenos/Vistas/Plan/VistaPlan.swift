@@ -288,7 +288,7 @@ struct FilaDiaPlan: View {
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BotonPulsable(escala: 0.9))
                 .accessibilityLabel(dia.hecho ? "Hecho" : "Marcar como hecho")
             }
         }

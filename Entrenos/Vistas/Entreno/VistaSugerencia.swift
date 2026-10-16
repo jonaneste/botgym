@@ -95,7 +95,7 @@ struct VistaAvisoRecord: View {
                 .foregroundStyle(Paleta.record)
                 .symbolEffect(.bounce, value: aviso.id)
                 .scaleEffect(aparecido ? 1 : 0.6)
-                .animation(.spring(duration: 0.45, bounce: 0.5), value: aparecido)
+                .animacion(Muelles.elastico, value: aparecido)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(aviso.titulo)
