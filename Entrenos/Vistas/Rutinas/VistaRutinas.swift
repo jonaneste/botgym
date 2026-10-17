@@ -14,6 +14,11 @@ struct VistaRutinas: View {
     @State private var rutinaAEditar: Rutina?
     @State private var carpetaDestino: CarpetaRutinas?
     @State private var rutinaABorrar: Rutina?
+    /// Nombre de la rutina que el plan pone para hoy, si hay plan y la nombra.
+    ///
+    /// Se guarda el nombre y no la rutina: el plan se escribe fuera de la app
+    /// y solo conoce nombres, igual que en `DiaPlanValor.nombreRutina`.
+    @State private var rutinaDeHoy: Rutina?
 
     private var rutinasSueltas: [Rutina] {
         todasLasRutinas.filter { $0.carpeta == nil }
@@ -78,6 +83,7 @@ struct VistaRutinas: View {
                 }
             }
             .navigationTitle("Rutinas")
+            .onAppear(perform: buscarLaDeHoy)
             .sheet(item: $rutinaAEditar) { rutina in
                 VistaEditorRutina(rutina: rutina)
             }
@@ -120,8 +126,16 @@ struct VistaRutinas: View {
     private func filaRutina(_ rutina: Rutina) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(rutina.nombre)
-                    .font(.body.weight(.medium))
+                HStack(spacing: 6) {
+                    Text(rutina.nombre)
+                        .font(.body.weight(.medium))
+                    // El relleno del botón distingue la de hoy de un vistazo,
+                    // pero el color solo nunca es la única pista: la palabra
+                    // lo dice, y es lo que lee VoiceOver.
+                    if esLaDeHoy(rutina) {
+                        Pastilla(texto: "Hoy")
+                    }
+                }
                 Text(rutina.resumen)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -142,13 +156,19 @@ struct VistaRutinas: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                 }
-                .buttonStyle(.borderedProminent)
+                .botonEmpezar(destacado: esLaDeHoy(rutina))
                 .disabled(controlador.hayEntrenoActivo)
             }
         }
         .padding(.vertical, 4)
         .contentShape(.rect)
         .onTapGesture { rutinaAEditar = rutina }
+        // El toque de la fila abre el editor, pero sin esto VoiceOver leía el
+        // nombre como texto suelto y no había forma de llegar al editor: un
+        // `onTapGesture` no añade ni el rasgo de botón ni la acción.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Abre la rutina para editarla")
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 rutinaABorrar = rutina
@@ -170,6 +190,25 @@ struct VistaRutinas: View {
         rutinaABorrar = nil
         contexto.delete(rutina)
         try? contexto.save()
+    }
+
+    /// La rutina que el plan pone para hoy.
+    private func esLaDeHoy(_ rutina: Rutina) -> Bool {
+        rutinaDeHoy?.idPublico == rutina.idPublico
+    }
+
+    /// Busca la rutina que el plan nombra para hoy, si hay plan.
+    ///
+    /// Sin plan, o si el día de hoy no nombra ninguna, no hay rutina de hoy y
+    /// la lista se queda como estaba: ninguna destacada es mejor que destacar
+    /// una al azar.
+    private func buscarLaDeHoy() {
+        guard let dia = RepositorioPlan(contexto: contexto).hoy(),
+              let nombre = dia.nombreRutina else {
+            rutinaDeHoy = nil
+            return
+        }
+        rutinaDeHoy = Rutina.buscar(nombre: nombre, en: todasLasRutinas)
     }
 
     /// La rutina de la que salió el entreno que está abierto ahora mismo.

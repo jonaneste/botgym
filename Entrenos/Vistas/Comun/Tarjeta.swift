@@ -162,3 +162,27 @@ struct BarraProgreso: View {
         .accessibilityHidden(true)
     }
 }
+
+/// Relleno para la acción destacada, borde para las demás.
+///
+/// Cinco botones rellenos del color de acento en una misma lista no destacan
+/// nada: `.borderedProminent` marca **la** acción de la pantalla, y si todas
+/// lo llevan la jerarquía desaparece. Con el móvil en el banco y una mano, el
+/// botón que importa es el de la rutina que toca hoy.
+struct BotonEmpezar: ViewModifier {
+    var destacado: Bool
+
+    func body(content: Content) -> some View {
+        if destacado {
+            content.buttonStyle(.borderedProminent)
+        } else {
+            content.buttonStyle(.bordered)
+        }
+    }
+}
+
+extension View {
+    func botonEmpezar(destacado: Bool) -> some View {
+        modifier(BotonEmpezar(destacado: destacado))
+    }
+}
