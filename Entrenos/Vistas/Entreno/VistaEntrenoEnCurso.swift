@@ -158,7 +158,8 @@ struct VistaEntrenoEnCurso: View {
                 if entreno.seriesTotales > 0 {
                     VStack(spacing: 4) {
                         BarraProgreso(
-                            fraccion: Double(entreno.seriesCompletadas) / Double(entreno.seriesTotales)
+                            fraccion: Double(entreno.seriesCompletadas) / Double(entreno.seriesTotales),
+                            color: colorDeLaCabecera
                         )
                         if let texto = textoDeAnimo {
                             Text(texto)
@@ -169,8 +170,21 @@ struct VistaEntrenoEnCurso: View {
                     }
                 }
             }
-            .tarjetaDestacada(Paleta.logrado)
+            .tarjetaDestacada(colorDeLaCabecera)
         }
+    }
+
+    /// Verde solo cuando ya está todo hecho.
+    ///
+    /// La cabecera nacía verde con 0/20 series: el mismo verde que marca una
+    /// serie hecha, puesto antes de hacer ninguna. Los propios ajustes dicen
+    /// que «el verde de serie hecha no se toca: ahí el color dice algo», y un
+    /// verde que sale siempre no dice nada. Mientras quedan series la tarjeta
+    /// va en el acento, que es el color de lo que está en marcha.
+    private var colorDeLaCabecera: Color {
+        let completado = entreno.seriesTotales > 0
+            && entreno.seriesCompletadas >= entreno.seriesTotales
+        return completado ? Paleta.logrado : Paleta.acento
     }
 
     private var divisor: some View {
@@ -431,11 +445,17 @@ struct VistaEntrenoEnCurso: View {
     @ToolbarContentBuilder
     private var barraHerramientas: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
+            // Con el color del acento y no con el gris que sale por defecto:
+            // sobre la cápsula de cristal de la barra, el gris quedaba más
+            // apagado que el propio título y la salida de la pantalla parecía
+            // deshabilitada. Relleno tampoco vale: dentro de la barra, el
+            // estilo prominente pinta la cápsula en claro y el texto en negro.
             Button {
                 mostrarFinalizar = true
             } label: {
                 Text("Terminar")
                     .fontWeight(.semibold)
+                    .foregroundStyle(Paleta.acento)
             }
             .disabled(entreno.seriesCompletadas == 0)
         }
