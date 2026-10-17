@@ -36,6 +36,14 @@ final class ControladorEntreno {
     /// hay que incorporarlo para no avisar dos veces de lo mismo.
     private var recordsPrevios: [UUID: RecordsEjercicio] = [:]
 
+    /// La serie que arrancó el descanso que está corriendo ahora mismo.
+    ///
+    /// Solo vive en memoria: si la app se cierra y se reanuda, el descanso se
+    /// reconstruye desde la fecha guardada y ya no se sabe de qué serie salió.
+    /// Desmarcar entonces no lo para, que es lo correcto: a esas alturas el
+    /// descanso es del entreno, no del toque.
+    private var serieQueArrancoElDescanso: UUID?
+
     init(contexto: ModelContext) {
         self.contexto = contexto
         self.repositorio = RepositorioEntrenos(contexto: contexto)
@@ -236,9 +244,21 @@ final class ControladorEntreno {
             if ajustes.vibrarFinDescanso && avisoRecord == nil { Haptica.serieCompletada() }
             if ajustes.descansoAutomatico && ejercicio.descansoSegundos > 0 {
                 empezarDescanso(segundos: ejercicio.descansoSegundos, ejercicio: ejercicio, ajustes: ajustes)
+                serieQueArrancoElDescanso = serie.idPublico
             }
         } else {
             serie.fechaCompletada = nil
+            // Desmarcar para el descanso que arrancó esa misma serie.
+            //
+            // La casilla es grande y está pegada al campo de RIR, así que se
+            // toca sin querer. Al deshacerlo, el descanso seguía corriendo y
+            // dos minutos después vibraba y saltaba la notificación en la
+            // pantalla bloqueada por una serie que nunca se hizo. Solo se para
+            // el que salió de esta serie: uno puesto a mano, o el de otra
+            // serie, no se toca.
+            if serieQueArrancoElDescanso == serie.idPublico, temporizador.activo {
+                saltarDescanso()
+            }
         }
         guardar()
     }
@@ -379,6 +399,10 @@ final class ControladorEntreno {
     // MARK: - Descanso
 
     func empezarDescanso(segundos: Int, ejercicio: EjercicioEntreno?, ajustes: Ajustes) {
+        // Un descanso nuevo no es de nadie hasta que quien lo arranca lo diga:
+        // sin esto, la marca de una serie anterior seguiría puesta y
+        // desmarcarla pararía un descanso que ya no es suyo.
+        serieQueArrancoElDescanso = nil
         let fin = Date().addingTimeInterval(TimeInterval(segundos))
         entreno?.descansoHasta = fin
         entreno?.descansoDuracion = segundos
@@ -401,6 +425,7 @@ final class ControladorEntreno {
         // acaba parando el temporizador hay que limpiarla, o quedaba un
         // descanso a medio borrar en la base.
         if temporizador.fechaFin == nil {
+            serieQueArrancoElDescanso = nil
             entreno?.descansoDuracion = nil
         } else {
             entreno?.descansoDuracion = LimitesEntrada.entero(temporizador.duracionTotal)
@@ -415,6 +440,7 @@ final class ControladorEntreno {
     }
 
     func saltarDescanso() {
+        serieQueArrancoElDescanso = nil
         temporizador.parar()
         entreno?.descansoHasta = nil
         entreno?.descansoDuracion = nil
@@ -423,6 +449,7 @@ final class ControladorEntreno {
     }
 
     private func descansoTerminado() {
+        serieQueArrancoElDescanso = nil
         entreno?.descansoHasta = nil
         entreno?.descansoDuracion = nil
         Haptica.finDescanso()
