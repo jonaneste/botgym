@@ -67,6 +67,18 @@ struct CifraDestacada: View {
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
+                // El límite de líneas depende de si la etiqueta tiene un
+                // espacio por donde partir.
+                //
+                // Con el texto de accesibilidad, «VOLUMEN» no cabe en un
+                // tercio de pantalla, y dejándole dos líneas el sistema parte
+                // antes de encoger: sale «VOLU-MEN». Una palabra sola solo se
+                // puede romper con guion, así que se la obliga a una línea y
+                // que encoja. «SERIES ESTA SEMANA», en cambio, parte por el
+                // espacio y en una sola línea se quedaba en «SERIES ESTA SE…».
+                .lineLimit(etiqueta.contains(" ") ? 2 : 1)
+                .minimumScaleFactor(0.6)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

@@ -4,6 +4,7 @@ import SwiftData
 /// Historial de entrenos finalizados.
 struct VistaHistorial: View {
     @Environment(\.modelContext) private var contexto
+    @Environment(\.dynamicTypeSize) private var tamañoTexto
 
     // Se filtra por el valor crudo del estado porque en iOS 17 los
     // `#Predicate` sobre propiedades de tipo enum no son fiables.
@@ -157,10 +158,24 @@ struct VistaHistorial: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 12) {
-                etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
-                etiqueta("checklist", Formato.cuenta(entreno.seriesCompletadas, "serie", "series"))
-                etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
+            // En columna con el texto de accesibilidad. Las tres etiquetas
+            // en una fila a esos cuerpos no caben en un tercio de ancho cada
+            // una, y el resultado era «1 ser-ie» y «60-0 kg»: una cifra
+            // partida a la mitad no es una cifra.
+            Group {
+                if tamañoTexto.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 4) {
+                        etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
+                        etiqueta("checklist", Formato.cuenta(entreno.seriesCompletadas, "serie", "series"))
+                        etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
+                        etiqueta("checklist", Formato.cuenta(entreno.seriesCompletadas, "serie", "series"))
+                        etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
+                    }
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)

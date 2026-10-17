@@ -14,6 +14,8 @@ struct VistaEntrenoEnCurso: View {
     @State private var mostrarDescartar = false
     @State private var ejercicioAEditar: EjercicioEntreno?
 
+    @Environment(\.dynamicTypeSize) private var tamañoTexto
+
     /// Lo que se hizo la última vez en cada ejercicio, indexado por
     /// `idEjercicio`. Se calcula una sola vez y al cambiar la lista de
     /// ejercicios: consultarlo dentro del cuerpo de la vista lanzaría un
@@ -218,6 +220,44 @@ struct VistaEntrenoEnCurso: View {
 
     /// Series de trabajo ya marcadas. Las de calentamiento no cuentan, que es
     /// justo lo que significa marcarlas.
+    /// Las tres pastillas del ejercicio: en fila mientras caben, en líneas
+    /// sueltas con el texto de accesibilidad.
+    ///
+    /// Una cápsula es una etiqueta corta: a esos cuerpos, «descanso 2:30» se
+    /// partía dentro de la cápsula —«des-canso»— y las tres juntas se comían
+    /// un tercio de la pantalla convertidas en globos. Sin cápsula, el mismo
+    /// texto se lee en una línea.
+    @ViewBuilder
+    private func pastillasDe(_ ejercicio: EjercicioEntreno) -> some View {
+        let hechas = seriesHechas(ejercicio)
+        // Gris hasta completarlo y verde al acabarlo. Con el color de la
+        // región, el rosa del torso pintaba «0/4» de rojo y parecía un error
+        // en vez de un objetivo.
+        let colorSeries: Color = hechas >= ejercicio.seriesObjetivo ? Paleta.logrado : .secondary
+        let series = "\(hechas)/\(ejercicio.seriesObjetivo)"
+        let descanso = "descanso \(Formato.descanso(ejercicio.descansoSegundos))"
+
+        if tamañoTexto.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(series)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(colorSeries)
+                Text(ejercicio.resumenObjetivo)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(descanso)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            HStack(spacing: 6) {
+                Pastilla(texto: series, color: colorSeries)
+                Pastilla(texto: ejercicio.resumenObjetivo, color: .secondary)
+                Pastilla(texto: descanso, color: .secondary)
+            }
+        }
+    }
+
     private func seriesHechas(_ ejercicio: EjercicioEntreno) -> Int {
         ejercicio.seriesCompletadas
     }
@@ -247,22 +287,7 @@ struct VistaEntrenoEnCurso: View {
                                 .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    HStack(spacing: 6) {
-                        // Gris hasta completarlo y verde al acabarlo. Con el
-                        // color de la región, el rosa del torso pintaba «0/4»
-                        // de rojo y parecía un error en vez de un objetivo.
-                        Pastilla(
-                            texto: "\(seriesHechas(ejercicio))/\(ejercicio.seriesObjetivo)",
-                            color: seriesHechas(ejercicio) >= ejercicio.seriesObjetivo
-                                ? Paleta.logrado
-                                : .secondary
-                        )
-                        Pastilla(texto: ejercicio.resumenObjetivo, color: .secondary)
-                        Pastilla(
-                            texto: "descanso \(Formato.descanso(ejercicio.descansoSegundos))",
-                            color: .secondary
-                        )
-                    }
+                    pastillasDe(ejercicio)
 
                     if let sugerencia = sugerencias[ejercicio.idEjercicio] {
                         VistaSugerencia(sugerencia: sugerencia, ejercicio: ejercicio)
