@@ -359,6 +359,10 @@ struct VistaEntrenoEnCurso: View {
             } label: {
                 Label("Calentamiento", systemImage: "flame")
                     .font(.subheadline.weight(.medium))
+                    // El tinte pinta el relleno y la etiqueta a la vez, y en
+                    // claro eso deja naranja sobre naranja pálido. La etiqueta
+                    // se pinta aparte.
+                    .foregroundStyle(Paleta.calentamientoTexto)
                     .frame(maxWidth: .infinity, minHeight: 36)
             }
             .buttonStyle(.bordered)

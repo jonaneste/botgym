@@ -334,9 +334,20 @@ struct TotalDeRegion: View {
             Circle()
                 .fill(Paleta.region(bloque.region))
                 .frame(width: 8, height: 8)
+            // En primario y no con el gris de cabecera de sección: esta
+            // línea no rotula, lleva un dato —«0,5 / 43» es el número que se
+            // mira entre semana—, y el gris de las cabeceras se queda en 2,9:1
+            // sobre el fondo claro. Un dato no se lee a contraste de rótulo.
+            // `Color.primary` y no `.primary` a secas: dentro de la cabecera
+            // de una sección, el estilo jerárquico se resuelve contra el de la
+            // propia cabecera, así que `.primary` ahí sigue siendo el gris de
+            // rótulo. El nombre salía apagado y la cifra de al lado no.
             Text(bloque.region.nombre)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.primary)
             Spacer()
             Text(texto)
+                .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(color)
         }
@@ -351,10 +362,11 @@ struct TotalDeRegion: View {
         return "\(series) / \(objetivo)"
     }
 
-    /// Más apagado que el de las filas a propósito: esto es una cabecera de
-    /// sección, no una de las cifras que se leen. Solo el verde de cumplido se
-    /// destaca, porque es la única que da una noticia.
+    /// Sin los rojos y ámbares de las filas: el aviso de cada grupo ya está
+    /// ahí abajo, y repetirlo en la cabecera son dieciséis avisos más cinco.
+    /// Solo el verde de cumplido se destaca, porque es el único que da una
+    /// noticia que no estaba.
     private var color: Color {
-        ritmo == .cumplido ? Paleta.logrado : .secondary
+        ritmo == .cumplido ? Paleta.logrado : Color.primary
     }
 }

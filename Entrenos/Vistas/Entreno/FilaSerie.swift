@@ -77,7 +77,9 @@ struct FilaSerie: View {
             if serie.esCalentamiento {
                 Image(systemName: "flame.fill")
                     .font(.footnote)
-                    .foregroundStyle(Paleta.calentamiento)
+                    // Va sobre un círculo del mismo naranja al 16 %: en claro,
+                    // el naranja del sistema encima de eso no se ve.
+                    .foregroundStyle(Paleta.calentamientoTexto)
             } else {
                 Text("\(numeroSerieEfectiva)")
                     .font(.system(.subheadline, design: .rounded, weight: .bold))

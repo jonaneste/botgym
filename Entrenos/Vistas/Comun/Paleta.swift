@@ -34,6 +34,19 @@ enum Paleta {
     /// semanal, así que no comparten el color de «hecho».
     static let calentamiento = Color(.systemOrange)
 
+    /// El mismo naranja, pero para texto sobre un fondo claro teñido de él.
+    ///
+    /// `systemOrange` sobre su propio relleno al 16 % se queda en 2,1:1 con el
+    /// modo claro, muy por debajo del 4,5:1 que pide un texto de este tamaño.
+    /// Apple no publica un naranja oscuro, así que aquí va uno a mano: es la
+    /// excepción a «no codificar los colores del sistema», y solo para claro.
+    /// En oscuro sigue siendo `systemOrange`, que ahí sí contrasta de sobra.
+    static let calentamientoTexto = Color(UIColor { rasgos in
+        rasgos.userInterfaceStyle == .dark
+            ? UIColor.systemOrange
+            : UIColor(red: 0.604, green: 0.310, blue: 0, alpha: 1)
+    })
+
     /// El acento elegido en Ajustes.
     ///
     /// Es una variable y no una constante porque el tema se puede cambiar, y
