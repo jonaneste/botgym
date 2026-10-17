@@ -130,7 +130,7 @@ struct ImportadorRutinas {
                 if let existente = indice[clave] {
                     ejercicio = existente
                 } else {
-                    ejercicio = crear(nombre: elementoDef.nombre, esTiempo: elementoDef.esTiempo)
+                    ejercicio = crear(desde: elementoDef)
                     contexto.insert(ejercicio)
                     indice[clave] = ejercicio
                     ejerciciosCreados += 1
@@ -151,6 +151,7 @@ struct ImportadorRutinas {
                     ejercicio: ejercicio,
                     orden: posicion,
                     seriesObjetivo: elementoDef.series,
+                    seriesCalentamiento: elementoDef.seriesCalentamiento,
                     objetivoMin: elementoDef.objetivoMin,
                     objetivoMax: elementoDef.objetivoMax,
                     rirMin: elementoDef.rirMin ?? ajustes.rirPorDefectoMin,
@@ -173,21 +174,73 @@ struct ImportadorRutinas {
         )
     }
 
+    /// Mete en la biblioteca los ejercicios de un catálogo.
+    ///
+    /// Los que ya existen **no se tocan**: lo que tengas configurado a mano
+    /// manda sobre lo que diga un archivo, igual que al importar una rutina.
+    /// Devuelve cuántos se crearon de verdad.
+    @discardableResult
+    func importarCatalogo(_ sueltos: [EjercicioSuelto]) -> Int {
+        let repositorio = RepositorioEntrenos(contexto: contexto)
+        var indice = Set(repositorio.ejercicios().map(\.nombreNormalizado))
+
+        var creados = 0
+        for suelto in sueltos {
+            let clave = Ejercicio.normalizar(suelto.nombre)
+            guard !clave.isEmpty, !indice.contains(clave) else { continue }
+
+            // Un grupo que no exista en el catálogo de la app se ignora y el
+            // ejercicio no entra: es preferible que falte a que entre contando
+            // en un grupo equivocado.
+            guard let grupo = GrupoMuscular(rawValue: suelto.grupoPrincipal), grupo.cuentaEnVolumen else {
+                continue
+            }
+
+            let ejercicio = Ejercicio(
+                nombre: suelto.nombre,
+                grupoPrincipal: grupo,
+                gruposSecundarios: suelto.gruposSecundarios.compactMap(GrupoMuscular.init(rawValue:)),
+                material: suelto.material.flatMap(Material.init(rawValue:)) ?? .otro,
+                tipoRegistro: suelto.tipoRegistro.flatMap(TipoRegistro.init(rawValue:)) ?? .repeticiones,
+                notas: suelto.notas,
+                esPersonalizado: true
+            )
+            contexto.insert(ejercicio)
+            indice.insert(clave)
+            creados += 1
+        }
+
+        if creados > 0 { try? contexto.save() }
+        return creados
+    }
+
     /// Un ejercicio nuevo nacido de una importación.
     ///
-    /// No se intenta adivinar el grupo muscular ni el material a partir del
-    /// nombre: una suposición mala contamina el recuento semanal en silencio.
-    /// Por eso el grupo es `sinClasificar`, que no suma series en ningún
-    /// recuento, y no `core`, que sí sumaba. Se marca como personalizado para
-    /// que destaque en la biblioteca y lo puedas completar.
-    private func crear(nombre: String, esTiempo: Bool) -> Ejercicio {
-        Ejercicio(
-            nombre: nombre,
-            grupoPrincipal: .sinClasificar,
-            gruposSecundarios: [],
-            material: .otro,
-            tipoRegistro: esTiempo ? .tiempo : .repeticiones,
-            notas: "Creado al importar. Revisa el grupo muscular y el material.",
+    /// Sigue sin adivinarse nada a partir del nombre: una suposición mala
+    /// contamina el recuento semanal en silencio. Lo que sí se usa es el
+    /// grupo y el material si el archivo los declara, que es información del
+    /// que escribe la rutina y no una conjetura nuestra.
+    ///
+    /// Cuando no vienen, el grupo es `sinClasificar`, que no suma series en
+    /// ningún recuento. Antes caía en `core`, que sí sumaba: un ejercicio de
+    /// pierna contado como core desequilibraba la cuenta semanal hacia el
+    /// lado contrario sin decir nada.
+    private func crear(desde def: EjercicioImportado) -> Ejercicio {
+        let grupo = def.grupoPrincipal.flatMap(GrupoMuscular.init(rawValue:))
+        let secundarios = def.gruposSecundarios.compactMap(GrupoMuscular.init(rawValue:))
+        let material = def.material.flatMap(Material.init(rawValue:))
+
+        let nota = grupo == nil
+            ? "Creado al importar SIN grupo muscular: ponle el suyo o no contará en las series semanales."
+            : "Creado al importar."
+
+        return Ejercicio(
+            nombre: def.nombre,
+            grupoPrincipal: grupo ?? .sinClasificar,
+            gruposSecundarios: secundarios,
+            material: material ?? .otro,
+            tipoRegistro: def.esTiempo ? .tiempo : .repeticiones,
+            notas: nota,
             esPersonalizado: true
         )
     }

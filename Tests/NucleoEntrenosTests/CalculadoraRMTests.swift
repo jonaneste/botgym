@@ -77,4 +77,42 @@ final class CalculadoraRMTests: XCTestCase {
         XCTAssertNil(CalculadoraRM.pesoPara(unRM: 0, repeticiones: 8))
         XCTAssertNil(CalculadoraRM.pesoPara(unRM: 100, repeticiones: 0))
     }
+
+    // MARK: - Tope de repeticiones
+
+    func testNoSeEstimaPorEncimaDelTope() {
+        // El caso real: un dedo de más al teclear convirtió «12» en «127», y
+        // Epley devolvía 167,5 kg para una serie de 32. Ese número se guardaba
+        // como récord y ya no se podía superar nunca.
+        XCTAssertNil(
+            CalculadoraRM.epley(peso: 32, repeticiones: 127),
+            "127 repeticiones no pueden producir una estimación"
+        )
+        XCTAssertNil(CalculadoraRM.epley(peso: 10, repeticiones: 121))
+    }
+
+    func testJustoEnElTopeSiSeEstima() {
+        let tope = CalculadoraRM.repeticionesMaximasParaEstimar
+        XCTAssertNotNil(CalculadoraRM.epley(peso: 50, repeticiones: tope))
+        XCTAssertNil(CalculadoraRM.epley(peso: 50, repeticiones: tope + 1))
+    }
+
+    func testElRangoNormalDeEntrenoSigueEstimando() {
+        // Series de 8 a 15 son lo que se hace de verdad: el tope no puede
+        // estorbar ahí.
+        for reps in 1...15 {
+            XCTAssertNotNil(
+                CalculadoraRM.epley(peso: 60, repeticiones: reps),
+                "dejó de estimar en \(reps) repeticiones"
+            )
+        }
+    }
+
+    func testElRIRCuentaParaElTope() {
+        // El RIR se suma a las repeticiones antes de aplicar Epley, así que
+        // también tiene que contar para decidir si la estimación vale.
+        let tope = CalculadoraRM.repeticionesMaximasParaEstimar
+        XCTAssertNotNil(CalculadoraRM.epleyConRIR(peso: 40, repeticiones: tope - 2, rir: 2))
+        XCTAssertNil(CalculadoraRM.epleyConRIR(peso: 40, repeticiones: tope, rir: 3))
+    }
 }

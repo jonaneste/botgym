@@ -48,6 +48,14 @@ function serie(orden, peso, repeticiones, { rir = 2, calentamiento = false, segu
   return { orden, peso, repeticiones, segundos, rir, calentamiento }
 }
 
+/// Medianoche de hace `cuantos` días. Negativo mira al futuro.
+function diasAtras(cuantos) {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - cuantos)
+  return d
+}
+
 function generarFixture() {
   // Tres semanas de press banca progresando: 60 kg, luego 60 a más reps, luego 62,5.
   const progresion = [
@@ -138,6 +146,29 @@ function generarFixture() {
         esPersonalizado: false,
         notas: '',
       },
+      // Este se hace en los entrenos, así que tiene fecha de última vez.
+      {
+        id: '22222222-2222-2222-2222-222222222222',
+        nombre: 'Elevaciones laterales',
+        grupoPrincipal: 'hombroLateral',
+        gruposSecundarios: [],
+        material: 'mancuerna',
+        tipoRegistro: 'repeticiones',
+        esPersonalizado: false,
+        notas: '',
+      },
+      // Nunca se ha hecho: es el que `historial_ejercicio` no puede encontrar
+      // y que `ejercicios_disponibles` tiene que listar igualmente.
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        nombre: 'Curl martillo',
+        grupoPrincipal: 'biceps',
+        gruposSecundarios: ['antebrazo'],
+        material: 'mancuerna',
+        tipoRegistro: 'repeticiones',
+        esPersonalizado: false,
+        notas: '',
+      },
     ],
     carpetas: [
       {
@@ -156,6 +187,33 @@ function generarFixture() {
     ],
     entrenos,
     carreras,
+    // El plan, también relativo a hoy. Con fechas absolutas, «los días que ya
+    // pasaron» deja de significar lo mismo mañana y la prueba falla sola.
+    plan: [
+      { fecha: sinZona(diasAtras(4)), tipo: 'carrera', titulo: 'Rodaje', notas: '', km: 5, kmHechos: 4.2, rutina: null, hecho: true },
+      { fecha: sinZona(diasAtras(3)), tipo: 'gimnasio', titulo: 'Pierna y core', notas: '', km: null, kmHechos: null, rutina: 'Lunes – Empuje', hecho: true },
+      // El que se saltó: es el que `plan` tiene que nombrar.
+      { fecha: sinZona(diasAtras(2)), tipo: 'carrera', titulo: 'Tirada larga', notas: '', km: 6, kmHechos: null, rutina: null, hecho: false },
+      // Descanso en medio: no se puede cumplir, así que no cuenta.
+      { fecha: sinZona(diasAtras(1)), tipo: 'descanso', titulo: 'Descanso', notas: '', km: null, kmHechos: null, rutina: null, hecho: false },
+      { fecha: sinZona(diasAtras(0)), tipo: 'gimnasioYCarrera', titulo: 'Pecho y tríceps', notas: '', km: 4, kmHechos: null, rutina: 'Martes – Tirón', hecho: false },
+      { fecha: sinZona(diasAtras(-3)), tipo: 'carrera', titulo: 'Tirada larga', notas: '', km: 10, kmHechos: null, rutina: null, hecho: false },
+      { fecha: sinZona(diasAtras(-10)), tipo: 'competicion', titulo: 'Media maratón de prueba', notas: '', km: 21.1, kmHechos: null, rutina: null, hecho: false },
+    ],
+    ajustes: {
+      // Pecho con objetivo y series hechas, cuádriceps con objetivo y ninguna:
+      // los dos casos que `resumen_semanal` tiene que saber contar.
+      objetivosSemanales: { pecho: 12, espalda: 14, cuadriceps: 10 },
+      incrementoBarra: 2.5,
+      incrementoPolea: 2.5,
+      incrementoMaquina: 2.5,
+      incrementoTiempo: 5,
+      mancuernasDisponibles: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22.5, 25, 27.5, 30],
+      rirPorDefectoMin: 1,
+      rirPorDefectoMax: 2,
+      descansoPorDefectoSegundos: 90,
+      pesoCorporal: 78.5,
+    },
   }
 }
 
@@ -220,12 +278,68 @@ const { respuestas, errores } = await hablarConElServidor([
   llamar(11, 'no_existe'),
   llamar(12, 'historial_ejercicio', { nombre: 'ejercicio inventado' }),
   { jsonrpc: '2.0', id: 13, method: 'metodo/inventado' },
+  llamar(14, 'ejercicios_disponibles'),
+  llamar(15, 'ejercicios_disponibles', { material: 'mancuerna' }),
+  llamar(16, 'ejercicios_disponibles', { grupo: 'inventado' }),
+  llamar(17, 'ajustes'),
+  llamar(25, 'plan'),
+  llamar(18, 'propuestas_pendientes'),
+  // Una rutina válida, con los nombres tal y como están en la biblioteca.
+  llamar(19, 'proponer_rutina', {
+    carpeta: 'Propuesto por Claude',
+    rutinas: [
+      {
+        nombre: 'Martes – Tirón',
+        ejercicios: [
+          { nombre: 'Curl martillo', series: 3, reps: '10-12', rir: '2', descanso: 90 },
+        ],
+      },
+    ],
+  }),
+  // Un ejercicio que no existe: tiene que negarse y NO escribir nada.
+  llamar(20, 'proponer_rutina', {
+    rutinas: [
+      { nombre: 'Inventada', ejercicios: [{ nombre: 'Press de kriptonita', series: 3 }] },
+    ],
+  }),
+  // Series fuera de rango, con un ejercicio que sí existe.
+  llamar(21, 'proponer_rutina', {
+    rutinas: [
+      { nombre: 'Exagerada', ejercicios: [{ nombre: 'Curl martillo', series: 99 }] },
+    ],
+  }),
+  // El nombre sin acentos ni mayúsculas tiene que encontrarse igual.
+  llamar(22, 'proponer_rutina', {
+    rutinas: [
+      { nombre: 'Con el nombre flojo', ejercicios: [{ nombre: '  curl MARTILLO ', series: 3 }] },
+    ],
+  }),
+  llamar(23, 'propuestas_pendientes'),
+  // Un ejercicio que no existe PERO con grupo declarado sí se puede proponer:
+  // así se crea bien y cuenta para las series semanales.
+  llamar(24, 'proponer_rutina', {
+    rutinas: [
+      {
+        nombre: 'Con uno nuevo',
+        ejercicios: [
+          {
+            nombre: 'Búlgaras',
+            series: 4,
+            reps: '6-8',
+            grupo: 'cuadriceps',
+            gruposSecundarios: ['gluteo'],
+            material: 'mancuerna',
+          },
+        ],
+      },
+    ],
+  }),
 ])
 
 const por = Object.fromEntries(respuestas.map((r) => [r.id, r]))
 
 // Una notificación no se responde: 14 mensajes, 13 respuestas.
-comprobar(respuestas.length === 13, `se esperaban 13 respuestas, llegaron ${respuestas.length}`)
+comprobar(respuestas.length === 25, `se esperaban 25 respuestas, llegaron ${respuestas.length}`)
 comprobar(
   respuestas.every((r) => r.jsonrpc === '2.0'),
   'alguna respuesta no lleva jsonrpc 2.0'
@@ -238,7 +352,7 @@ comprobar(por[1].result.capabilities.tools !== undefined, 'no declara capability
 
 // tools/list: todas con descripción y esquema de objeto.
 const herramientas = por[2].result.tools
-comprobar(herramientas.length === 7, `se esperaban 7 herramientas, hay ${herramientas.length}`)
+comprobar(herramientas.length === 12, `se esperaban 12 herramientas, hay ${herramientas.length}`)
 for (const t of herramientas) {
   comprobar(typeof t.description === 'string' && t.description.length > 20, `${t.name}: descripción pobre`)
   comprobar(t.inputSchema?.type === 'object', `${t.name}: inputSchema no es object`)
@@ -270,17 +384,33 @@ comprobar(Array.isArray(semanal) && semanal.length === 4, `semanal tiene ${seman
 const conDatos = semanal.filter((s) => s.entrenos > 0)
 comprobar(conDatos.length === 3, `semanas con entrenos = ${conDatos.length}, esperado 3`)
 const grupos = conDatos[0].seriesPorGrupo
-comprobar(grupos.pecho === 4, `pecho = ${grupos.pecho}, esperado 4`)
-comprobar(grupos.triceps === 2, `triceps = ${grupos.triceps}, esperado 2 (4 series × 0,5)`)
-comprobar(grupos.hombroLateral === 4, `hombroLateral = ${grupos.hombroLateral}, esperado 4`)
+comprobar(grupos.pecho.series === 4, `pecho = ${grupos.pecho.series}, esperado 4`)
+comprobar(grupos.triceps.series === 2, `triceps = ${grupos.triceps.series}, esperado 2 (4 series × 0,5)`)
+comprobar(grupos.hombroLateral.series === 4, `hombroLateral = ${grupos.hombroLateral.series}, esperado 4`)
+
+// El objetivo se cruza desde los ajustes: 4 de 12 no está cumplido.
+comprobar(grupos.pecho.objetivo === 12, `objetivo de pecho = ${grupos.pecho.objetivo}, esperado 12`)
+comprobar(grupos.pecho.cumplido === false, 'pecho sale como cumplido con 4 de 12')
+// Un grupo con objetivo y sin ninguna serie tiene que aparecer igualmente:
+// es justo la semana que te saltaste ese grupo.
+comprobar(
+  grupos.cuadriceps && grupos.cuadriceps.series === 0 && grupos.cuadriceps.cumplido === false,
+  'un grupo con objetivo y cero series no aparece'
+)
+// Y uno sin objetivo configurado no se inventa ninguno.
+comprobar(
+  grupos.hombroLateral.objetivo === undefined,
+  'se inventa un objetivo para un grupo que no lo tiene'
+)
 // Las 2 series de la prensa sin clasificar no crean grupo ni se cuelan en uno.
 comprobar(
   grupos.sinClasificar === undefined,
   `sinClasificar aparece en el reparto por grupo con ${grupos.sinClasificar}`
 )
+const sumaGrupos = Object.values(grupos).reduce((a, g) => a + g.series, 0)
 comprobar(
-  Object.values(grupos).reduce((a, b) => a + b, 0) === 4 + 2 + 2 + 4,
-  `el reparto por grupo suma ${Object.values(grupos).reduce((a, b) => a + b, 0)}, esperado 12`
+  sumaGrupos === 4 + 2 + 2 + 4,
+  `el reparto por grupo suma ${sumaGrupos}, esperado 12`
 )
 // Y la diferencia con el total se declara, en vez de quedar sin explicar: 10
 // series en la semana, de las que 2 son de la prensa sin clasificar.
@@ -372,6 +502,21 @@ comprobar(errores.trim() === '', `el servidor escribió en stderr: ${errores.tri
 // parsearse la primera prueba que haga el usuario fallará.
 const ejemplo = JSON.parse(readFileSync(EJEMPLO, 'utf8'))
 comprobar(ejemplo.version === 1, 'el ejemplo del README no declara version 1')
+// El ejemplo es con lo que el usuario prueba el MCP antes de tener datos
+// propios: si no lleva ajustes, `ajustes` y los objetivos de `resumen_semanal`
+// le salen vacíos en la primera prueba y parece que no funcionan.
+comprobar(
+  ejemplo.ajustes && typeof ejemplo.ajustes.objetivosSemanales === 'object',
+  'el ejemplo del README no lleva ajustes'
+)
+comprobar(
+  Array.isArray(ejemplo.plan) && ejemplo.plan.some((d) => d.tipo === 'competicion'),
+  'el ejemplo del README no lleva un plan con su competición'
+)
+comprobar(
+  Array.isArray(ejemplo.ejercicios) && ejemplo.ejercicios.length >= 2,
+  'el ejemplo no tiene catálogo suficiente para probar ejercicios_disponibles'
+)
 comprobar(Array.isArray(ejemplo.entrenos) && ejemplo.entrenos.length > 0, 'el ejemplo no tiene entrenos')
 for (const entreno of ejemplo.entrenos) {
   for (const ejercicio of entreno.ejercicios) {
@@ -390,7 +535,173 @@ for (const entreno of ejemplo.entrenos) {
   }
 }
 
-// ─── Resultado ───────────────────────────────────────────────────────────────
+// ─── Las herramientas nuevas: catálogo y ajustes ─────────────────────────────
+
+// El catálogo lista TODOS los ejercicios, también los que nunca se han hecho.
+// Eso es lo que lo distingue de `historial_ejercicio`, y lo que permite
+// proponer una rutina sin inventarse ejercicios que no existen en la app.
+const catalogo = contenido(por[14])
+comprobar(catalogo.total === 3, `catálogo con ${catalogo.total} ejercicios, esperado 3`)
+const curl = catalogo.ejercicios.find((e) => e.nombre === 'Curl martillo')
+comprobar(curl !== undefined, 'el catálogo no incluye un ejercicio sin historial')
+comprobar(curl && curl.ultimaVez === null, 'un ejercicio nunca hecho tiene fecha de última vez')
+const pressDelCatalogo = catalogo.ejercicios.find((e) => e.nombre === 'Press banca con barra')
+comprobar(
+  pressDelCatalogo && pressDelCatalogo.ultimaVez !== null,
+  'un ejercicio con historial no trae su última vez'
+)
+comprobar(
+  catalogo.ejercicios.every((e, i, a) => i === 0 || a[i - 1].nombre.localeCompare(e.nombre, 'es') <= 0),
+  'el catálogo no viene ordenado por nombre'
+)
+
+const mancuernas = contenido(por[15])
+comprobar(mancuernas.total === 2, `filtro por material devuelve ${mancuernas.total}, esperado 2`)
+comprobar(
+  mancuernas.ejercicios.every((e) => e.material === 'mancuerna'),
+  'el filtro por material deja pasar otro material'
+)
+
+// Con un filtro sin resultados hay que decirlo, porque el error caro es
+// inventarse un ejercicio para rellenar el hueco.
+const sinResultados = contenido(por[16])
+comprobar(sinResultados.total === 0, `filtro inventado devuelve ${sinResultados.total}, esperado 0`)
+comprobar(
+  typeof sinResultados.nota === 'string' && sinResultados.nota.length > 0,
+  'un filtro sin resultados no avisa'
+)
+
+const ajustesLeidos = contenido(por[17])
+comprobar(ajustesLeidos.disponible === true, 'los ajustes del fixture no se leen')
+comprobar(
+  ajustesLeidos.objetivosSemanales.pecho === 12,
+  `objetivo de pecho = ${ajustesLeidos.objetivosSemanales.pecho}`
+)
+comprobar(
+  ajustesLeidos.incrementos.barraKg === 2.5,
+  `incremento de barra = ${ajustesLeidos.incrementos.barraKg}`
+)
+comprobar(ajustesLeidos.pesoCorporalKg === 78.5, `peso corporal = ${ajustesLeidos.pesoCorporalKg}`)
+// Es el dato por el que existe la herramienta: entre 20 y 22,5 no hay nada.
+comprobar(
+  ajustesLeidos.mancuernasDisponiblesKg.includes(22.5) &&
+    !ajustesLeidos.mancuernasDisponiblesKg.includes(21),
+  'las mancuernas disponibles no son las del ejemplo'
+)
+
+// ─── Escribir rutinas ────────────────────────────────────────────────────────
+
+// Antes de proponer nada no hay propuestas: la carpeta ni siquiera existe, y
+// eso no puede ser un error.
+const antes = contenido(por[18])
+comprobar(antes.pendientes === 0, `pendientes antes = ${antes.pendientes}, esperado 0`)
+
+const escrita = contenido(por[19])
+comprobar(escrita.escrita === true, 'una rutina válida no se escribe')
+comprobar(escrita.rutinas === 1 && escrita.ejercicios === 1, 'el recuento de lo escrito no cuadra')
+comprobar(
+  typeof escrita.archivo === 'string' && escrita.archivo.endsWith('.json'),
+  `el archivo escrito no parece un json: ${escrita.archivo}`
+)
+// Lo que de verdad importa: que el archivo exista y se pueda releer.
+const documentoEscrito = JSON.parse(readFileSync(escrita.archivo, 'utf8'))
+comprobar(documentoEscrito.version === 1, 'la propuesta no declara version 1')
+comprobar(documentoEscrito.carpeta === 'Propuesto por Claude', 'la carpeta no se guarda')
+comprobar(
+  documentoEscrito.rutinas[0].ejercicios[0].nombre === 'Curl martillo',
+  'el ejercicio no se guarda con su nombre'
+)
+
+// Un ejercicio inventado se rechaza, y el mensaje tiene que decir dónde mirar:
+// el error caro es que Claude se invente un nombre para rellenar.
+comprobar(por[20].result?.isError === true, 'un ejercicio inexistente no da error')
+const textoError = por[20].result?.content?.[0]?.text || ''
+comprobar(textoError.includes('Press de kriptonita'), 'el error no nombra el ejercicio que falla')
+comprobar(
+  textoError.includes('ejercicios_disponibles'),
+  'el error no remite al catálogo'
+)
+
+comprobar(por[21].result?.isError === true, '99 series no da error')
+comprobar(
+  (por[21].result?.content?.[0]?.text || '').includes('1 a 20'),
+  'el error de series no dice el rango permitido'
+)
+
+// Acentos, mayúsculas y espacios de sobra: igual que el importador de la app.
+comprobar(por[22].result?.isError !== true, 'un nombre con otra grafía se rechaza')
+const flojo = contenido(por[22])
+const docFlojo = JSON.parse(readFileSync(flojo.archivo, 'utf8'))
+comprobar(
+  docFlojo.rutinas[0].ejercicios[0].nombre === 'Curl martillo',
+  `el nombre no se normaliza a la grafía de la app: ${docFlojo.rutinas[0].ejercicios[0].nombre}`
+)
+
+// Las dos que se escribieron aparecen como pendientes; las rechazadas no.
+const despues = contenido(por[23])
+comprobar(despues.pendientes === 2, `pendientes después = ${despues.pendientes}, esperado 2`)
+comprobar(
+  despues.propuestas.every((p) => Array.isArray(p.rutinas) && p.rutinas.length === 1),
+  'una propuesta pendiente no resume sus rutinas'
+)
+
+// Un ejercicio nuevo con grupo declarado pasa, y el grupo llega al archivo.
+comprobar(por[24].result?.isError !== true, 'un ejercicio nuevo con grupo se rechaza')
+const conNuevo = contenido(por[24])
+const docNuevo = JSON.parse(readFileSync(conNuevo.archivo, 'utf8'))
+comprobar(
+  docNuevo.rutinas[0].ejercicios[0].grupo === 'cuadriceps',
+  'el grupo del ejercicio nuevo no llega al archivo'
+)
+// Y sin grupo sigue rechazándose, que es el caso que protege el recuento.
+comprobar(
+  (por[20].result?.content?.[0]?.text || '').includes('grupo'),
+  'el error de ejercicio inexistente no sugiere declarar el grupo'
+)
+
+// ─── El plan ─────────────────────────────────────────────────────────────────
+
+const plan = contenido(por[25])
+comprobar(plan.disponible === true, 'el plan del fixture no se lee')
+comprobar(
+  plan.objetivo?.titulo === 'Media maratón de prueba',
+  `objetivo del plan inesperado: ${plan.objetivo?.titulo}`
+)
+comprobar(plan.objetivo?.diasQueFaltan > 0, 'la competición del fixture no sale en el futuro')
+// Descansar no se cumple, así que no entra en el denominador: con él dentro el
+// cumplimiento salía bajo sin que nadie se hubiera saltado nada.
+comprobar(
+  plan.cumplimiento.diasExigiblesPasados === 3,
+  `días exigibles pasados = ${plan.cumplimiento.diasExigiblesPasados}, esperado 3`
+)
+comprobar(
+  plan.cumplimiento.hechos === 2,
+  `días hechos = ${plan.cumplimiento.hechos}, esperado 2`
+)
+comprobar(
+  plan.cumplimiento.saltados.length === 1 && plan.cumplimiento.saltados[0].titulo === 'Tirada larga',
+  'el día saltado del fixture no se señala'
+)
+// Previsto y corrido van separados: la diferencia es justo lo que se lee.
+comprobar(
+  plan.kilometros.previstosEnTodoElPlan === 46.1,
+  `km previstos = ${plan.kilometros.previstosEnTodoElPlan}, esperado 46,1`
+)
+comprobar(
+  plan.kilometros.previstosHastaHoy === 11,
+  `km previstos hasta hoy = ${plan.kilometros.previstosHastaHoy}, esperado 11`
+)
+comprobar(
+  plan.kilometros.corridos === 4.2,
+  `km corridos = ${plan.kilometros.corridos}, esperado 4,2`
+)
+comprobar(plan.proximos.length === 3, `próximos = ${plan.proximos.length}, esperado 3`)
+comprobar(
+  plan.proximos[0].rutina === 'Martes – Tirón',
+  'el día del plan no dice con qué rutina se entrena'
+)
+
+// ─── Resultado ──────────────────────────────────────────────────────────────
 
 if (fallos.length > 0) {
   console.error(`FALLO: ${fallos.length} de ${comprobaciones} comprobaciones\n`)

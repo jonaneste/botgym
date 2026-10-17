@@ -38,6 +38,7 @@ Entrenos/
     Records/             1RM estimado (Epley) y récords personales
     Volumen/             Volumen y series semanales por grupo muscular
     JSON/                Esquema de importación y exportación, y CSV
+    Plan/                Calendario hasta una fecha objetivo y su esquema JSON
     Salud/               Export de Apple Health y estimación de energía
   Datos/                 Modelos de SwiftData y repositorio
   Vistas/                SwiftUI, una carpeta por pestaña
@@ -47,7 +48,7 @@ Tests/                   Tests unitarios del núcleo
 mcp/                     Servidor MCP para que Claude lea tus datos
 Herramientas/            Verificación e instalación en el dispositivo
 CLAUDE.md                Decisiones del proyecto y trampas conocidas
-docs/                    Instalación y esquema JSON
+docs/                    Instalación y esquemas JSON (rutinas y plan)
 ```
 
 ### Por qué el núcleo está separado
@@ -122,4 +123,9 @@ node mcp/prueba.mjs    # 87 comprobaciones, sin instalar nada
 
 ## Instalación en el iPhone
 
-Ver [docs/INSTALACION.md](docs/INSTALACION.md).
+Por **TestFlight**, sin cable y sin que caduque cada semana: la build la sube el
+repositorio desde Actions. Ver [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md).
+Necesita el Apple Developer Program.
+
+Con el cable y una cuenta gratuita, que caduca a los 7 días:
+[docs/INSTALACION.md](docs/INSTALACION.md).

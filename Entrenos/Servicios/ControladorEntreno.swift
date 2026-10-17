@@ -36,6 +36,14 @@ final class ControladorEntreno {
     /// hay que incorporarlo para no avisar dos veces de lo mismo.
     private var recordsPrevios: [UUID: RecordsEjercicio] = [:]
 
+    /// La serie que arrancó el descanso que está corriendo ahora mismo.
+    ///
+    /// Solo vive en memoria: si la app se cierra y se reanuda, el descanso se
+    /// reconstruye desde la fecha guardada y ya no se sabe de qué serie salió.
+    /// Desmarcar entonces no lo para, que es lo correcto: a esas alturas el
+    /// descanso es del entreno, no del toque.
+    private var serieQueArrancoElDescanso: UUID?
+
     init(contexto: ModelContext) {
         self.contexto = contexto
         self.repositorio = RepositorioEntrenos(contexto: contexto)
@@ -100,20 +108,41 @@ final class ControladorEntreno {
             }
             let seriesAnteriores = anterior?.seriesEfectivas ?? []
 
-            for indice in 0..<max(1, elemento.seriesObjetivo) {
+            // Las de calentamiento van delante, y su peso se copia de los
+            // calentamientos de la última vez: el de trabajo no vale, que es
+            // justo lo que no se levanta para calentar.
+            let calentamientosAnteriores = anterior?.seriesOrdenadas.filter(\.esCalentamiento) ?? []
+            let calentamiento = max(0, elemento.seriesCalentamiento)
+
+            for indice in 0..<(calentamiento + max(1, elemento.seriesObjetivo)) {
                 let serie = SerieRegistrada(orden: indice)
-                // Precargar el peso de la misma serie de la última sesión.
-                if indice < seriesAnteriores.count {
-                    serie.peso = seriesAnteriores[indice].peso
-                } else if let ultima = seriesAnteriores.last {
-                    serie.peso = ultima.peso
+
+                if indice < calentamiento {
+                    serie.esCalentamiento = true
+                    if indice < calentamientosAnteriores.count {
+                        serie.peso = calentamientosAnteriores[indice].peso
+                    } else if let ultimo = calentamientosAnteriores.last {
+                        serie.peso = ultimo.peso
+                    }
+                } else {
+                    // Precargar el peso de la misma serie de trabajo de la
+                    // última sesión. El índice se desplaza: las anteriores que
+                    // se guardaron son solo las efectivas.
+                    let posicion = indice - calentamiento
+                    if posicion < seriesAnteriores.count {
+                        serie.peso = seriesAnteriores[posicion].peso
+                    } else if let ultima = seriesAnteriores.last {
+                        serie.peso = ultima.peso
+                    }
                 }
+
                 contexto.insert(serie)
                 serie.ejercicioEntreno = ejercicio
             }
         }
 
         entreno = nuevo
+        Haptica.ligera()
         guardar()
     }
 
@@ -167,17 +196,32 @@ final class ControladorEntreno {
 
     // MARK: - Series
 
-    func añadirSerie(a ejercicio: EjercicioEntreno) {
+    /// Añade una serie al final. Con `calentamiento` nace marcada, para que no
+    /// cuente en volumen, récords ni series semanales.
+    func añadirSerie(a ejercicio: EjercicioEntreno, calentamiento: Bool = false) {
         let orden = (ejercicio.series.map(\.orden).max() ?? -1) + 1
-        let ultima = ejercicio.seriesOrdenadas.last
+        // Se copia el peso de la última del mismo tipo: una serie de
+        // aproximación que nace con el peso de trabajo no sirve de nada.
+        let ultima = ejercicio.seriesOrdenadas.last { $0.esCalentamiento == calentamiento }
         let serie = SerieRegistrada(
             orden: orden,
             peso: ultima?.peso ?? 0,
             repeticiones: 0,
-            segundos: ejercicio.tipoRegistro.esTiempo ? 0 : nil
+            segundos: ejercicio.tipoRegistro.esTiempo ? 0 : nil,
+            esCalentamiento: calentamiento
         )
         contexto.insert(serie)
         serie.ejercicioEntreno = ejercicio
+        guardar()
+    }
+
+    /// Cambia una serie de trabajo a calentamiento y al revés.
+    ///
+    /// Tiene que pasar por aquí y no mutarse desde la vista: sin `guardar()`,
+    /// SwiftData deja el cambio en memoria y cerrar la app a mitad de serie lo
+    /// perdía, que es justo lo que no puede pasar en esta app.
+    func alternarCalentamiento(_ serie: SerieRegistrada) {
+        serie.esCalentamiento.toggle()
         guardar()
     }
 
@@ -200,9 +244,21 @@ final class ControladorEntreno {
             if ajustes.vibrarFinDescanso && avisoRecord == nil { Haptica.serieCompletada() }
             if ajustes.descansoAutomatico && ejercicio.descansoSegundos > 0 {
                 empezarDescanso(segundos: ejercicio.descansoSegundos, ejercicio: ejercicio, ajustes: ajustes)
+                serieQueArrancoElDescanso = serie.idPublico
             }
         } else {
             serie.fechaCompletada = nil
+            // Desmarcar para el descanso que arrancó esa misma serie.
+            //
+            // La casilla es grande y está pegada al campo de RIR, así que se
+            // toca sin querer. Al deshacerlo, el descanso seguía corriendo y
+            // dos minutos después vibraba y saltaba la notificación en la
+            // pantalla bloqueada por una serie que nunca se hizo. Solo se para
+            // el que salió de esta serie: uno puesto a mano, o el de otra
+            // serie, no se toca.
+            if serieQueArrancoElDescanso == serie.idPublico, temporizador.activo {
+                saltarDescanso()
+            }
         }
         guardar()
     }
@@ -292,6 +348,22 @@ final class ControladorEntreno {
     /// Récords batidos serie a serie durante el entreno, con su ejercicio.
     var resumenRecords: [RecordDeEjercicio] { recordsDelEntreno }
 
+    /// Cómo ha ido comparado con la última vez que se hizo esta misma rutina.
+    ///
+    /// `nil` si no hay con qué comparar: un entreno libre, o la primera vez
+    /// con esa rutina. «0 kg más que la última vez» sería mentira.
+    func comparacionConLaUltimaVez() -> ComparacionSesion? {
+        guard let entreno else { return nil }
+        let anterior = repositorio.anteriorDeLaMismaRutina(entreno)
+        return ComparadorSesiones.comparar(
+            seriesAhora: entreno.seriesCompletadas,
+            volumenAhora: entreno.volumenTotal,
+            anterior: anterior.map {
+                (fecha: $0.fechaInicio, series: $0.seriesCompletadas, volumen: $0.volumenTotal)
+            }
+        )
+    }
+
     /// Sugerencia de carga para un ejercicio del entreno en curso.
     func sugerencia(para ejercicio: EjercicioEntreno, ajustes: Ajustes) -> SugerenciaProgresion {
         progreso.sugerencia(
@@ -327,6 +399,10 @@ final class ControladorEntreno {
     // MARK: - Descanso
 
     func empezarDescanso(segundos: Int, ejercicio: EjercicioEntreno?, ajustes: Ajustes) {
+        // Un descanso nuevo no es de nadie hasta que quien lo arranca lo diga:
+        // sin esto, la marca de una serie anterior seguiría puesta y
+        // desmarcarla pararía un descanso que ya no es suyo.
+        serieQueArrancoElDescanso = nil
         let fin = Date().addingTimeInterval(TimeInterval(segundos))
         entreno?.descansoHasta = fin
         entreno?.descansoDuracion = segundos
@@ -349,6 +425,7 @@ final class ControladorEntreno {
         // acaba parando el temporizador hay que limpiarla, o quedaba un
         // descanso a medio borrar en la base.
         if temporizador.fechaFin == nil {
+            serieQueArrancoElDescanso = nil
             entreno?.descansoDuracion = nil
         } else {
             entreno?.descansoDuracion = LimitesEntrada.entero(temporizador.duracionTotal)
@@ -363,6 +440,7 @@ final class ControladorEntreno {
     }
 
     func saltarDescanso() {
+        serieQueArrancoElDescanso = nil
         temporizador.parar()
         entreno?.descansoHasta = nil
         entreno?.descansoDuracion = nil
@@ -371,6 +449,7 @@ final class ControladorEntreno {
     }
 
     private func descansoTerminado() {
+        serieQueArrancoElDescanso = nil
         entreno?.descansoHasta = nil
         entreno?.descansoDuracion = nil
         Haptica.finDescanso()
@@ -395,13 +474,24 @@ final class ControladorEntreno {
     func finalizar(molestiaHombro: Int?, molestiaRodilla: Int?, notas: String, ajustes: Ajustes) {
         guard let entreno else { return }
 
+        var ejerciciosConSeries = 0
+
         // Se decide todo sobre copias tomadas antes de borrar nada: mutar una
         // relación de SwiftData mientras se recorre da resultados imprevisibles.
         for ejercicio in entreno.ejerciciosOrdenados {
-            let completadas = ejercicio.seriesOrdenadas.filter(\.completada)
-            let incompletas = ejercicio.seriesOrdenadas.filter { !$0.completada }
+            let tipo = ejercicio.tipoRegistro
+            // Una casilla marcada sin nada anotado tampoco es una serie: no
+            // suma volumen, pero sí contaba como serie del grupo muscular en
+            // el objetivo semanal, que es el recuento que no se puede falsear
+            // en silencio.
+            let completadas = ejercicio.seriesOrdenadas.filter {
+                $0.completada && !RevisionSerie.estaVacia($0.valor, tipo: tipo)
+            }
+            let sobrantes = ejercicio.seriesOrdenadas.filter {
+                !$0.completada || RevisionSerie.estaVacia($0.valor, tipo: tipo)
+            }
 
-            for serie in incompletas {
+            for serie in sobrantes {
                 contexto.delete(serie)
             }
 
@@ -415,6 +505,15 @@ final class ControladorEntreno {
                 serie.orden = indice
             }
             ejercicio.entrenoFinalizado = true
+            ejerciciosConSeries += 1
+        }
+
+        // Un entreno que se abrió y se dejó a medias no es un entreno de cero
+        // series: es un entreno que no pasó. Guardarlo dejaba una fila en el
+        // historial, con su duración y su hora, sin nada detrás.
+        guard ejerciciosConSeries > 0 else {
+            descartar()
+            return
         }
 
         entreno.molestiaHombro = molestiaHombro
@@ -436,6 +535,10 @@ final class ControladorEntreno {
         avisoRecord = nil
         recordsDelEntreno = []
         recordsPrevios = [:]
+        // Cerrar un entreno es el final de algo: se nota, igual que marcar
+        // una serie. Sin esto, el único momento de la app sin respuesta
+        // física era justo el que más la pedía.
+        Haptica.record()
         guardar()
 
         // El volcado del JSON va DESPUÉS de guardar, no antes: la consulta que

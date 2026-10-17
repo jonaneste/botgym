@@ -4,6 +4,7 @@ import SwiftData
 /// Historial de entrenos finalizados.
 struct VistaHistorial: View {
     @Environment(\.modelContext) private var contexto
+    @Environment(\.dynamicTypeSize) private var tamañoTexto
 
     // Se filtra por el valor crudo del estado porque en iOS 17 los
     // `#Predicate` sobre propiedades de tipo enum no son fiables.
@@ -19,6 +20,7 @@ struct VistaHistorial: View {
 
     @State private var entrenoABorrar: Entreno?
     @State private var carreras: [Carrera] = []
+    @State private var mostrarAnotarCarrera = false
 
     var body: some View {
         NavigationStack {
@@ -68,10 +70,24 @@ struct VistaHistorial: View {
                 }
             }
             .navigationTitle("Historial")
-            .onAppear {
-                CacheCarreras.compartida.cargarSiHaceFalta()
-                carreras = CacheCarreras.compartida.recientes()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        mostrarAnotarCarrera = true
+                    } label: {
+                        Label("Anotar carrera", systemImage: "figure.run")
+                    }
+                    .tint(Paleta.carrera)
+                }
             }
+            .sheet(isPresented: $mostrarAnotarCarrera) {
+                VistaAnotarCarreraManual()
+            }
+            .onChange(of: mostrarAnotarCarrera) { _, abierto in
+                // Al cerrar la hoja: si se anotó una, tiene que aparecer ya.
+                if !abierto { carreras = RepositorioCarreras(contexto: contexto).recientes() }
+            }
+            .onAppear { carreras = RepositorioCarreras(contexto: contexto).recientes() }
             .refreshable { await recargarCarreras() }
             .alert(
                 "¿Borrar entreno?",
@@ -95,29 +111,38 @@ struct VistaHistorial: View {
 
     // MARK: - Resumen
 
+    /// El acumulado de todo el historial, con las mismas cifras grandes que
+    /// la cabecera del entreno y el resumen de fin: es el mismo tipo de dato
+    /// y tiene que leerse igual en los tres sitios.
+    ///
+    /// Las filas de abajo siguen siendo filas de lista a propósito. Un
+    /// historial es para recorrerlo con el pulgar, y convertirlo en tarjetas
+    /// sueltas caben menos entrenos en pantalla sin ganar nada.
+    private var seriesTotales: Int {
+        entrenos.reduce(0) { $0 + $1.seriesCompletadas }
+    }
+
     private var resumenGeneral: some View {
-        HStack {
-            columnaResumen("Entrenos", "\(entrenos.count)")
-            Divider()
-            columnaResumen("Series", "\(entrenos.reduce(0) { $0 + $1.seriesCompletadas })")
-            Divider()
-            columnaResumen("Volumen", Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }))
+        HStack(spacing: 0) {
+            CifraDestacada(
+                valor: "\(entrenos.count)",
+                etiqueta: Formato.palabra(entrenos.count, "Entreno", "Entrenos")
+            )
+            Divider().frame(height: 28)
+            CifraDestacada(
+                valor: "\(seriesTotales)",
+                etiqueta: Formato.palabra(seriesTotales, "Serie", "Series")
+            )
+            Divider().frame(height: 28)
+            CifraDestacada(
+                valor: Formato.volumen(entrenos.reduce(0) { $0 + $1.volumenTotal }),
+                etiqueta: "Volumen"
+            )
         }
+        .padding(.vertical, 6)
         // Mínimo y no fijo: las dos líneas de texto crecen con el ajuste
         // del sistema, y a tamaños de accesibilidad se recortaban.
         .frame(minHeight: 44)
-    }
-
-    private func columnaResumen(_ titulo: String, _ valor: String) -> some View {
-        VStack(spacing: 2) {
-            Text(valor)
-                .font(.system(.headline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-            Text(titulo)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Fila
@@ -133,10 +158,24 @@ struct VistaHistorial: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 12) {
-                etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
-                etiqueta("checklist", "\(entreno.seriesCompletadas) series")
-                etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
+            // En columna con el texto de accesibilidad. Las tres etiquetas
+            // en una fila a esos cuerpos no caben en un tercio de ancho cada
+            // una, y el resultado era «1 ser-ie» y «60-0 kg»: una cifra
+            // partida a la mitad no es una cifra.
+            Group {
+                if tamañoTexto.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 4) {
+                        etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
+                        etiqueta("checklist", Formato.cuenta(entreno.seriesCompletadas, "serie", "series"))
+                        etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
+                        etiqueta("checklist", Formato.cuenta(entreno.seriesCompletadas, "serie", "series"))
+                        etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
+                    }
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -164,7 +203,7 @@ struct VistaHistorial: View {
             Text("\(zona) \(valor)/10")
         }
         .font(.caption2)
-        .foregroundStyle(valor >= 7 ? .red : .orange)
+        .foregroundStyle(Paleta.molestia(valor))
     }
 
     // MARK: - Agrupación por mes
@@ -213,7 +252,7 @@ struct VistaHistorial: View {
                 CacheCarreras.compartida.guardar(nuevas)
             }
         }
-        carreras = CacheCarreras.compartida.recientes()
+        carreras = RepositorioCarreras(contexto: contexto).recientes()
     }
 
     private static func tituloMes(_ fecha: Date) -> String {
@@ -258,7 +297,7 @@ struct FilaCarrera: View {
         HStack(spacing: 12) {
             Image(systemName: "figure.run")
                 .font(.title3)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Paleta.carrera)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -305,7 +344,7 @@ struct FilaResumenCarreras: View {
         HStack {
             columna(Formato.numeroCorto(resumen.kilometros) + " km", "Distancia")
             Divider()
-            columna("\(resumen.carreras)", resumen.carreras == 1 ? "Carrera" : "Carreras")
+            columna("\(resumen.carreras)", Formato.palabra(resumen.carreras, "Carrera", "Carreras"))
             Divider()
             columna(Formato.duracionLarga(resumen.duracion), "Tiempo")
             if let ritmo = resumen.ritmoMedioSegundosPorKm {

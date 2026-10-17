@@ -107,6 +107,29 @@ final class Entreno {
         ejercicios.reduce(0) { $0 + $1.series.count }
     }
 
+    /// Ejercicios que van a quedar guardados: los que tienen al menos una
+    /// serie marcada con algo dentro.
+    ///
+    /// Es lo que enseña la pantalla de cierre. `ejercicios.count` contaba
+    /// también los que se quedaron vacíos y que el propio cierre borra, así
+    /// que decía «6 ejercicios» justo antes de guardar uno.
+    var ejerciciosConSeries: Int {
+        ejercicios.filter { $0.seriesCompletadas > 0 }.count
+    }
+
+    /// No hay ni una serie con algo anotado.
+    ///
+    /// No vale `seriesCompletadas == 0`: una casilla marcada sin repeticiones
+    /// ni segundos cuenta ahí y no es nada. Es lo que decide si al cerrar se
+    /// guarda el entreno o se descarta.
+    var sinNadaRegistrado: Bool {
+        !ejercicios.contains { ejercicio in
+            ejercicio.series.contains {
+                $0.completada && !RevisionSerie.estaVacia($0.valor, tipo: ejercicio.tipoRegistro)
+            }
+        }
+    }
+
     /// Todas las series completadas, para alimentar récords y volumen.
     var seriesEfectivas: [SerieRegistrada] {
         ejercicios.flatMap { $0.series }.filter(\.esEfectiva)

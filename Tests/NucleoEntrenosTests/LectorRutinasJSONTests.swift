@@ -274,4 +274,86 @@ final class LectorRutinasJSONTests: XCTestCase {
         XCTAssertEqual(rutina.nombre, "R")
         XCTAssertEqual(rutina.ejercicios[0].nombre, "E")
     }
+
+    // MARK: - Grupo y material de los ejercicios nuevos
+
+    func testSeLeenElGrupoYElMaterialDeUnEjercicioNuevo() throws {
+        let json = """
+        { "version": 1, "rutinas": [{ "nombre": "R", "ejercicios": [
+          { "nombre": "Búlgaras", "series": 4, "grupo": "cuadriceps",
+            "gruposSecundarios": ["gluteo", "isquios"], "material": "mancuerna" }
+        ] }] }
+        """
+        let ejercicio = try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0]
+        XCTAssertEqual(ejercicio.grupoPrincipal, "cuadriceps")
+        XCTAssertEqual(ejercicio.gruposSecundarios, ["gluteo", "isquios"])
+        XCTAssertEqual(ejercicio.material, "mancuerna")
+    }
+
+    func testSinGrupoNiMaterialQuedanNulos() throws {
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3 }] }] }"
+        let ejercicio = try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0]
+        XCTAssertNil(ejercicio.grupoPrincipal)
+        XCTAssertNil(ejercicio.material)
+        XCTAssertTrue(ejercicio.gruposSecundarios.isEmpty)
+    }
+
+    func testUnGrupoVacioOConEspaciosNoCuenta() throws {
+        // Una cadena vacía tiene que comportarse como «no lo sé», no como un
+        // grupo con nombre vacío que luego no casa con ningún enum.
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3, \"grupo\": \"   \", \"gruposSecundarios\": [\"\", \" gluteo \"] }] }] }"
+        let ejercicio = try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0]
+        XCTAssertNil(ejercicio.grupoPrincipal)
+        XCTAssertEqual(ejercicio.gruposSecundarios, ["gluteo"])
+    }
+
+    func testUnGrupoDesconocidoNoTumbaLaLectura() throws {
+        // El núcleo no conoce los enums de la app: valida la forma, no el
+        // vocabulario. Un nombre inventado llega como texto y es el
+        // importador quien decide ignorarlo.
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3, \"grupo\": \"tentaculo\" }] }] }"
+        let ejercicio = try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0]
+        XCTAssertEqual(ejercicio.grupoPrincipal, "tentaculo")
+    }
+    // MARK: - Series de calentamiento
+
+    func testSeLeenLasSeriesDeCalentamiento() throws {
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 4, \"calentamiento\": 2 }] }] }"
+        let ejercicio = try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0]
+        XCTAssertEqual(ejercicio.series, 4)
+        XCTAssertEqual(ejercicio.seriesCalentamiento, 2)
+    }
+
+    func testSinCalentamientoSonCero() throws {
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3 }] }] }"
+        let ejercicio = try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0]
+        XCTAssertEqual(ejercicio.seriesCalentamiento, 0)
+    }
+
+    func testCeroCalentamientosEsValido() throws {
+        // A diferencia de `series`, aquí 0 es un valor legítimo: la mayoría de
+        // los ejercicios de una rutina no llevan aproximación.
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3, \"calentamiento\": 0 }] }] }"
+        XCTAssertEqual(try LectorRutinasJSON.leer(json).rutinas[0].ejercicios[0].seriesCalentamiento, 0)
+    }
+
+    func testDemasiadosCalentamientosDanErrorConSuRuta() {
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3, \"calentamiento\": 40 }] }] }"
+        XCTAssertThrowsError(try LectorRutinasJSON.leer(json)) { error in
+            let fallo = error as? ErrorImportacion
+            XCTAssertEqual(fallo?.ruta, "rutinas[0].ejercicios[0].calentamiento")
+        }
+    }
+
+    func testUnCalentamientoNegativoSeRechaza() {
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3, \"calentamiento\": -1 }] }] }"
+        XCTAssertThrowsError(try LectorRutinasJSON.leer(json))
+    }
+
+    func testUnCalentamientoQueNoEsNumeroSeRechaza() {
+        let json = "{ \"version\": 1, \"rutinas\": [{ \"nombre\": \"R\", \"ejercicios\": [{ \"nombre\": \"E\", \"series\": 3, \"calentamiento\": \"dos\" }] }] }"
+        XCTAssertThrowsError(try LectorRutinasJSON.leer(json)) { error in
+            XCTAssertEqual((error as? ErrorImportacion)?.ruta, "rutinas[0].ejercicios[0].calentamiento")
+        }
+    }
 }

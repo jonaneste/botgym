@@ -16,6 +16,8 @@ build.log
 # la carpeta de la instalación semanal quedaba sin ignorar y lista para que
 # alguien se comiera cientos de megas en un commit.
 .build-iphone/
+# Y lo que deja compilar para el simulador, igual de pesado.
+.build-sim/
 
 # Swift Package Manager
 .build/

@@ -23,6 +23,24 @@ final class Rutina {
         self.fechaCreacion = Date()
     }
 
+    /// Busca una rutina por nombre, ignorando mayúsculas y acentos.
+    ///
+    /// Si hay varias con el mismo nombre —pasa: las importaciones son
+    /// aditivas, así que una carpeta vieja y una nueva pueden tener las dos
+    /// «Lunes – Pierna y core»— gana **la más reciente**. El nombre viene de
+    /// un plan escrito ahora, así que se refiere a la rutina de ahora, no a la
+    /// que quedó de hace dos meses con la mitad de series.
+    ///
+    /// Sin esta regla el resultado dependía del orden de la lista, y el botón
+    /// de «Empezar» del plan podía arrancar la rutina vieja sin decir nada.
+    static func buscar(nombre: String, en rutinas: [Rutina]) -> Rutina? {
+        let buscado = Ejercicio.normalizar(nombre)
+        guard !buscado.isEmpty else { return nil }
+        return rutinas
+            .filter { Ejercicio.normalizar($0.nombre) == buscado }
+            .max { $0.fechaCreacion < $1.fechaCreacion }
+    }
+
     /// Elementos en su orden real.
     var elementosOrdenados: [ElementoRutina] {
         elementos.sorted { $0.orden < $1.orden }

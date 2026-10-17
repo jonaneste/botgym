@@ -15,6 +15,28 @@
       "tipoRegistro": "repeticiones",
       "esPersonalizado": false,
       "notas": ""
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "nombre": "Elevaciones laterales",
+      "grupoPrincipal": "hombroLateral",
+      "gruposSecundarios": [],
+      "material": "mancuerna",
+      "tipoRegistro": "repeticiones",
+      "esPersonalizado": false,
+      "notas": ""
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "nombre": "Curl martillo",
+      "grupoPrincipal": "biceps",
+      "gruposSecundarios": [
+        "antebrazo"
+      ],
+      "material": "mancuerna",
+      "tipoRegistro": "repeticiones",
+      "esPersonalizado": false,
+      "notas": ""
     }
   ],
   "carpetas": [
@@ -401,6 +423,91 @@
       "pulsoMedio": 148,
       "calorias": 420.0,
       "origen": "Zepp"
+    }
+  ],
+  "ajustes": {
+    "objetivosSemanales": {
+      "pecho": 12,
+      "espalda": 14,
+      "cuadriceps": 10
+    },
+    "incrementoBarra": 2.5,
+    "incrementoPolea": 2.5,
+    "incrementoMaquina": 2.5,
+    "incrementoTiempo": 5,
+    "mancuernasDisponibles": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22.5,
+      25,
+      27.5,
+      30
+    ],
+    "rirPorDefectoMin": 1,
+    "rirPorDefectoMax": 2,
+    "descansoPorDefectoSegundos": 90,
+    "pesoCorporal": 78.5
+  },
+  "plan": [
+    {
+      "fecha": "2000-01-03T00:00:00Z",
+      "tipo": "gimnasio",
+      "titulo": "Pierna y core",
+      "notas": "Pasado y cumplido.",
+      "rutina": "Lunes – Pierna",
+      "hecho": true
+    },
+    {
+      "fecha": "2000-01-04T00:00:00Z",
+      "tipo": "carrera",
+      "titulo": "Tirada larga",
+      "notas": "Pasado y saltado.",
+      "km": 6,
+      "hecho": false
+    },
+    {
+      "fecha": "2000-01-05T00:00:00Z",
+      "tipo": "descanso",
+      "titulo": "Descanso",
+      "hecho": false
+    },
+    {
+      "fecha": "2000-01-06T00:00:00Z",
+      "tipo": "carrera",
+      "titulo": "Rodaje",
+      "km": 5,
+      "kmHechos": 4.2,
+      "hecho": true
+    },
+    {
+      "fecha": "2099-01-05T00:00:00Z",
+      "tipo": "gimnasioYCarrera",
+      "titulo": "Pecho y tríceps",
+      "km": 4,
+      "rutina": "Martes – Tirón",
+      "hecho": false
+    },
+    {
+      "fecha": "2099-01-06T00:00:00Z",
+      "tipo": "carrera",
+      "titulo": "Tirada larga",
+      "km": 10,
+      "hecho": false
+    },
+    {
+      "fecha": "2099-01-10T00:00:00Z",
+      "tipo": "competicion",
+      "titulo": "Media maratón de prueba",
+      "km": 21.1,
+      "hecho": false
     }
   ]
 }

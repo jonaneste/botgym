@@ -46,14 +46,61 @@ struct ServicioExportacion {
 
         // Las carreras salen del caché, que es lo que haya llegado de Salud
         // o del archivo importado.
-        CacheCarreras.compartida.cargarSiHaceFalta()
-        let carreras = CacheCarreras.compartida.carreras.map(CarreraExportada.init(de:))
+        // Por el repositorio y no por el caché a secas: ahí es donde se juntan
+        // las medidas con las escritas a mano, y exportar solo las medidas
+        // dejaba el MCP aconsejando sobre cero kilómetros.
+        let carreras = RepositorioCarreras(contexto: contexto).todas()
+            .map(CarreraExportada.init(de:))
 
         return ExportacionCompleta(
             ejercicios: ejercicios,
             carpetas: todasLasCarpetas,
             entrenos: entrenos,
-            carreras: carreras
+            carreras: carreras,
+            ajustes: exportarAjustes(),
+            plan: exportarPlan()
+        )
+    }
+
+    /// El plan cargado, con lo cumplido. Sin esto, quien lee el archivo ve
+    /// los entrenos sueltos y no sabe si van adelantados o atrasados.
+    private func exportarPlan() -> [DiaPlanExportado] {
+        RepositorioPlan(contexto: contexto).todos().map { dia in
+            DiaPlanExportado(
+                fecha: dia.fecha,
+                tipo: dia.tipo.rawValue,
+                titulo: dia.titulo,
+                notas: dia.notas,
+                km: dia.kilometros,
+                kmHechos: dia.kilometrosHechos,
+                rutina: dia.nombreRutina,
+                hecho: dia.hecho
+            )
+        }
+    }
+
+    /// Los ajustes que cambian cómo se leen los datos o qué se puede
+    /// aconsejar con ellos. Los de interfaz —vibrar, notificar— no salen:
+    /// a quien lee el archivo no le dicen nada.
+    private func exportarAjustes() -> AjustesExportados {
+        let ajustes = Ajustes.cargar(en: contexto)
+        var objetivos: [String: Int] = [:]
+        for (grupo, series) in ajustes.objetivosSemanales {
+            objetivos[grupo.rawValue] = series
+        }
+        return AjustesExportados(
+            objetivosSemanales: objetivos,
+            incrementoBarra: ajustes.incrementoBarra,
+            incrementoPolea: ajustes.incrementoPolea,
+            incrementoMaquina: ajustes.incrementoMaquina,
+            incrementoTiempo: ajustes.incrementoTiempo,
+            mancuernasDisponibles: ajustes.mancuernasDisponibles,
+            rirPorDefectoMin: ajustes.rirPorDefectoMin,
+            rirPorDefectoMax: ajustes.rirPorDefectoMax,
+            descansoPorDefectoSegundos: ajustes.descansoPorDefecto,
+            // Cero es «sin poner», no un peso. Mandarlo como cero haría que
+            // una estimación de calorías o de carga relativa saliera absurda.
+            pesoCorporal: ajustes.pesoCorporal > 0 ? ajustes.pesoCorporal : nil
         )
     }
 
@@ -73,6 +120,7 @@ struct ServicioExportacion {
                 ElementoExportado(
                     nombre: elemento.ejercicio?.nombre ?? "Ejercicio borrado",
                     series: elemento.seriesObjetivo,
+                    calentamiento: elemento.seriesCalentamiento > 0 ? elemento.seriesCalentamiento : nil,
                     reps: SerializadorExportacion.textoReps(
                         min: elemento.objetivoMin,
                         max: elemento.objetivoMax,

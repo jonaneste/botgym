@@ -32,6 +32,23 @@ final class Ajustes {
     /// los diccionarios con claves de tipo enum.
     var objetivosSemanalesRaw: [String] = []
 
+    /// Si los objetivos semanales ya se pusieron solos a partir de las
+    /// rutinas. Existe para no volver a ponerlos: quien los borra a propósito
+    /// no quiere encontrárselos otra vez al abrir Progreso.
+    var objetivosPuestosSolos: Bool = false
+
+    /// Cómo te llamas, para el saludo de la pantalla de entrenar.
+    ///
+    /// Con valor por defecto y no vacío porque la app es de una sola persona:
+    /// al añadir el campo, SwiftData rellena las filas que ya existían con
+    /// este valor, así que el saludo sale bien sin tener que ir a escribirlo.
+    var nombre: String = "Jon Andoni"
+
+    /// Tema de color y apariencia. Como enums crudos, igual que el resto:
+    /// en iOS 17 SwiftData no filtra ni ordena de forma fiable por enums.
+    var temaRaw: String = Tema.porDefecto.rawValue
+    var aparienciaRaw: String = AparienciaApp.sistema.rawValue
+
     /// Avisar con una notificación local cuando acaba el descanso.
     var notificarFinDescanso: Bool = true
     /// Vibrar al terminar el descanso.
@@ -61,6 +78,18 @@ final class Ajustes {
 
     init() {
         self.idPublico = UUID()
+    }
+
+    // MARK: - Apariencia
+
+    var tema: Tema {
+        get { Tema(rawValue: temaRaw) ?? .porDefecto }
+        set { temaRaw = newValue.rawValue }
+    }
+
+    var apariencia: AparienciaApp {
+        get { AparienciaApp(rawValue: aparienciaRaw) ?? .sistema }
+        set { aparienciaRaw = newValue.rawValue }
     }
 
     // MARK: - Objetivos semanales

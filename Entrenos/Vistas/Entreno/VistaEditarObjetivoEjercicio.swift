@@ -114,7 +114,7 @@ struct SelectorDescanso: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                                 .background(
-                                    segundos == opcion ? Color.accentColor : Color(.secondarySystemFill),
+                                    segundos == opcion ? Paleta.acento : Color(.secondarySystemFill),
                                     in: .capsule
                                 )
                                 .foregroundStyle(segundos == opcion ? Color.white : Color.primary)

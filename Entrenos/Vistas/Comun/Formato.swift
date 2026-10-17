@@ -130,6 +130,17 @@ enum Formato {
         return formateador.string(from: fecha)
     }
 
+    /// Día de la semana abreviado: "mar". Para las filas del plan, donde el
+    /// nombre entero no cabe junto al número del día.
+    static func diaSemanaCorto(_ fecha: Date) -> String {
+        let formateador = DateFormatter()
+        formateador.locale = localeES
+        formateador.setLocalizedDateFormatFromTemplate("EEE")
+        // El formateador deja el punto de la abreviatura en español («mar.»),
+        // y en una columna de 38 pt ese punto es ruido.
+        return formateador.string(from: fecha).replacingOccurrences(of: ".", with: "")
+    }
+
     /// Calendario español: la semana empieza en lunes.
     ///
     /// Delega en el núcleo: el recuento de series semanales depende de dónde
@@ -144,6 +155,21 @@ enum Formato {
     }
 
     /// Lo que se hizo en una serie: "60 kg × 9", "40 s", "× 12".
+    /// «1 serie», «3 series». La cifra y la palabra que le toca.
+    ///
+    /// El historial escribía «1 series» en la cabecera y en cada fila. La
+    /// concordancia estaba resuelta a mano en ocho sitios y de ocho maneras,
+    /// así que en los tres que faltaban nadie lo vio.
+    static func cuenta(_ cuantos: Int, _ singular: String, _ plural: String) -> String {
+        "\(cuantos) \(cuantos == 1 ? singular : plural)"
+    }
+
+    /// La palabra sola, sin la cifra: para una etiqueta debajo de un número
+    /// grande, donde la cifra ya está escrita aparte.
+    static func palabra(_ cuantos: Int, _ singular: String, _ plural: String) -> String {
+        cuantos == 1 ? singular : plural
+    }
+
     static func resumenSerie(peso: Double, repeticiones: Int, segundos: Int?, tipo: TipoRegistro) -> String {
         if tipo.esTiempo {
             let tiempo = "\(segundos ?? 0) s"

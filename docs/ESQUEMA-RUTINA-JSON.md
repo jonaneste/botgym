@@ -21,7 +21,7 @@ tocar nada. Pégale a la IA este documento entero y te devolverá algo válido.
     {
       "nombre": "Lunes – Empuje",
       "ejercicios": [
-        { "nombre": "Press banca con barra", "series": 4, "reps": "8-10", "rir": "2-3", "descanso": 150 },
+        { "nombre": "Press banca con barra", "series": 4, "calentamiento": 2, "reps": "8-10", "rir": "2-3", "descanso": 150 },
         { "nombre": "Elevaciones laterales", "series": 4, "reps": "12-15", "descanso": 60 }
       ]
     }
@@ -52,12 +52,16 @@ tocar nada. Pégale a la IA este documento entero y te devolverá algo válido.
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `nombre` | texto | sí | Se busca en tu biblioteca ignorando mayúsculas y acentos. |
-| `series` | entero | sí | Entre 1 y 20. |
+| `series` | entero | sí | Series de trabajo. Entre 1 y 20. |
+| `calentamiento` | entero | no | Series de aproximación antes de las de trabajo. Entre 0 y 20, por defecto 0. Se crean marcadas como calentamiento, así que no cuentan para el volumen, los récords ni las series semanales. |
 | `reps` | texto | no | Rango objetivo. Ver abajo. Si se omite, son series libres. |
 | `rir` | texto | no | Repeticiones en reserva objetivo: `"2"` o `"2-3"`. Si se omite se usa el valor por defecto de Ajustes. |
 | `descanso` | entero | no | Segundos de descanso. Por defecto 90. |
 | `notas` | texto | no | Notas del ejercicio dentro de esta rutina. |
 | `superserie` | texto | no | Etiqueta de agrupación. Ver abajo. |
+| `grupo` | texto | no | Grupo muscular, **solo si el ejercicio no existe todavía**. Ver abajo. |
+| `gruposSecundarios` | lista de texto | no | Grupos que trabaja de forma secundaria. Cuentan media serie. |
+| `material` | texto | no | `barra`, `mancuerna`, `polea`, `maquina`, `peso` u `otro`. |
 
 ## El campo `reps`
 
@@ -97,6 +101,30 @@ Eso son dos superseries de dos ejercicios cada una.
 Si un nombre no está en tu biblioteca, la importación **no falla**: se para y
 te lista los nombres desconocidos, con los parecidos que haya encontrado, para
 que elijas entre crearlos nuevos o mapearlos a uno que ya tengas.
+
+Si eliges crearlo, **dile de qué grupo es**. Un ejercicio sin grupo no suma a
+las series semanales de ninguna parte, así que una rutina entera de ejercicios
+nuevos deja el recuento a cero sin avisar:
+
+```json
+{
+  "nombre": "Búlgaras",
+  "series": 4,
+  "reps": "6-8",
+  "grupo": "cuadriceps",
+  "gruposSecundarios": ["gluteo", "isquios"],
+  "material": "mancuerna"
+}
+```
+
+Los grupos válidos son `pecho`, `espalda`, `dorsal`, `trapecio`,
+`hombroAnterior`, `hombroLateral`, `hombroPosterior`, `biceps`, `triceps`,
+`antebrazo`, `cuadriceps`, `isquios`, `gluteo`, `gemelo`, `core` y `lumbar`.
+
+Los tres campos **se ignoran si el ejercicio ya existe**: lo que tengas
+configurado manda sobre lo que diga un archivo. Y un nombre de grupo que no
+exista se ignora en lugar de tumbar la importación, pero entonces el ejercicio
+nace sin clasificar y la app te lo deja dicho en sus notas.
 
 ## Tolerancias
 

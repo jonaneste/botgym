@@ -15,15 +15,62 @@ struct VistaFinalizarEntreno: View {
     @State private var molestiaRodilla: Double = 0
     @State private var notas = ""
     @State private var recordsVolumen: [RecordDeEjercicio] = []
+    @State private var comparacion: ComparacionSesion?
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Resumen") {
-                    filaResumen("Duración", Formato.duracionLarga(entreno.duracion), "stopwatch")
-                    filaResumen("Series completadas", "\(entreno.seriesCompletadas)", "checklist")
-                    filaResumen("Volumen total", Formato.volumen(entreno.volumenTotal), "scalemass")
-                    filaResumen("Ejercicios", "\(entreno.ejercicios.count)", "figure.strengthtraining.traditional")
+                // Es la última pantalla del entreno, y la última impresión es
+                // la que queda. Las cuatro cifras van grandes y juntas, como un
+                // marcador, en vez de cuatro filas de etiqueta y valor donde la
+                // etiqueta pesaba más que el número.
+                Section {
+                    VStack(spacing: 14) {
+                        Text(entreno.sinNadaRegistrado ? "Sin series anotadas" : "Entreno terminado")
+                            .font(.headline)
+                        HStack(spacing: 0) {
+                            CifraDestacada(
+                                valor: Formato.duracionLarga(entreno.duracion),
+                                etiqueta: "Duración"
+                            )
+                            Divider().frame(height: 28)
+                            CifraDestacada(
+                                valor: "\(entreno.seriesCompletadas)",
+                                etiqueta: Formato.palabra(entreno.seriesCompletadas, "Serie", "Series"),
+                                color: Paleta.logrado
+                            )
+                        }
+                        HStack(spacing: 0) {
+                            CifraDestacada(
+                                valor: Formato.volumen(entreno.volumenTotal),
+                                etiqueta: "Volumen"
+                            )
+                            Divider().frame(height: 28)
+                            CifraDestacada(
+                                valor: "\(entreno.ejerciciosConSeries)",
+                                etiqueta: Formato.palabra(entreno.ejerciciosConSeries, "Ejercicio", "Ejercicios")
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .listRowBackground(
+                        LinearGradient(
+                            colors: [
+                                colorDelCierre.opacity(0.18),
+                                colorDelCierre.opacity(0.05),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .background(Color(.secondarySystemGroupedBackground))
+                    )
+                }
+
+                if let comparacion {
+                    Section {
+                        FilaComparacion(comparacion: comparacion)
+                    }
                 }
 
                 if !todosLosRecords.isEmpty {
@@ -31,18 +78,27 @@ struct VistaFinalizarEntreno: View {
                         ForEach(todosLosRecords) { entrada in
                             HStack(alignment: .top, spacing: 10) {
                                 Image(systemName: "trophy.fill")
-                                    .foregroundStyle(.yellow)
+                                    .font(.title3)
+                                    .foregroundStyle(Paleta.record)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(entrada.nombreEjercicio)
-                                        .font(.subheadline.weight(.medium))
+                                        .font(.subheadline.weight(.semibold))
                                     Text(textoRecord(entrada.batido))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
+                            .padding(.vertical, 2)
                         }
+                        .listRowBackground(Paleta.record.opacity(0.12))
                     } header: {
-                        Text(todosLosRecords.count == 1 ? "Récord batido" : "Récords batidos")
+                        Label(
+                            todosLosRecords.count == 1 ? "Récord batido" : "Récords batidos",
+                            systemImage: "sparkles"
+                        )
+                        .foregroundStyle(Paleta.record)
+                        .textCase(nil)
+                        .font(.subheadline.weight(.semibold))
                     }
                 }
 
@@ -67,7 +123,7 @@ struct VistaFinalizarEntreno: View {
                 }
 
                 Section {
-                    Button {
+                    Button(role: entreno.sinNadaRegistrado ? .destructive : nil) {
                         controlador.finalizar(
                             molestiaHombro: anotarHombro ? Int(molestiaHombro) : nil,
                             molestiaRodilla: anotarRodilla ? Int(molestiaRodilla) : nil,
@@ -76,11 +132,19 @@ struct VistaFinalizarEntreno: View {
                         )
                         cerrar()
                     } label: {
-                        Text("Guardar entreno")
+                        // El botón dice lo que va a pasar. Sin ninguna serie
+                        // anotada el entreno no se guarda, y un botón que
+                        // dijese «Guardar» para luego no dejar nada en el
+                        // historial se leería como que se ha perdido.
+                        Text(entreno.sinNadaRegistrado ? "Descartar entreno" : "Guardar entreno")
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity, minHeight: 40)
                     }
                     .buttonStyle(.borderedProminent)
+                } footer: {
+                    if entreno.sinNadaRegistrado {
+                        Text("No hay ninguna serie con repeticiones anotadas, así que no se guarda en el historial.")
+                    }
                 }
             }
             .navigationTitle("Terminar entreno")
@@ -93,8 +157,19 @@ struct VistaFinalizarEntreno: View {
             .onAppear {
                 notas = entreno.notas
                 recordsVolumen = controlador.recordsDeVolumen()
+                comparacion = controlador.comparacionConLaUltimaVez()
             }
         }
+    }
+
+    /// Verde si hubo récord o si mejoró lo de la última vez; si no, el acento.
+    /// El rojo no entra aquí: un entreno peor que el anterior sigue siendo un
+    /// entreno hecho, y teñirlo de alarma es lo que hace que no se abra la app
+    /// al día siguiente.
+    private var colorDelCierre: Color {
+        if !todosLosRecords.isEmpty { return Paleta.record }
+        if comparacion?.esMejora == true { return Paleta.logrado }
+        return Paleta.acento
     }
 
     /// Los de serie, detectados durante el entreno, más los de volumen, que
@@ -122,17 +197,6 @@ struct VistaFinalizarEntreno: View {
         return "\(batido.tipo.nombre): \(valor), antes \(textoAnterior)"
     }
 
-    private func filaResumen(_ titulo: String, _ valor: String, _ icono: String) -> some View {
-        HStack {
-            Label(titulo, systemImage: icono)
-            Spacer()
-            Text(valor)
-                .font(.system(.body, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-        }
-    }
-
     private func deslizadorMolestia(valor: Binding<Double>, etiqueta: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -155,5 +219,74 @@ struct VistaFinalizarEntreno: View {
         case 6..<8: return .orange
         default: return .red
         }
+    }
+}
+
+/// Cómo ha ido comparado con la última vez que se hizo esta rutina.
+///
+/// Dos cifras y una frase, no una tabla: lo que se quiere saber al terminar es
+/// si se ha movido más peso que la vez anterior.
+struct FilaComparacion: View {
+    let comparacion: ComparacionSesion
+
+    private var color: Color {
+        if comparacion.esMejora { return Paleta.logrado }
+        if comparacion.esIgual { return .secondary }
+        return Paleta.aviso
+    }
+
+    private var icono: String {
+        if comparacion.esMejora { return "arrow.up.right.circle.fill" }
+        if comparacion.esIgual { return "equal.circle.fill" }
+        return "arrow.down.right.circle"
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icono)
+                .font(.title3)
+                .foregroundStyle(color)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titulo)
+                    .font(.subheadline.weight(.semibold))
+                Text(detalle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var titulo: String {
+        if comparacion.esIgual { return "Igual que la última vez" }
+        let volumen = Formato.volumen(abs(comparacion.diferenciaVolumen))
+        return comparacion.esMejora
+            ? "\(volumen) más que la última vez"
+            : "\(volumen) menos que la última vez"
+    }
+
+    private var detalle: String {
+        let antes = Formato.cuenta(comparacion.seriesAntes, "serie", "series")
+        var partes = ["Entonces: \(antes) y \(Formato.volumen(comparacion.volumenAntes))"]
+        if comparacion.diferenciaSeries != 0 {
+            let diferencia = Formato.cuenta(abs(comparacion.diferenciaSeries), "serie", "series")
+            partes.append(
+                comparacion.diferenciaSeries > 0
+                    ? "hoy \(diferencia) más"
+                    : "hoy \(diferencia) menos"
+            )
+        }
+        // El porcentaje solo si significa algo: a peso corporal el volumen es
+        // 0 y no hay nada que dividir.
+        if let porcentaje = comparacion.porcentajeVolumen, abs(porcentaje) >= 1 {
+            partes.append("\(porcentaje > 0 ? "+" : "")\(Formato.numeroCorto(porcentaje)) %")
+        }
+        partes.append(Formato.fechaRelativa(comparacion.fechaAnterior))
+        return partes.joined(separator: " · ")
     }
 }

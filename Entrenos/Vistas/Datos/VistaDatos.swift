@@ -92,7 +92,7 @@ struct VistaDatos: View {
                     Label(nombreCarpeta, systemImage: "folder.badge.gearshape")
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Paleta.logrado)
                 }
 
                 if let ultimaAuto {
@@ -102,7 +102,25 @@ struct VistaDatos: View {
                         Spacer()
                         Text("\(Formato.fechaRelativa(ultimaAuto)) \(Formato.hora(ultimaAuto))")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ultimaEstaVieja ? Paleta.aviso : .secondary)
+                    }
+                }
+
+                // Un volcado automático que falla no puede quedarse callado:
+                // el archivo del Mac se congela en la última fecha buena y
+                // desde fuera parece que la app no escribe, sin saber por qué.
+                if let fallo = ExportadorAutomatico.compartido.ultimoFalloAutomatico {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("El último volcado automático falló")
+                                .font(.caption.weight(.semibold))
+                            Text(fallo)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Paleta.aviso)
                     }
                 }
 
@@ -237,6 +255,7 @@ struct VistaDatos: View {
                     )
                 }
             } else {
+                let puedeSubir = ajustes.healthKitActivado && pendientesDeSync > 0
                 Button {
                     sincronizarConSalud(ajustes)
                 } label: {
@@ -248,18 +267,29 @@ struct VistaDatos: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Color.accentColor, in: .capsule)
-                                .foregroundStyle(.white)
+                                // La pastilla sigue el estado del botón. Con
+                                // Salud sin conectar el botón ya estaba
+                                // apagado, pero la pastilla seguía pintada del
+                                // acento y el icono tintado: la fila se veía
+                                // viva y al tocarla no pasaba nada.
+                                .background(
+                                    puedeSubir ? Paleta.acento : Color(.tertiarySystemFill),
+                                    in: .capsule
+                                )
+                                .foregroundStyle(puedeSubir ? Color.white : .secondary)
                         }
                     }
                 }
-                .disabled(!ajustes.healthKitActivado || pendientesDeSync == 0)
+                .disabled(!puedeSubir)
             }
 
+            // Solo afecta a lo que se escribe en Salud, así que sin Salud
+            // conectado no hay nada que evitar.
             Toggle("Evitar duplicados del reloj", isOn: Binding(
                 get: { ajustes.evitarDuplicadosEnSalud },
                 set: { ajustes.evitarDuplicadosEnSalud = $0; try? contexto.save() }
             ))
+            .disabled(!ajustes.healthKitActivado)
         } header: {
             Text("Salud como centro de datos")
         } footer: {
@@ -403,6 +433,14 @@ struct VistaDatos: View {
         case .fallo(let detalle):
             mensaje = MensajeDatos(titulo: "No se pudo escribir", detalle: detalle)
         }
+    }
+
+    /// Más de un día sin escribir con la carpeta configurada. No es un error
+    /// por sí solo —puede que no hayas entrenado—, pero es la pista de que
+    /// algo no está llegando al Mac, y pintarlo en naranja cuesta nada.
+    private var ultimaEstaVieja: Bool {
+        guard let ultimaAuto else { return false }
+        return Date().timeIntervalSince(ultimaAuto) > 24 * 60 * 60
     }
 
     /// ¿Es una carpeta lo que se eligió? `nil` si el sistema no lo dice.

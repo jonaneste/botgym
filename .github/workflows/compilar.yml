@@ -62,7 +62,7 @@ jobs:
 
   nucleo:
     name: Tests del núcleo (macOS)
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -83,7 +83,7 @@ jobs:
 
   app:
     name: Compilar la app para iOS
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5

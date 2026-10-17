@@ -15,6 +15,13 @@ final class ElementoRutina {
     var rutina: Rutina?
 
     var seriesObjetivo: Int = 3
+    /// Series de aproximación que la rutina pone antes de las de trabajo.
+    ///
+    /// Se crean marcadas como calentamiento, así que no cuentan para
+    /// progresión, récords ni series semanales. Están aquí y no en el
+    /// historial porque son parte del plan: "cuatro de banca, con dos de
+    /// aproximación antes".
+    var seriesCalentamiento: Int = 0
     /// Repeticiones o segundos, según el `tipoRegistro` del ejercicio.
     /// Ambos a `nil` significa series libres, sin rango.
     var objetivoMin: Int?
@@ -31,6 +38,7 @@ final class ElementoRutina {
         ejercicio: Ejercicio?,
         orden: Int,
         seriesObjetivo: Int,
+        seriesCalentamiento: Int = 0,
         objetivoMin: Int? = nil,
         objetivoMax: Int? = nil,
         rirMin: Int? = nil,
@@ -43,6 +51,7 @@ final class ElementoRutina {
         self.ejercicio = ejercicio
         self.orden = orden
         self.seriesObjetivo = seriesObjetivo
+        self.seriesCalentamiento = seriesCalentamiento
         self.objetivoMin = objetivoMin
         self.objetivoMax = objetivoMax
         self.rirMin = rirMin
@@ -70,7 +79,9 @@ final class ElementoRutina {
 
     /// Resumen del objetivo: "4 × 8-10 · RIR 2-3".
     var resumenObjetivo: String {
-        var partes = ["\(seriesObjetivo) × \(objetivo.textoRango(tipo: tipoRegistro))"]
+        var partes: [String] = []
+        if seriesCalentamiento > 0 { partes.append("\(seriesCalentamiento) cal.") }
+        partes.append("\(seriesObjetivo) × \(objetivo.textoRango(tipo: tipoRegistro))")
         let rir = objetivo.textoRIR
         if !rir.isEmpty { partes.append(rir) }
         return partes.joined(separator: " · ")

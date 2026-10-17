@@ -44,6 +44,9 @@ public struct RutinaImportada: Equatable, Sendable {
 public struct EjercicioImportado: Equatable, Sendable {
     public var nombre: String
     public var series: Int
+    /// Series de aproximación antes de las de trabajo. No cuentan para nada:
+    /// nacen marcadas como calentamiento.
+    public var seriesCalentamiento: Int
     /// Repeticiones o segundos, según `esTiempo`. `nil` = series libres.
     public var objetivoMin: Int?
     public var objetivoMax: Int?
@@ -55,10 +58,21 @@ public struct EjercicioImportado: Equatable, Sendable {
     public var notas: String
     /// Etiqueta de agrupación. Los consecutivos con la misma forman superserie.
     public var etiquetaSuperserie: String?
+    /// Grupo muscular, solo para los ejercicios que no existen todavía.
+    ///
+    /// Sin esto, un ejercicio creado al importar nace sin clasificar y **no
+    /// cuenta** para las series semanales de ningún grupo: una rutina entera
+    /// de ejercicios nuevos dejaba el recuento a cero sin decir nada. Se
+    /// ignora para los que ya están en la biblioteca: lo que ya tienes
+    /// configurado manda sobre lo que diga un archivo.
+    public var grupoPrincipal: String?
+    public var gruposSecundarios: [String]
+    public var material: String?
 
     public init(
         nombre: String,
         series: Int,
+        seriesCalentamiento: Int = 0,
         objetivoMin: Int? = nil,
         objetivoMax: Int? = nil,
         esTiempo: Bool = false,
@@ -66,10 +80,14 @@ public struct EjercicioImportado: Equatable, Sendable {
         rirMax: Int? = nil,
         descansoSegundos: Int = 90,
         notas: String = "",
-        etiquetaSuperserie: String? = nil
+        etiquetaSuperserie: String? = nil,
+        grupoPrincipal: String? = nil,
+        gruposSecundarios: [String] = [],
+        material: String? = nil
     ) {
         self.nombre = nombre
         self.series = series
+        self.seriesCalentamiento = seriesCalentamiento
         self.objetivoMin = objetivoMin
         self.objetivoMax = objetivoMax
         self.esTiempo = esTiempo
@@ -78,6 +96,9 @@ public struct EjercicioImportado: Equatable, Sendable {
         self.descansoSegundos = descansoSegundos
         self.notas = notas
         self.etiquetaSuperserie = etiquetaSuperserie
+        self.grupoPrincipal = grupoPrincipal
+        self.gruposSecundarios = gruposSecundarios
+        self.material = material
     }
 }
 
@@ -253,6 +274,25 @@ public enum LectorRutinasJSON {
             )
         }
 
+        // Series de calentamiento. Opcional y con el mismo tope que las de
+        // trabajo: un «calentamiento: 40» es un dedazo, no un plan.
+        var calentamiento = 0
+        if let crudoCalentamiento = objeto["calentamiento"] {
+            guard let valor = enteroDe(crudoCalentamiento) else {
+                throw ErrorImportacion(
+                    ruta: "\(ruta).calentamiento",
+                    mensaje: "Tiene que ser un número entero de series."
+                )
+            }
+            guard valor >= 0, valor <= maxSeries else {
+                throw ErrorImportacion(
+                    ruta: "\(ruta).calentamiento",
+                    mensaje: "\(valor) está fuera de rango. Tiene que estar entre 0 y \(maxSeries)."
+                )
+            }
+            calentamiento = valor
+        }
+
         // Rango de repeticiones o segundos.
         var objetivoMin: Int?
         var objetivoMax: Int?
@@ -319,9 +359,22 @@ public enum LectorRutinasJSON {
             superserie = limpia.isEmpty ? nil : limpia
         }
 
+        // El grupo y el material se leen como texto y NO se validan contra el
+        // catálogo aquí: el núcleo no conoce los enums de la app, y un nombre
+        // que no exista se ignora al crear en lugar de tumbar la importación
+        // entera por una etiqueta mal escrita.
+        let grupo = (objeto["grupo"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let secundarios = ((objeto["gruposSecundarios"] as? [Any]) ?? [])
+            .compactMap { ($0 as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let material = (objeto["material"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
         return EjercicioImportado(
             nombre: nombre,
             series: series,
+            seriesCalentamiento: calentamiento,
             objetivoMin: objetivoMin,
             objetivoMax: objetivoMax,
             esTiempo: esTiempo,
@@ -329,7 +382,10 @@ public enum LectorRutinasJSON {
             rirMax: rirMax,
             descansoSegundos: descanso,
             notas: notas,
-            etiquetaSuperserie: superserie
+            etiquetaSuperserie: superserie,
+            grupoPrincipal: (grupo?.isEmpty ?? true) ? nil : grupo,
+            gruposSecundarios: secundarios,
+            material: (material?.isEmpty ?? true) ? nil : material
         )
     }
 

@@ -21,6 +21,10 @@ final class ExportadorAutomatico {
     private let claveNombre = "nombreCarpetaExportacion"
     private let nombreArchivo = "entrenos.json"
 
+    /// Subcarpeta donde el MCP deja las rutinas propuestas. El nombre está
+    /// acordado con `mcp/servidor-entrenos.mjs`: si cambia aquí, cambia allí.
+    static let carpetaPropuestas = "propuestas"
+
     private init() {}
 
     // MARK: - Carpeta elegida
@@ -134,6 +138,120 @@ final class ExportadorAutomatico {
         return .escrito(destino)
     }
 
+    // MARK: - Rutinas propuestas desde fuera
+
+    /// Una rutina que alguien ha dejado en `propuestas/` dentro de la carpeta
+    /// de Claude, esperando a que la revises.
+    struct Propuesta: Identifiable, Hashable {
+        let id: URL
+        let nombreArchivo: String
+        let fecha: Date
+        let json: String
+        /// Los nombres de las rutinas que trae, para enseñarlos sin tener que
+        /// abrir el JSON.
+        let rutinas: [String]
+    }
+
+    /// Lo que hay ahora mismo en la carpeta de propuestas.
+    struct Bandeja {
+        /// Listas para revisar, de más reciente a más antigua.
+        var listas: [Propuesta] = []
+        /// Cuántas están todavía bajando de iCloud. Se cuentan para poder
+        /// decirlo: si no, la pantalla sale vacía justo después de que Claude
+        /// diga que ha escrito una, y parece que no funciona.
+        var descargando: Int = 0
+    }
+
+    /// Lee las propuestas pendientes.
+    ///
+    /// Es la otra mitad del puente con Claude: la app escribe `entrenos.json`
+    /// para que lo lea, y Claude deja aquí las rutinas que propone. No se
+    /// importa nada solo: esto únicamente las encuentra, y la pantalla de
+    /// importar las enseña para que las aceptes. Una rutina que entrara sola
+    /// podría cambiar tus objetivos sin que te enteres.
+    func propuestasPendientes() -> Bandeja {
+        guard let carpeta = resolverCarpeta() else { return Bandeja() }
+        // Como todo lo que toca esa URL, dentro del ámbito de seguridad: sin
+        // esto, listar el directorio falla con el error 257.
+        guard carpeta.startAccessingSecurityScopedResource() else { return Bandeja() }
+        defer { carpeta.stopAccessingSecurityScopedResource() }
+
+        let directorio = carpeta.appendingPathComponent(Self.carpetaPropuestas, isDirectory: true)
+        // SIN `skipsHiddenFiles`: un archivo de iCloud que todavía no se ha
+        // bajado a este iPhone no existe con su nombre, sino como un
+        // marcador oculto «.loquesea.json.icloud». Saltándose los ocultos, una
+        // propuesta recién escrita desde el Mac sencillamente no aparecía, y
+        // el usuario no tenía forma de saber que estaba de camino.
+        let contenido = (try? FileManager.default.contentsOfDirectory(
+            at: directorio,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: []
+        )) ?? []
+
+        var bandeja = Bandeja()
+        for url in contenido {
+            let nombre = url.lastPathComponent
+
+            if nombre.hasSuffix(".icloud") && nombre.hasPrefix(".") {
+                // Se pide la descarga y se cuenta. En la próxima visita a la
+                // pantalla ya estará, que es cuando se vuelve a leer.
+                let real = directorio.appendingPathComponent(
+                    String(nombre.dropFirst().dropLast(".icloud".count))
+                )
+                if real.pathExtension.lowercased() == "json" {
+                    try? FileManager.default.startDownloadingUbiquitousItem(at: real)
+                    bandeja.descargando += 1
+                }
+                continue
+            }
+
+            guard url.pathExtension.lowercased() == "json" else { continue }
+            guard let texto = try? String(contentsOf: url, encoding: .utf8) else {
+                // Está pero no se deja leer: casi siempre es que aún baja.
+                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+                bandeja.descargando += 1
+                continue
+            }
+            let fecha = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            bandeja.listas.append(
+                Propuesta(
+                    id: url,
+                    nombreArchivo: nombre,
+                    fecha: fecha,
+                    json: texto,
+                    rutinas: Self.nombresDeRutinas(en: texto)
+                )
+            )
+        }
+
+        bandeja.listas.sort { $0.fecha > $1.fecha }
+        return bandeja
+    }
+
+    /// Saca los nombres de las rutinas sin validar el resto: aquí solo hace
+    /// falta qué enseñar en la lista. De validarlo en serio ya se encarga el
+    /// importador cuando la aceptas.
+    private static func nombresDeRutinas(en texto: String) -> [String] {
+        guard let datos = texto.data(using: .utf8),
+              let raiz = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+              let rutinas = raiz["rutinas"] as? [[String: Any]]
+        else { return [] }
+        return rutinas.compactMap { $0["nombre"] as? String }
+    }
+
+    /// Quita una propuesta ya importada, para que no vuelva a aparecer.
+    ///
+    /// Se borra en lugar de marcarla: el archivo ya cumplió su función, y
+    /// dejarlo obligaría a llevar una lista de "ya vistas" que se
+    /// desincronizaría en cuanto se tocara la carpeta desde el Mac.
+    func descartarPropuesta(_ propuesta: Propuesta) {
+        guard let carpeta = resolverCarpeta() else { return }
+        guard carpeta.startAccessingSecurityScopedResource() else { return }
+        defer { carpeta.stopAccessingSecurityScopedResource() }
+        try? FileManager.default.removeItem(at: propuesta.id)
+    }
+
     /// Igual que `exportar(contexto:)`, pero la escritura coordinada sale del
     /// hilo principal.
     ///
@@ -210,9 +328,37 @@ final class ExportadorAutomatico {
         Task { [weak self] in
             guard let self else { return }
             if case .fallo(let detalle) = await self.exportarFueraDelPrincipal(contexto: contexto) {
-                print("Exportación automática fallida: \(detalle)")
+                // Se guarda en lugar de imprimirse. Un `print` en un build de
+                // desarrollo no lo ve nadie: el archivo se quedaba congelado
+                // en la fecha del último volcado que sí funcionó y desde
+                // fuera parecía que la app no estaba escribiendo nada, sin
+                // forma de saber por qué.
+                ultimoFalloAutomatico = detalle
+            } else {
+                ultimoFalloAutomatico = nil
             }
         }
+    }
+
+    /// El último error de un volcado automático, o `nil` si el último fue bien.
+    ///
+    /// Lo lee la pantalla de Datos para poder decirlo, que es el caso que de
+    /// verdad importa: si el permiso de la carpeta se pierde, los volcados
+    /// fallan en silencio y el Mac sigue leyendo datos de hace días como si
+    /// fueran de hoy.
+    private(set) var ultimoFalloAutomatico: String?
+
+    /// Vuelca si ha pasado algo desde la última vez.
+    ///
+    /// Se llama al abrir la app y al mandarla al fondo, no solo al terminar un
+    /// entreno. Terminar un entreno NO es el único momento en que cambian los
+    /// datos: corregir una serie en el historial, borrar un entreno, importar
+    /// una rutina o tocar los objetivos también, y ninguno de esos volcaba.
+    /// El archivo se quedaba viejo y la única salida era el botón de «Volcar
+    /// ahora», que es justo el paso manual que sobra.
+    func exportarAlCambiarDeEstado(contexto: ModelContext) {
+        guard estaConfigurado else { return }
+        exportarSiProcede(contexto: contexto)
     }
 }
 

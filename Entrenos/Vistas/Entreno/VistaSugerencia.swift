@@ -16,7 +16,6 @@ struct VistaSugerencia: View {
         case .subirPeso(let nuevoPeso):
             fila(
                 icono: "arrow.up.circle.fill",
-                color: .green,
                 titulo: "Sube a \(Formato.peso(nuevoPeso))",
                 accion: { controlador.aplicarPeso(nuevoPeso, a: ejercicio) }
             )
@@ -24,7 +23,6 @@ struct VistaSugerencia: View {
         case .subirTiempo(let segundos):
             fila(
                 icono: "arrow.up.circle.fill",
-                color: .green,
                 titulo: "Sube a \(segundos) s",
                 accion: { controlador.aplicarSegundos(segundos, a: ejercicio) }
             )
@@ -32,7 +30,6 @@ struct VistaSugerencia: View {
         case .mantener(let peso, let objetivo):
             fila(
                 icono: "equal.circle.fill",
-                color: .blue,
                 titulo: peso > 0
                     ? "Mantén \(Formato.peso(peso)), busca \(objetivo)"
                     : "Busca \(objetivo)",
@@ -40,11 +37,11 @@ struct VistaSugerencia: View {
             )
 
         case .ampliarRango:
-            fila(icono: "arrow.up.left.and.arrow.down.right.circle.fill", color: .orange,
+            fila(icono: "arrow.up.left.and.arrow.down.right.circle.fill",
                  titulo: "Toca ampliar el rango", accion: nil)
 
         case .primeraVez:
-            fila(icono: "sparkles", color: .purple, titulo: "Primera vez", accion: nil)
+            fila(icono: "sparkles", titulo: "Primera vez", accion: nil)
 
         case .sinRango:
             EmptyView()
@@ -52,11 +49,11 @@ struct VistaSugerencia: View {
     }
 
     @ViewBuilder
-    private func fila(icono: String, color: Color, titulo: String, accion: (() -> Void)?) -> some View {
+    private func fila(icono: String, titulo: String, accion: (() -> Void)?) -> some View {
         let contenido = HStack(spacing: 6) {
             Image(systemName: icono)
                 .font(.caption)
-                .foregroundStyle(color)
+                .foregroundStyle(Paleta.progresion)
             Text(titulo)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.primary)
@@ -69,7 +66,7 @@ struct VistaSugerencia: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(color.opacity(0.12), in: .rect(cornerRadius: 8))
+        .background(Paleta.progresion.opacity(0.12), in: .rect(cornerRadius: 8))
 
         if let accion {
             Button(action: accion) { contenido }
@@ -87,11 +84,18 @@ struct VistaAvisoRecord: View {
     let aviso: AvisoRecord
     let alCerrar: () -> Void
 
+    @State private var aparecido = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // El trofeo rebota al aparecer: es el único momento de la app que
+            // merece celebrarse, y un icono quieto se lee como un aviso más.
             Image(systemName: "trophy.fill")
                 .font(.title2)
-                .foregroundStyle(.yellow)
+                .foregroundStyle(Paleta.record)
+                .symbolEffect(.bounce, value: aviso.id)
+                .scaleEffect(aparecido ? 1 : 0.6)
+                .animacion(Muelles.elastico, value: aparecido)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(aviso.titulo)
@@ -118,12 +122,26 @@ struct VistaAvisoRecord: View {
             .accessibilityLabel("Cerrar aviso")
         }
         .padding(14)
-        .background(.regularMaterial, in: .rect(cornerRadius: 14))
+        .background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(
+                    LinearGradient(
+                        colors: [Paleta.record.opacity(0.28), Paleta.record.opacity(0.10)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .background(.regularMaterial, in: .rect(cornerRadius: 14))
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(.yellow.opacity(0.5), lineWidth: 1)
+                .strokeBorder(Paleta.record.opacity(0.55), lineWidth: 1)
         }
-        .shadow(radius: 8, y: 4)
+        .shadow(color: Paleta.record.opacity(0.25), radius: 10, y: 4)
         .padding(.horizontal, 12)
+        // La vibración del récord NO va aquí: ya la da el controlador al
+        // detectarlo, y además respeta el ajuste de vibrar. Repetirla en la
+        // vista eran dos golpes y uno de ellos sin preguntar.
+        .onAppear { aparecido = true }
     }
 }

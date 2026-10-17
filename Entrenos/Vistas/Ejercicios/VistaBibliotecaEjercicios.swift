@@ -21,7 +21,7 @@ struct VistaBibliotecaEjercicios: View {
                         } label: {
                             FilaEjercicio(ejercicio: ejercicio)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(BotonPulsable())
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 ejercicioABorrar = ejercicio

@@ -17,6 +17,15 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     /// Carreras importadas de Apple Salud. Van en el mismo archivo para que un
     /// solo JSON contenga todo el entrenamiento, gimnasio y carrera.
     public var carreras: [CarreraExportada]
+    /// Lo que la app sabe y quien lee el archivo no podía deducir: contra qué
+    /// objetivo se cuentan las series de cada grupo, y con qué saltos de carga
+    /// se progresa. Sin esto, un consejo como «sube a 22,5» es una suposición:
+    /// depende de qué mancuernas hay en el gimnasio.
+    public var ajustes: AjustesExportados?
+    /// El plan cargado, con lo que ya se ha cumplido. Va en el archivo para
+    /// que quien aconseja sepa contra qué se compara la semana: «te faltan
+    /// dos entrenos y la tirada larga» no se puede decir sin el plan.
+    public var plan: [DiaPlanExportado]
 
     public init(
         version: Int = ExportacionCompleta.versionActual,
@@ -25,7 +34,9 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         ejercicios: [EjercicioExportado],
         carpetas: [CarpetaExportada],
         entrenos: [EntrenoExportado],
-        carreras: [CarreraExportada] = []
+        carreras: [CarreraExportada] = [],
+        ajustes: AjustesExportados? = nil,
+        plan: [DiaPlanExportado] = []
     ) {
         self.version = version
         self.generado = generado
@@ -34,6 +45,8 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         self.carpetas = carpetas
         self.entrenos = entrenos
         self.carreras = carreras
+        self.ajustes = ajustes
+        self.plan = plan
     }
 
     public static let versionActual = 1
@@ -41,7 +54,7 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
     /// Las carreras se añadieron después, así que un archivo de la versión 1
     /// sin ellas sigue siendo válido.
     enum CodingKeys: String, CodingKey {
-        case version, generado, app, ejercicios, carpetas, entrenos, carreras
+        case version, generado, app, ejercicios, carpetas, entrenos, carreras, ajustes, plan
     }
 
     public init(from decodificador: Decoder) throws {
@@ -53,10 +66,90 @@ public struct ExportacionCompleta: Codable, Equatable, Sendable {
         carpetas = try contenedor.decode([CarpetaExportada].self, forKey: .carpetas)
         entrenos = try contenedor.decode([EntrenoExportado].self, forKey: .entrenos)
         carreras = try contenedor.decodeIfPresent([CarreraExportada].self, forKey: .carreras) ?? []
+        ajustes = try contenedor.decodeIfPresent(AjustesExportados.self, forKey: .ajustes)
+        plan = try contenedor.decodeIfPresent([DiaPlanExportado].self, forKey: .plan) ?? []
+    }
+}
+
+/// Un día del plan en el archivo de exportación.
+public struct DiaPlanExportado: Codable, Equatable, Sendable {
+    public var fecha: Date
+    public var tipo: String
+    public var titulo: String
+    public var notas: String
+    /// Kilómetros previstos por el plan.
+    public var km: Double?
+    /// Kilómetros que se corrieron, si se anotaron. Van aparte de los
+    /// previstos a propósito: la diferencia entre lo planeado y lo hecho es
+    /// justo lo que hay que leer para aconsejar.
+    public var kmHechos: Double?
+    public var rutina: String?
+    public var hecho: Bool
+
+    public init(
+        fecha: Date, tipo: String, titulo: String, notas: String = "",
+        km: Double? = nil, kmHechos: Double? = nil, rutina: String? = nil, hecho: Bool = false
+    ) {
+        self.fecha = fecha
+        self.tipo = tipo
+        self.titulo = titulo
+        self.notas = notas
+        self.km = km
+        self.kmHechos = kmHechos
+        self.rutina = rutina
+        self.hecho = hecho
     }
 }
 
 /// Una carrera en el archivo de exportación.
+/// Los ajustes que hacen falta para interpretar los datos y para aconsejar
+/// con ellos.
+///
+/// No va todo lo de la pantalla de ajustes: las preferencias de vibración o
+/// de notificación no le dicen nada a quien lee el archivo. Van las que
+/// cambian la lectura —cuál es el objetivo semanal de cada grupo— y las que
+/// condicionan un consejo: con qué saltos sube la carga en cada material y
+/// qué mancuernas existen de verdad en el gimnasio.
+public struct AjustesExportados: Codable, Equatable, Sendable {
+    /// Series objetivo por semana, con el grupo muscular como clave.
+    public var objetivosSemanales: [String: Int]
+    public var incrementoBarra: Double
+    public var incrementoPolea: Double
+    public var incrementoMaquina: Double
+    public var incrementoTiempo: Int
+    /// Pesos de mancuerna disponibles, en kg y ordenados.
+    public var mancuernasDisponibles: [Double]
+    public var rirPorDefectoMin: Int
+    public var rirPorDefectoMax: Int
+    public var descansoPorDefectoSegundos: Int
+    /// En kg. Cero significa que no se ha puesto, no que pese cero.
+    public var pesoCorporal: Double?
+
+    public init(
+        objetivosSemanales: [String: Int],
+        incrementoBarra: Double,
+        incrementoPolea: Double,
+        incrementoMaquina: Double,
+        incrementoTiempo: Int,
+        mancuernasDisponibles: [Double],
+        rirPorDefectoMin: Int,
+        rirPorDefectoMax: Int,
+        descansoPorDefectoSegundos: Int,
+        pesoCorporal: Double?
+    ) {
+        self.objetivosSemanales = objetivosSemanales
+        self.incrementoBarra = incrementoBarra
+        self.incrementoPolea = incrementoPolea
+        self.incrementoMaquina = incrementoMaquina
+        self.incrementoTiempo = incrementoTiempo
+        self.mancuernasDisponibles = mancuernasDisponibles.sorted()
+        self.rirPorDefectoMin = rirPorDefectoMin
+        self.rirPorDefectoMax = rirPorDefectoMax
+        self.descansoPorDefectoSegundos = descansoPorDefectoSegundos
+        self.pesoCorporal = pesoCorporal
+    }
+}
+
 public struct CarreraExportada: Codable, Equatable, Sendable {
     public var id: String
     public var fecha: Date
@@ -129,6 +222,9 @@ public struct RutinaExportada: Codable, Equatable, Sendable {
 public struct ElementoExportado: Codable, Equatable, Sendable {
     public var nombre: String
     public var series: Int
+    /// Series de aproximación. Se omite cuando es 0, que es lo normal, para no
+    /// llenar el archivo de ceros.
+    public var calentamiento: Int?
     /// Mismo formato que el importador: "8-10", "15", "30-45s".
     public var reps: String?
     public var rir: String?
@@ -137,11 +233,13 @@ public struct ElementoExportado: Codable, Equatable, Sendable {
     public var superserie: String?
 
     public init(
-        nombre: String, series: Int, reps: String?, rir: String?,
+        nombre: String, series: Int, calentamiento: Int? = nil,
+        reps: String?, rir: String?,
         descanso: Int, notas: String, superserie: String?
     ) {
         self.nombre = nombre
         self.series = series
+        self.calentamiento = calentamiento
         self.reps = reps
         self.rir = rir
         self.descanso = descanso

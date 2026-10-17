@@ -11,6 +11,8 @@ struct VistaAjustes: View {
         NavigationStack {
             Form {
                 if let ajustes {
+                    seccionNombre(ajustes)
+                    seccionApariencia(ajustes)
                     seccionDescanso(ajustes)
                     seccionProgresion(ajustes)
                     seccionObjetivos(ajustes)
@@ -32,6 +34,76 @@ struct VistaAjustes: View {
     }
 
     // MARK: - Secciones
+
+    private func seccionNombre(_ ajustes: Ajustes) -> some View {
+        Section {
+            TextField("Tu nombre", text: Binding(
+                get: { ajustes.nombre },
+                set: { ajustes.nombre = $0 }
+            ))
+            .textInputAutocapitalization(.words)
+        } footer: {
+            Text("Sale en el saludo de la pantalla de entrenar. Déjalo vacío si no lo quieres.")
+        }
+    }
+
+    /// Tema y apariencia.
+    ///
+    /// El tema cambia solo el acento: lo que se puede tocar. Los colores de
+    /// estado no se eligen, porque significan algo —verde hecho, rojo por
+    /// debajo— y volverlos una preferencia estética sería poder pintar de
+    /// verde una semana que va corta.
+    private func seccionApariencia(_ ajustes: Ajustes) -> some View {
+        Section {
+            HStack(spacing: 12) {
+                ForEach(Tema.allCases) { tema in
+                    Button {
+                        ajustes.tema = tema
+                        Paleta.acento = tema.color
+                        try? contexto.save()
+                    } label: {
+                        Circle()
+                            .fill(tema.color)
+                            .frame(width: 32, height: 32)
+                            .overlay {
+                                // La marca va dentro del círculo y no es un
+                                // borde a secas: con el tema gris, un borde
+                                // gris sobre fondo gris no se ve.
+                                if ajustes.tema == tema {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .overlay {
+                                Circle().strokeBorder(.primary.opacity(0.15), lineWidth: 1)
+                            }
+                            .frame(width: 44, height: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(tema.nombre)
+                    .accessibilityAddTraits(ajustes.tema == tema ? [.isSelected] : [])
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 2)
+
+            Picker("Apariencia", selection: Binding(
+                get: { ajustes.apariencia },
+                set: { ajustes.apariencia = $0; try? contexto.save() }
+            )) {
+                ForEach(AparienciaApp.allCases) { opcion in
+                    Text(opcion.nombre).tag(opcion)
+                }
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            Text("Apariencia")
+        } footer: {
+            Text("El tema cambia el color de los botones y las barras. El verde de serie hecha, el ámbar de aviso y el dorado de récord no se tocan: ahí el color dice algo.")
+        }
+    }
 
     private func seccionDescanso(_ ajustes: Ajustes) -> some View {
         Section {

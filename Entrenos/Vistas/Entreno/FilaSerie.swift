@@ -18,7 +18,7 @@ struct FilaSerie: View {
     /// El tamaño de la casilla de completada crece con el ajuste de texto del
     /// sistema. Con `.system(size: 30)` a pelo se quedaba igual de pequeña
     /// aunque el usuario pidiera texto grande, y es la acción que más se usa.
-    @ScaledMetric(relativeTo: .title) private var ladoCasilla: CGFloat = 30
+    @ScaledMetric(relativeTo: .title) private var ladoCasilla: CGFloat = 32
 
     private var tipo: TipoRegistro { ejercicio.tipoRegistro }
 
@@ -33,15 +33,41 @@ struct FilaSerie: View {
 
             casillaCompletada
         }
-        .padding(.vertical, 6)
-        // 0,12 de verde sobre blanco se ve; sobre el fondo oscuro no, y el
-        // tinte de fila entera es la pista que permite contar de un vistazo
-        // cuántas series llevas. En oscuro hace falta más cuerpo.
-        .listRowBackground(
-            serie.completada
-                ? Color.green.opacity(esquemaColor == .dark ? 0.22 : 0.12)
-                : nil
-        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(fondo, in: .rect(cornerRadius: 14))
+        // El filo verde marca la serie hecha por el borde entero y no solo
+        // por el color de fondo, que con poca luz en el gimnasio casi no se
+        // distingue del gris.
+        .overlay {
+            if serie.completada {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Paleta.logrado.opacity(0.45), lineWidth: 1)
+            }
+        }
+        .animacion(Muelles.firme, value: serie.completada)
+    }
+
+    /// Cifras que conviene mirar dos veces, con el criterio del núcleo.
+    private var sospechas: [SospechaSerie] {
+        RevisionSerie.sospechas(de: serie.valor, tipo: tipo)
+    }
+
+    private var repsImprobables: Bool { sospechas.contains(.repeticiones) }
+
+    private var rirImprobable: Bool { sospechas.contains(.rir) }
+
+    private func fondoCampo(_ sospechoso: Bool, normal: Color) -> Color {
+        sospechoso ? Paleta.aviso.opacity(0.18) : normal
+    }
+
+    /// 0,14 de verde sobre blanco se ve; sobre el fondo oscuro no, y el tinte
+    /// de fila entera es la pista que permite contar de un vistazo cuántas
+    /// series llevas. En oscuro hace falta más cuerpo.
+    private var fondo: Color {
+        serie.completada
+            ? Paleta.logrado.opacity(esquemaColor == .dark ? 0.22 : 0.14)
+            : Color(.secondarySystemGroupedBackground)
     }
 
     // MARK: - Piezas
@@ -49,15 +75,25 @@ struct FilaSerie: View {
     private var indiceSerie: some View {
         Group {
             if serie.esCalentamiento {
-                Image(systemName: "flame")
-                    .foregroundStyle(.orange)
+                Image(systemName: "flame.fill")
+                    .font(.footnote)
+                    // Va sobre un círculo del mismo naranja al 16 %: en claro,
+                    // el naranja del sistema encima de eso no se ve.
+                    .foregroundStyle(Paleta.calentamientoTexto)
             } else {
                 Text("\(numeroSerieEfectiva)")
-                    .font(.system(.body, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(serie.completada ? Paleta.logrado : .secondary)
             }
         }
-        .frame(width: 26)
+        .frame(width: 30, height: 30)
+        .background(
+            Circle().fill(
+                serie.esCalentamiento
+                    ? Paleta.calentamiento.opacity(0.16)
+                    : Color(.tertiarySystemFill)
+            )
+        )
     }
 
     /// Número que se muestra: las de calentamiento no cuentan.
@@ -125,7 +161,15 @@ struct FilaSerie: View {
             ))
             .frame(minWidth: 56)
             .padding(.vertical, 8)
-            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 10))
+            // No se bloquea: alguien puede hacer de verdad 50 repeticiones a
+            // peso corporal. Solo se señala, porque el dedazo típico —«12» que
+            // sale «127»— pasaba sin que nada lo dijera y se comía la gráfica
+            // del ejercicio.
+            .background(
+                fondoCampo(repsImprobables, normal: Color(.tertiarySystemFill)),
+                in: .rect(cornerRadius: 10)
+            )
+            .marcaDeAviso(repsImprobables ? .repeticiones : nil)
         }
     }
 
@@ -136,7 +180,11 @@ struct FilaSerie: View {
         ))
         .frame(minWidth: 46)
         .padding(.vertical, 8)
-        .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 10))
+        .background(
+            fondoCampo(rirImprobable, normal: Color(.quaternarySystemFill)),
+            in: .rect(cornerRadius: 10)
+        )
+        .marcaDeAviso(rirImprobable ? .rir : nil)
     }
 
     @ViewBuilder
@@ -162,14 +210,10 @@ struct FilaSerie: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Copia el peso y las repeticiones de la última vez")
-        } else {
-            // La misma altura que el botón, para que la fila no cambie de
-            // tamaño entre la primera vez y las siguientes.
-            Text("Primera vez con este ejercicio")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(minHeight: 44, alignment: .leading)
         }
+        // Sin serie anterior no se escribe nada: la cabecera del ejercicio ya
+        // lleva su pastilla de «Primera vez», y repetirlo en cada fila eran
+        // cuatro líneas idénticas diciendo lo mismo.
     }
 
     private var casillaCompletada: some View {
@@ -178,11 +222,12 @@ struct FilaSerie: View {
         } label: {
             Image(systemName: serie.completada ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: ladoCasilla))
-                .foregroundStyle(serie.completada ? Color.green : Color.secondary)
+                .foregroundStyle(serie.completada ? Paleta.logrado : Color.secondary)
+                .symbolEffect(.bounce, value: serie.completada)
                 .frame(minWidth: 48, minHeight: 48)
                 .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BotonPulsable(escala: 0.9))
         .accessibilityLabel(serie.completada ? "Serie completada" : "Marcar serie como completada")
     }
 }

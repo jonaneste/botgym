@@ -6,21 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXFileReference section */
+		E100000000000000000000B1 /* Entrenos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Entrenos.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E100000000000000000000A1 /* Entrenos */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
 			path = Entrenos;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileReference section */
-		E100000000000000000000B1 /* Entrenos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Entrenos.app; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		E100000000000000000000C1 /* Frameworks */ = {
@@ -225,7 +221,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Entrenos;
+				INFOPLIST_KEY_CFBundleDisplayName = Forja;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tus carreras junto a los entrenos de gimnasio y sumar los kilometros de la semana.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar cada entreno de gimnasio en Salud como entrenamiento de fuerza.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -254,7 +250,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Entrenos;
+				INFOPLIST_KEY_CFBundleDisplayName = Forja;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tus carreras junto a los entrenos de gimnasio y sumar los kilometros de la semana.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar cada entreno de gimnasio en Salud como entrenamiento de fuerza.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

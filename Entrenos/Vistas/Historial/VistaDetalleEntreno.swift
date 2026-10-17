@@ -13,6 +13,9 @@ struct VistaDetalleEntreno: View {
         List {
             Section {
                 resumen
+                if !editando && !sospechosas.isEmpty {
+                    avisoDeRevision
+                }
             }
 
             ForEach(gruposVisuales) { grupo in
@@ -97,6 +100,53 @@ struct VistaDetalleEntreno: View {
         .padding(.vertical, 4)
     }
 
+    // MARK: - Aviso de revisión
+
+    /// Series del entreno con alguna cifra sospechosa.
+    ///
+    /// Se calcula sobre el entreno entero y no fila a fila porque el aviso
+    /// tiene que verse al abrir el detalle: una serie mal anotada en el
+    /// séptimo ejercicio queda fuera de la pantalla, y lo que faltaba era
+    /// precisamente encontrarla sin ir buscándola.
+    private var sospechosas: [SerieRegistrada] {
+        entreno.ejerciciosOrdenados.flatMap { ejercicio in
+            ejercicio.seriesOrdenadas.filter {
+                !RevisionSerie.sospechas(de: $0.valor, tipo: ejercicio.tipoRegistro).isEmpty
+            }
+        }
+    }
+
+    /// Entra directamente en modo edición: el aviso sin la forma de
+    /// corregirlo a un toque no serviría de nada con el móvil en la mano.
+    private var avisoDeRevision: some View {
+        Button {
+            withAnimation { editando = true }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Paleta.aviso)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        sospechosas.count == 1
+                            ? "Hay una serie con una cifra rara"
+                            : "Hay \(sospechosas.count) series con cifras raras"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    Text("Toca para corregirlas")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 2)
+            .contentShape(.rect)
+        }
+        .buttonStyle(BotonPulsable())
+    }
+
     private func columna(_ titulo: String, _ valor: String) -> some View {
         VStack(spacing: 2) {
             Text(valor)
@@ -115,7 +165,7 @@ struct VistaDetalleEntreno: View {
             Spacer()
             Text("\(valor)/10")
                 .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(valor >= 7 ? .red : (valor >= 4 ? .orange : .green))
+                .foregroundStyle(Paleta.molestia(valor))
         }
     }
 
@@ -127,7 +177,7 @@ struct VistaDetalleEntreno: View {
             Text(ejercicio.nombreEjercicio)
                 .font(.headline)
             HStack(spacing: 8) {
-                Text("\(ejercicio.seriesEfectivas.count) series")
+                Text(Formato.cuenta(ejercicio.seriesEfectivas.count, "serie", "series"))
                 Text("·")
                 Text(Formato.volumen(ejercicio.volumen))
             }
@@ -178,17 +228,22 @@ struct VistaDetalleEntreno: View {
             ))
             .frame(minWidth: 52)
             .padding(.vertical, 6)
-            .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 8))
+            .background(fondo(.repeticiones, serie, ejercicio), in: .rect(cornerRadius: 8))
+            .marcaDeAviso(sospechas(serie, ejercicio).contains(.repeticiones) ? .repeticiones : nil)
         }
     }
 
-    private func campoRIRDe(_ serie: SerieRegistrada) -> some View {
+    private func campoRIRDe(
+        _ serie: SerieRegistrada,
+        ejercicio: EjercicioEntreno
+    ) -> some View {
         CampoEnteroOpcional(marcador: "RIR", valor: Binding(
             get: { serie.rir }, set: { serie.rir = $0 }
         ))
         .frame(minWidth: 44)
         .padding(.vertical, 6)
-        .background(Color(.quaternarySystemFill), in: .rect(cornerRadius: 8))
+        .background(fondo(.rir, serie, ejercicio), in: .rect(cornerRadius: 8))
+        .marcaDeAviso(sospechas(serie, ejercicio).contains(.rir) ? .rir : nil)
     }
 
     private func filaSerieLectura(_ serie: SerieRegistrada, ejercicio: EjercicioEntreno) -> some View {
@@ -196,7 +251,7 @@ struct VistaDetalleEntreno: View {
             if serie.esCalentamiento {
                 Image(systemName: "flame")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Paleta.calentamiento)
                     .frame(width: 22)
             } else {
                 Text("\(serie.orden + 1)")
@@ -212,6 +267,7 @@ struct VistaDetalleEntreno: View {
                 tipo: ejercicio.tipoRegistro
             ))
             .font(.system(.body, design: .rounded))
+            .marcaDeAviso(sospechas(serie, ejercicio).contains(.repeticiones) ? .repeticiones : nil)
 
             Spacer()
 
@@ -219,8 +275,29 @@ struct VistaDetalleEntreno: View {
                 Text("RIR \(rir)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .marcaDeAviso(sospechas(serie, ejercicio).contains(.rir) ? .rir : nil)
             }
         }
+    }
+
+    private func sospechas(
+        _ serie: SerieRegistrada,
+        _ ejercicio: EjercicioEntreno
+    ) -> [SospechaSerie] {
+        RevisionSerie.sospechas(de: serie.valor, tipo: ejercicio.tipoRegistro)
+    }
+
+    /// Fondo del campo editable: el mismo tinte de aviso que en el entreno en
+    /// curso cuando la cifra es la sospechosa.
+    private func fondo(
+        _ sospecha: SospechaSerie,
+        _ serie: SerieRegistrada,
+        _ ejercicio: EjercicioEntreno
+    ) -> Color {
+        guard sospechas(serie, ejercicio).contains(sospecha) else {
+            return Color(sospecha == .rir ? .quaternarySystemFill : .tertiarySystemFill)
+        }
+        return Paleta.aviso.opacity(0.18)
     }
 
     /// La fila editable del historial, con el mismo reparto que la del entreno
@@ -242,13 +319,13 @@ struct VistaDetalleEntreno: View {
                         Text("×").foregroundStyle(.secondary)
                         campoRepeticionesDe(serie, ejercicio: ejercicio)
                     }
-                    campoRIRDe(serie)
+                    campoRIRDe(serie, ejercicio: ejercicio)
                 }
             } else {
                 campoPesoDe(serie)
                 Text("×").foregroundStyle(.secondary)
                 campoRepeticionesDe(serie, ejercicio: ejercicio)
-                campoRIRDe(serie)
+                campoRIRDe(serie, ejercicio: ejercicio)
             }
         }
         .swipeActions(edge: .trailing) {
