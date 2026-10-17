@@ -255,6 +255,7 @@ struct VistaDatos: View {
                     )
                 }
             } else {
+                let puedeSubir = ajustes.healthKitActivado && pendientesDeSync > 0
                 Button {
                     sincronizarConSalud(ajustes)
                 } label: {
@@ -266,18 +267,29 @@ struct VistaDatos: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Paleta.acento, in: .capsule)
-                                .foregroundStyle(.white)
+                                // La pastilla sigue el estado del botón. Con
+                                // Salud sin conectar el botón ya estaba
+                                // apagado, pero la pastilla seguía pintada del
+                                // acento y el icono tintado: la fila se veía
+                                // viva y al tocarla no pasaba nada.
+                                .background(
+                                    puedeSubir ? Paleta.acento : Color(.tertiarySystemFill),
+                                    in: .capsule
+                                )
+                                .foregroundStyle(puedeSubir ? Color.white : .secondary)
                         }
                     }
                 }
-                .disabled(!ajustes.healthKitActivado || pendientesDeSync == 0)
+                .disabled(!puedeSubir)
             }
 
+            // Solo afecta a lo que se escribe en Salud, así que sin Salud
+            // conectado no hay nada que evitar.
             Toggle("Evitar duplicados del reloj", isOn: Binding(
                 get: { ajustes.evitarDuplicadosEnSalud },
                 set: { ajustes.evitarDuplicadosEnSalud = $0; try? contexto.save() }
             ))
+            .disabled(!ajustes.healthKitActivado)
         } header: {
             Text("Salud como centro de datos")
         } footer: {
