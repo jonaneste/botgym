@@ -41,7 +41,7 @@ struct GraficaSeriesSemanales: View {
                     .foregroundStyle(by: .value("Región", tramo.region.nombre))
                     .cornerRadius(3)
                     .accessibilityLabel("\(Formato.diaYMes(tramo.inicioSemana)), \(tramo.region.nombre)")
-                    .accessibilityValue("\(tramo.series) series")
+                    .accessibilityValue(Formato.cuenta(tramo.series, "serie", "series"))
                 }
             }
         }

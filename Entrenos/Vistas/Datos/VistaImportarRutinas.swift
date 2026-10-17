@@ -265,7 +265,7 @@ struct VistaImportarRutinas: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(rutina.nombre)
                             .font(.body.weight(.medium))
-                        Text("\(rutina.ejercicios.count) ejercicios · \(rutina.ejercicios.reduce(0) { $0 + $1.series }) series")
+                        Text("\(Formato.cuenta(rutina.ejercicios.count, "ejercicio", "ejercicios")) · \(Formato.cuenta(rutina.ejercicios.reduce(0) { $0 + $1.series }, "serie", "series"))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

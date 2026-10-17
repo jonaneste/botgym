@@ -271,14 +271,14 @@ struct FilaComparacion: View {
     }
 
     private var detalle: String {
-        var partes = ["Entonces: \(comparacion.seriesAntes) series y \(Formato.volumen(comparacion.volumenAntes))"]
+        let antes = Formato.cuenta(comparacion.seriesAntes, "serie", "series")
+        var partes = ["Entonces: \(antes) y \(Formato.volumen(comparacion.volumenAntes))"]
         if comparacion.diferenciaSeries != 0 {
-            let cuantas = abs(comparacion.diferenciaSeries)
-            let palabra = cuantas == 1 ? "serie" : "series"
+            let diferencia = Formato.cuenta(abs(comparacion.diferenciaSeries), "serie", "series")
             partes.append(
                 comparacion.diferenciaSeries > 0
-                    ? "hoy \(cuantas) \(palabra) más"
-                    : "hoy \(cuantas) \(palabra) menos"
+                    ? "hoy \(diferencia) más"
+                    : "hoy \(diferencia) menos"
             )
         }
         // El porcentaje solo si significa algo: a peso corporal el volumen es

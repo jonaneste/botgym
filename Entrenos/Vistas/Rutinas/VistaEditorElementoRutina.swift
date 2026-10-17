@@ -27,7 +27,7 @@ struct VistaEditorElementoRutina: View {
 
                 Section {
                     Stepper(
-                        "\(elemento.seriesObjetivo) series",
+                        Formato.cuenta(elemento.seriesObjetivo, "serie", "series"),
                         value: Binding(
                             get: { elemento.seriesObjetivo },
                             set: { elemento.seriesObjetivo = $0 }
