@@ -19,7 +19,8 @@ struct GraficaSeriesSemanales: View {
                 ForEach(datos) { semana in
                     BarMark(
                         x: .value("Semana", semana.inicioSemana, unit: .weekOfYear),
-                        y: .value("Series", semana.series)
+                        y: .value("Series", semana.series),
+                        width: .fixed(anchoDeBarra)
                     )
                     .foregroundStyle(Paleta.acento.gradient)
                     .cornerRadius(4)
@@ -34,7 +35,8 @@ struct GraficaSeriesSemanales: View {
                 ForEach(porRegion) { tramo in
                     BarMark(
                         x: .value("Semana", tramo.inicioSemana, unit: .weekOfYear),
-                        y: .value("Series", tramo.series)
+                        y: .value("Series", tramo.series),
+                        width: .fixed(anchoDeBarra)
                     )
                     .foregroundStyle(by: .value("Región", tramo.region.nombre))
                     .cornerRadius(3)
@@ -70,6 +72,14 @@ struct GraficaSeriesSemanales: View {
         .accessibilityLabel("Series por semana")
         .accessibilityValue(resumenAccesible)
     }
+
+    /// El ancho de barra se fija, no se deja al automático.
+    ///
+    /// `BarMark` reparte el ancho disponible entre los pasos del eje, y con
+    /// una sola semana de datos eso es **toda la gráfica**: un bloque de color
+    /// de borde a borde que no se lee como una barra. Con un ancho fijo, una
+    /// semana sola se ve como lo que es.
+    private var anchoDeBarra: CGFloat { 24 }
 
     /// Cada región con su color, siempre el mismo.
     private var escalaDeColores: KeyValuePairs<String, Color> {
