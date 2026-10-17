@@ -158,4 +158,31 @@ extension SeriesPorRegionTests {
     func testUnaListaVaciaNoDaBloques() {
         XCTAssertTrue(ServicioVolumen.porRegion([]).isEmpty)
     }
+
+    /// `core` y `lumbar` son torso y están declarados **detrás** de los de
+    /// pierna. Agrupando por tramos contiguos salían dos secciones llamadas
+    /// «Torso», y la primera se dejaba siete series fuera del total.
+    func testElTorsoNoSePartePorqueCoreYLumbarVayanAlFinal() {
+        let enOrdenDeDeclaracion = GrupoMuscular.allCases
+            .filter(\.cuentaEnVolumen)
+            .map { grupoDe($0, series: 0, objetivo: 1) }
+
+        let bloques = ServicioVolumen.porRegion(enOrdenDeDeclaracion)
+
+        XCTAssertEqual(bloques.count, Set(bloques.map(\.region)).count)
+        let torso = bloques.filter { $0.region == .torso }
+        XCTAssertEqual(torso.count, 1)
+        XCTAssertEqual(torso.first?.grupos.count, 6)
+        XCTAssertEqual(torso.first?.objetivo, 6)
+    }
+
+    /// Dentro de un bloque, los grupos conservan el orden en que venían.
+    func testCadaBloqueConservaElOrdenDeSusGrupos() {
+        let bloques = ServicioVolumen.porRegion([
+            grupoDe(.pecho, series: 0, objetivo: 1),
+            grupoDe(.dorsal, series: 0, objetivo: 1),
+            grupoDe(.core, series: 0, objetivo: 1),
+        ])
+        XCTAssertEqual(bloques.first?.grupos.map(\.grupo), [.pecho, .dorsal, .core])
+    }
 }

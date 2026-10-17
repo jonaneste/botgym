@@ -181,8 +181,12 @@ public enum ServicioVolumen {
     /// Series de la semana en que cae `semanaDe`, frente a los objetivos.
     ///
     /// Devuelve solo los grupos con series hechas o con objetivo configurado,
-    /// ordenados por región del cuerpo y luego por nombre, para que la lista no
+    /// en el orden de declaración de `GrupoMuscular`, para que la lista no
     /// baile de una semana a otra.
+    ///
+    /// Ese orden **no** está agrupado por región: `core` y `lumbar` son torso
+    /// y van detrás de los de pierna. Quien necesite bloques por región que
+    /// use `porRegion(_:)`, que sí agrupa.
     public static func seriesSemanales(
         _ series: [SerieConEjercicio],
         semanaDe fecha: Date,
@@ -212,22 +216,25 @@ public enum ServicioVolumen {
             }
     }
 
-    /// Agrupa por región lo que devuelve `seriesSemanales`, en su mismo orden.
+    /// Agrupa por región, un bloque por región y en el orden de
+    /// `RegionCorporal`.
     ///
-    /// No reordena nada: `seriesSemanales` ya ordena por región y luego por
-    /// nombre, así que basta con cortar la lista por región para que los
-    /// bloques salgan en el orden de siempre y la pantalla no baile.
+    /// Cada bloque conserva sus grupos en el orden en que venían.
+    ///
+    /// No se puede hacer cortando la lista por tramos: el orden de
+    /// `GrupoMuscular` **no** está agrupado por región. `core` y `lumbar` son
+    /// torso y están declarados detrás de los de pierna, así que por tramos
+    /// salían dos secciones llamadas «Torso», la primera con un total que se
+    /// dejaba siete series fuera.
     public static func porRegion(_ grupos: [SeriesDeGrupo]) -> [SeriesDeRegion] {
-        var bloques: [SeriesDeRegion] = []
+        var porRegion: [RegionCorporal: [SeriesDeGrupo]] = [:]
         for grupo in grupos {
-            let region = grupo.grupo.region
-            if bloques.last?.region == region {
-                bloques[bloques.count - 1].grupos.append(grupo)
-            } else {
-                bloques.append(SeriesDeRegion(region: region, grupos: [grupo]))
-            }
+            porRegion[grupo.grupo.region, default: []].append(grupo)
         }
-        return bloques
+        return RegionCorporal.allCases.compactMap { region in
+            guard let suyos = porRegion[region] else { return nil }
+            return SeriesDeRegion(region: region, grupos: suyos)
+        }
     }
 
     /// Series totales por semana, para la gráfica de tendencia.

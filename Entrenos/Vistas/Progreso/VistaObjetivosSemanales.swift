@@ -18,7 +18,7 @@ struct VistaObjetivosSemanales: View {
             }
 
             ForEach(regionesConGrupos, id: \.self) { region in
-                Section(region.nombre) {
+                Section {
                     ForEach(gruposDe(region), id: \.self) { grupo in
                         Stepper(
                             value: Binding(
@@ -43,6 +43,18 @@ struct VistaObjetivosSemanales: View {
                                     .monospacedDigit()
                             }
                         }
+                    }
+                } header: {
+                    // El total de la región mientras se edita. Se fijan
+                    // dieciséis números de uno en uno, y hasta ahora no había
+                    // forma de saber si lo que estabas poniendo cabía en una
+                    // semana sin sumarlos a mano. Es la misma cifra que luego
+                    // sale en Progreso, así que las dos pantallas coinciden.
+                    HStack {
+                        Text(region.nombre)
+                        Spacer()
+                        Text(Formato.cuenta(totalDe(region), "serie", "series"))
+                            .monospacedDigit()
                     }
                 }
             }
@@ -79,6 +91,11 @@ struct VistaObjetivosSemanales: View {
             ajustes = cargados
             objetivos = cargados.objetivosSemanales
         }
+    }
+
+    /// Lo que suman los objetivos de una región.
+    private func totalDe(_ region: RegionCorporal) -> Int {
+        gruposDe(region).reduce(0) { $0 + (objetivos[$1] ?? 0) }
     }
 
     /// Solo las regiones que tienen algún grupo con objetivo posible, para no
