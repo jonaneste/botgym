@@ -107,4 +107,43 @@ enum Paleta {
     static func grupo(_ grupo: GrupoMuscular) -> Color {
         region(grupo.region)
     }
+
+    /// El color de la región, pero para **texto**.
+    ///
+    /// Los de `region(_:)` son colores de relleno: valen para un punto, una
+    /// barra o un filo, donde basta con distinguirse. Como texto sobre fondo
+    /// claro no llegan: el teal del sistema se queda en 2,7:1 y el cian peor,
+    /// cuando un texto de este tamaño pide 4,5:1. Y el nombre del grupo va en
+    /// ese color en toda la biblioteca y en el selector de ejercicios.
+    ///
+    /// En oscuro se devuelven los del sistema tal cual, que ahí contrastan de
+    /// sobra. Los de claro van a mano porque Apple no publica versiones
+    /// oscuras de estos; están medidos sobre blanco y sobre el propio color
+    /// al 14 %, que es el fondo de las pastillas de filtro.
+    static func regionTexto(_ region: RegionCorporal) -> Color {
+        Color(UIColor { rasgos in
+            if rasgos.userInterfaceStyle == .dark {
+                switch region {
+                case .torso: return .systemPink
+                case .hombro: return .systemCyan
+                case .brazo: return .systemIndigo
+                case .pierna: return .systemTeal
+                case .sinClasificar: return .systemGray
+                }
+            }
+            switch region {
+            case .torso: return UIColor(red: 0.80, green: 0, blue: 0.27, alpha: 1)
+            case .hombro: return UIColor(red: 0, green: 0.43, blue: 0.54, alpha: 1)
+            // El índigo del sistema ya da 5,4:1 sobre blanco: no hace falta
+            // tocarlo, y uno a mano se vería distinto del resto de la app.
+            case .brazo: return .systemIndigo
+            case .pierna: return UIColor(red: 0, green: 0.44, blue: 0.50, alpha: 1)
+            case .sinClasificar: return UIColor(red: 0.35, green: 0.35, blue: 0.38, alpha: 1)
+            }
+        })
+    }
+
+    static func grupoTexto(_ grupo: GrupoMuscular) -> Color {
+        regionTexto(grupo.region)
+    }
 }

@@ -95,6 +95,9 @@ struct VistaSelectorEjercicio: View {
         // elegido: así la tira de filtros es también la leyenda de los colores
         // que luego se ven en las filas.
         let color = grupo.map(Paleta.grupo) ?? Paleta.acento
+        // Elegido, el texto va en blanco sobre el color lleno; sin elegir, va
+        // sobre ese color al 14 %, y ahí el del sistema no contrasta en claro.
+        let colorTexto = grupo.map(Paleta.grupoTexto) ?? Paleta.acento
         return Button {
             grupoFiltro = grupo
         } label: {
@@ -103,7 +106,7 @@ struct VistaSelectorEjercicio: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(activo ? color : color.opacity(0.14), in: .capsule)
-                .foregroundStyle(activo ? Color.white : color)
+                .foregroundStyle(activo ? Color.white : colorTexto)
         }
         .buttonStyle(.plain)
     }
@@ -113,7 +116,11 @@ struct VistaSelectorEjercicio: View {
 struct FilaEjercicio: View {
     let ejercicio: Ejercicio
 
+    /// Para el icono sobre su propio relleno: ahí es un color, no un texto.
     private var color: Color { Paleta.grupo(ejercicio.grupoPrincipal) }
+
+    /// Para el nombre del grupo, que sí es texto y pide más contraste.
+    private var colorTexto: Color { Paleta.grupoTexto(ejercicio.grupoPrincipal) }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -123,7 +130,9 @@ struct FilaEjercicio: View {
             // permite encontrar «el de pierna» sin leer.
             Image(systemName: ejercicio.material.icono)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(color)
+                // Sobre su propio color al 16 %, el del sistema desaparece en
+                // claro igual que el texto.
+                .foregroundStyle(colorTexto)
                 .frame(width: 34, height: 34)
                 .background(color.opacity(0.16), in: .rect(cornerRadius: 10))
 
@@ -133,7 +142,7 @@ struct FilaEjercicio: View {
                     .foregroundStyle(.primary)
                 HStack(spacing: 4) {
                     Text(ejercicio.grupoPrincipal.nombre)
-                        .foregroundStyle(color)
+                        .foregroundStyle(colorTexto)
                         .fontWeight(.medium)
                     Text("·")
                     Text(ejercicio.material.nombre.lowercased())
