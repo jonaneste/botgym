@@ -155,6 +155,21 @@ enum Formato {
     }
 
     /// Lo que se hizo en una serie: "60 kg × 9", "40 s", "× 12".
+    /// «1 serie», «3 series». La cifra y la palabra que le toca.
+    ///
+    /// El historial escribía «1 series» en la cabecera y en cada fila. La
+    /// concordancia estaba resuelta a mano en ocho sitios y de ocho maneras,
+    /// así que en los tres que faltaban nadie lo vio.
+    static func cuenta(_ cuantos: Int, _ singular: String, _ plural: String) -> String {
+        "\(cuantos) \(cuantos == 1 ? singular : plural)"
+    }
+
+    /// La palabra sola, sin la cifra: para una etiqueta debajo de un número
+    /// grande, donde la cifra ya está escrita aparte.
+    static func palabra(_ cuantos: Int, _ singular: String, _ plural: String) -> String {
+        cuantos == 1 ? singular : plural
+    }
+
     static func resumenSerie(peso: Double, repeticiones: Int, segundos: Int?, tipo: TipoRegistro) -> String {
         if tipo.esTiempo {
             let tiempo = "\(segundos ?? 0) s"

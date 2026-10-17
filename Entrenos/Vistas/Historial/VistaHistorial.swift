@@ -117,13 +117,20 @@ struct VistaHistorial: View {
     /// Las filas de abajo siguen siendo filas de lista a propósito. Un
     /// historial es para recorrerlo con el pulgar, y convertirlo en tarjetas
     /// sueltas caben menos entrenos en pantalla sin ganar nada.
+    private var seriesTotales: Int {
+        entrenos.reduce(0) { $0 + $1.seriesCompletadas }
+    }
+
     private var resumenGeneral: some View {
         HStack(spacing: 0) {
-            CifraDestacada(valor: "\(entrenos.count)", etiqueta: "Entrenos")
+            CifraDestacada(
+                valor: "\(entrenos.count)",
+                etiqueta: Formato.palabra(entrenos.count, "Entreno", "Entrenos")
+            )
             Divider().frame(height: 28)
             CifraDestacada(
-                valor: "\(entrenos.reduce(0) { $0 + $1.seriesCompletadas })",
-                etiqueta: "Series"
+                valor: "\(seriesTotales)",
+                etiqueta: Formato.palabra(seriesTotales, "Serie", "Series")
             )
             Divider().frame(height: 28)
             CifraDestacada(
@@ -152,7 +159,7 @@ struct VistaHistorial: View {
 
             HStack(spacing: 12) {
                 etiqueta("stopwatch", Formato.duracionLarga(entreno.duracionFinal ?? entreno.duracion))
-                etiqueta("checklist", "\(entreno.seriesCompletadas) series")
+                etiqueta("checklist", Formato.cuenta(entreno.seriesCompletadas, "serie", "series"))
                 etiqueta("scalemass", Formato.volumen(entreno.volumenTotal))
             }
             .font(.caption)
@@ -322,7 +329,7 @@ struct FilaResumenCarreras: View {
         HStack {
             columna(Formato.numeroCorto(resumen.kilometros) + " km", "Distancia")
             Divider()
-            columna("\(resumen.carreras)", resumen.carreras == 1 ? "Carrera" : "Carreras")
+            columna("\(resumen.carreras)", Formato.palabra(resumen.carreras, "Carrera", "Carreras"))
             Divider()
             columna(Formato.duracionLarga(resumen.duracion), "Tiempo")
             if let ritmo = resumen.ritmoMedioSegundosPorKm {

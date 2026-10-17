@@ -30,7 +30,7 @@ struct BarraEntrenoActivo: View {
                                 // La barra no puede crecer, así que el nombre
                                 // se encoge antes que quedarse en «Lunes –...».
                                 .minimumScaleFactor(0.75)
-                            Text("\(entreno.seriesCompletadas) \(entreno.seriesCompletadas == 1 ? "serie" : "series") · \(Formato.volumen(entreno.volumenTotal))")
+                            Text("\(Formato.cuenta(entreno.seriesCompletadas, "serie", "series")) · \(Formato.volumen(entreno.volumenTotal))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

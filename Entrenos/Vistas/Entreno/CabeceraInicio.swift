@@ -67,17 +67,17 @@ struct CabeceraInicio: View {
             // igual que hace la fila de serie.
             if tamañoTexto.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 10) {
-                    cifraEnFila("\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"))
+                    cifraEnFila("\(entrenosEstaSemana)", Formato.palabra(entrenosEstaSemana, "entreno", "entrenos"))
                     cifraEnFila(Formato.numeroCorto(kilometros), "km")
-                    cifraEnFila("\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"))
+                    cifraEnFila("\(seriesEstaSemana)", Formato.palabra(seriesEstaSemana, "serie", "series"))
                 }
             } else {
                 HStack(spacing: 0) {
-                    cifra("\(entrenosEstaSemana)", etiqueta(entrenosEstaSemana, "entreno", "entrenos"))
+                    cifra("\(entrenosEstaSemana)", Formato.palabra(entrenosEstaSemana, "entreno", "entrenos"))
                     separador
                     cifra(Formato.numeroCorto(kilometros), "km")
                     separador
-                    cifra("\(seriesEstaSemana)", etiqueta(seriesEstaSemana, "serie", "series"))
+                    cifra("\(seriesEstaSemana)", Formato.palabra(seriesEstaSemana, "serie", "series"))
                 }
                 .frame(minHeight: 50)
             }
@@ -229,10 +229,6 @@ struct CabeceraInicio: View {
         // Sin nombre no se pone la coma colgando: quien lo borre en Ajustes
         // quiere que no salga, no un saludo cortado.
         return nombre.isEmpty ? base : "\(base), \(nombre)"
-    }
-
-    private func etiqueta(_ cuantos: Int, _ singular: String, _ plural: String) -> String {
-        cuantos == 1 ? singular : plural
     }
 
     private var inicioDeSemana: Date { CalendarioEntrenos.inicioDeSemana(de: Date()) }

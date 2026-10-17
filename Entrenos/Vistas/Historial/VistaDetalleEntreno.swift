@@ -177,7 +177,7 @@ struct VistaDetalleEntreno: View {
             Text(ejercicio.nombreEjercicio)
                 .font(.headline)
             HStack(spacing: 8) {
-                Text("\(ejercicio.seriesEfectivas.count) series")
+                Text(Formato.cuenta(ejercicio.seriesEfectivas.count, "serie", "series"))
                 Text("·")
                 Text(Formato.volumen(ejercicio.volumen))
             }

@@ -36,7 +36,7 @@ struct VistaFinalizarEntreno: View {
                             Divider().frame(height: 28)
                             CifraDestacada(
                                 valor: "\(entreno.seriesCompletadas)",
-                                etiqueta: entreno.seriesCompletadas == 1 ? "Serie" : "Series",
+                                etiqueta: Formato.palabra(entreno.seriesCompletadas, "Serie", "Series"),
                                 color: Paleta.logrado
                             )
                         }
@@ -48,7 +48,7 @@ struct VistaFinalizarEntreno: View {
                             Divider().frame(height: 28)
                             CifraDestacada(
                                 valor: "\(entreno.ejerciciosConSeries)",
-                                etiqueta: entreno.ejerciciosConSeries == 1 ? "Ejercicio" : "Ejercicios"
+                                etiqueta: Formato.palabra(entreno.ejerciciosConSeries, "Ejercicio", "Ejercicios")
                             )
                         }
                     }
