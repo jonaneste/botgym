@@ -64,26 +64,46 @@ struct VistaProgreso: View {
                     }
                 }
 
-                Section {
-                    if seriesSemanales.isEmpty {
+                if seriesSemanales.isEmpty {
+                    Section {
                         Text("Sin series esta semana.")
                             .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(seriesSemanales) { grupo in
-                            FilaSeriesGrupo(datos: grupo, fraccionDeSemana: fraccionDeSemana)
+                    } header: {
+                        cabeceraDeGrupos
+                    }
+                } else {
+                    // Una sección por región en vez de dieciséis filas
+                    // seguidas. Para saber cómo iba la pierna había que sumar
+                    // seis a ojo, y el mapa de arriba ya organiza por región:
+                    // la lista era el único sitio donde esa estructura se
+                    // perdía.
+                    ForEach(Array(bloquesPorRegion.enumerated()), id: \.element.id) { indice, bloque in
+                        Section {
+                            ForEach(bloque.grupos) { grupo in
+                                FilaSeriesGrupo(datos: grupo, fraccionDeSemana: fraccionDeSemana)
+                            }
+                        } header: {
+                            // En un `VStack` explícito y no como dos vistas
+                            // sueltas: la cabecera de una sección de `List`
+                            // espera una vista, y con dos la segunda —la de la
+                            // región— no llegaba a pintarse en el primer
+                            // bloque.
+                            //
+                            // El enlace a Objetivos va una sola vez, en la
+                            // primera región: repetido en cada bloque serían
+                            // cinco enlaces al mismo sitio.
+                            VStack(alignment: .leading, spacing: 8) {
+                                if indice == 0 {
+                                    cabeceraDeGrupos
+                                }
+                                TotalDeRegion(bloque: bloque, fraccionDeSemana: fraccionDeSemana)
+                            }
+                        } footer: {
+                            if indice == bloquesPorRegion.count - 1 {
+                                Text("Los grupos secundarios cuentan como media serie: un press de banca suma 1 a pecho y 0,5 a tríceps. El aviso mira cuánta semana queda, así que el lunes no sale en rojo nada.")
+                            }
                         }
                     }
-                } header: {
-                    HStack {
-                        Text("Esta semana por grupo")
-                        Spacer()
-                        NavigationLink("Objetivos") {
-                            VistaObjetivosSemanales()
-                        }
-                        .font(.caption)
-                    }
-                } footer: {
-                    Text("Los grupos secundarios cuentan como media serie: un press de banca suma 1 a pecho y 0,5 a tríceps. El aviso mira cuánta semana queda, así que el lunes no sale en rojo nada.")
                 }
 
                 Section("Ejercicios") {
@@ -114,6 +134,21 @@ struct VistaProgreso: View {
             .refreshable { recargar() }
             .onAppear(perform: recargar)
         }
+    }
+
+    private var cabeceraDeGrupos: some View {
+        HStack {
+            Text("Esta semana por grupo")
+            Spacer()
+            NavigationLink("Objetivos") {
+                VistaObjetivosSemanales()
+            }
+            .font(.caption)
+        }
+    }
+
+    private var bloquesPorRegion: [SeriesDeRegion] {
+        ServicioVolumen.porRegion(seriesSemanales)
     }
 
     /// Pone los objetivos semanales a partir de las rutinas, una sola vez.
@@ -279,5 +314,47 @@ struct FilaSeriesGrupo: View {
         case .corto: return "clock"
         case .muyCorto: return "exclamationmark.triangle.fill"
         }
+    }
+}
+
+/// La cabecera de un bloque de región: su nombre y su total.
+///
+/// Es el número que de verdad se mira entre semana —«cómo voy de pierna»—, y
+/// antes había que sumar seis filas a ojo para sacarlo.
+struct TotalDeRegion: View {
+    let bloque: SeriesDeRegion
+    var fraccionDeSemana: Double = 1
+
+    private var ritmo: RitmoSemanal {
+        bloque.comoGrupo.ritmo(fraccionDeSemana: fraccionDeSemana)
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(Paleta.region(bloque.region))
+                .frame(width: 8, height: 8)
+            Text(bloque.region.nombre)
+            Spacer()
+            Text(texto)
+                .monospacedDigit()
+                .foregroundStyle(color)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(bloque.region.nombre)
+        .accessibilityValue(texto)
+    }
+
+    private var texto: String {
+        let series = Formato.numeroCorto(bloque.series)
+        guard let objetivo = bloque.objetivo else { return series }
+        return "\(series) / \(objetivo)"
+    }
+
+    /// Más apagado que el de las filas a propósito: esto es una cabecera de
+    /// sección, no una de las cifras que se leen. Solo el verde de cumplido se
+    /// destaca, porque es la única que da una noticia.
+    private var color: Color {
+        ritmo == .cumplido ? Paleta.logrado : .secondary
     }
 }

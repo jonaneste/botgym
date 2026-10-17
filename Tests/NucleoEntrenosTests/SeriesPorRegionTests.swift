@@ -109,3 +109,53 @@ final class SeriesPorRegionTests: XCTestCase {
         XCTAssertEqual(Set(tramos.map(\.id)).count, tramos.count)
     }
 }
+
+// MARK: - Agrupar la lista semanal por región
+
+extension SeriesPorRegionTests {
+
+    private func grupoDe(_ grupo: GrupoMuscular, series: Double, objetivo: Int?) -> SeriesDeGrupo {
+        SeriesDeGrupo(grupo: grupo, series: series, objetivo: objetivo)
+    }
+
+    func testLosGruposSeAgrupanPorRegionEnSuOrden() {
+        let bloques = ServicioVolumen.porRegion([
+            grupoDe(.pecho, series: 3, objetivo: 16),
+            grupoDe(.dorsal, series: 0, objetivo: 11),
+            grupoDe(.biceps, series: 2, objetivo: 20),
+            grupoDe(.cuadriceps, series: 0, objetivo: 7),
+        ])
+
+        XCTAssertEqual(bloques.map(\.region), [.torso, .brazo, .pierna])
+        XCTAssertEqual(bloques[0].grupos.map(\.grupo), [.pecho, .dorsal])
+    }
+
+    func testElTotalDeLaRegionSumaSusGrupos() {
+        let torso = SeriesDeRegion(region: .torso, grupos: [
+            grupoDe(.pecho, series: 3, objetivo: 16),
+            grupoDe(.dorsal, series: 1.5, objetivo: 11),
+        ])
+        XCTAssertEqual(torso.series, 4.5)
+        XCTAssertEqual(torso.objetivo, 27)
+    }
+
+    /// Un grupo sin objetivo no cuenta como un cero en el de la región: si
+    /// contara, una región entera saldría «cumplida» por grupos que nadie se
+    /// propuso.
+    func testElObjetivoDeLaRegionSoloSumaLosGruposQueLoTienen() {
+        let brazo = SeriesDeRegion(region: .brazo, grupos: [
+            grupoDe(.biceps, series: 4, objetivo: 20),
+            grupoDe(.antebrazo, series: 0, objetivo: nil),
+        ])
+        XCTAssertEqual(brazo.objetivo, 20)
+
+        let sinNinguno = SeriesDeRegion(region: .brazo, grupos: [
+            grupoDe(.antebrazo, series: 1, objetivo: nil),
+        ])
+        XCTAssertNil(sinNinguno.objetivo)
+    }
+
+    func testUnaListaVaciaNoDaBloques() {
+        XCTAssertTrue(ServicioVolumen.porRegion([]).isEmpty)
+    }
+}

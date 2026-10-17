@@ -90,6 +90,45 @@ public struct SeriesDeGrupo: Equatable, Sendable, Identifiable {
     }
 }
 
+/// Los grupos de una región, con el total de la región.
+///
+/// La lista de grupos era plana: dieciséis filas seguidas, cada una con su
+/// aviso, y para saber cómo iba la pierna había que sumar seis a ojo. El mapa
+/// del cuerpo de encima ya organiza por región y las filas ya llevan el punto
+/// de color, así que la lista es el único sitio donde esa estructura se
+/// perdía.
+public struct SeriesDeRegion: Equatable, Sendable, Identifiable {
+    public var id: String { region.rawValue }
+    public var region: RegionCorporal
+    public var grupos: [SeriesDeGrupo]
+
+    public init(region: RegionCorporal, grupos: [SeriesDeGrupo]) {
+        self.region = region
+        self.grupos = grupos
+    }
+
+    /// Series de la región: la suma de las de sus grupos.
+    public var series: Double {
+        grupos.reduce(0) { $0 + $1.series }
+    }
+
+    /// Objetivo de la región, o `nil` si ninguno de sus grupos tiene uno.
+    ///
+    /// Suma solo los grupos que lo tienen: la alternativa, contar como cero
+    /// los que no, daría una región «cumplida» por grupos que nadie se
+    /// propuso.
+    public var objetivo: Int? {
+        let conObjetivo = grupos.compactMap(\.objetivo)
+        return conObjetivo.isEmpty ? nil : conObjetivo.reduce(0, +)
+    }
+
+    /// La región como un grupo más, para reutilizar `ritmo` y `progreso` sin
+    /// duplicar el criterio de «vas corto» en la vista.
+    public var comoGrupo: SeriesDeGrupo {
+        SeriesDeGrupo(grupo: .sinClasificar, series: series, objetivo: objetivo)
+    }
+}
+
 /// Cómo va un grupo frente a su objetivo semanal, a estas alturas de la semana.
 public enum RitmoSemanal: Equatable, Sendable {
     /// No hay objetivo configurado: no hay nada que juzgar.
@@ -171,6 +210,24 @@ public enum ServicioVolumen {
                     objetivo: objetivos[grupo]
                 )
             }
+    }
+
+    /// Agrupa por región lo que devuelve `seriesSemanales`, en su mismo orden.
+    ///
+    /// No reordena nada: `seriesSemanales` ya ordena por región y luego por
+    /// nombre, así que basta con cortar la lista por región para que los
+    /// bloques salgan en el orden de siempre y la pantalla no baile.
+    public static func porRegion(_ grupos: [SeriesDeGrupo]) -> [SeriesDeRegion] {
+        var bloques: [SeriesDeRegion] = []
+        for grupo in grupos {
+            let region = grupo.grupo.region
+            if bloques.last?.region == region {
+                bloques[bloques.count - 1].grupos.append(grupo)
+            } else {
+                bloques.append(SeriesDeRegion(region: region, grupos: [grupo]))
+            }
+        }
+        return bloques
     }
 
     /// Series totales por semana, para la gráfica de tendencia.
