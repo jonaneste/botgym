@@ -109,6 +109,45 @@ public enum ResumenPlan {
         dias.compactMap(\.kilometros).reduce(0, +)
     }
 
+    /// Los kilómetros del plan, semana a semana, frente a los que se
+    /// corrieron de verdad.
+    ///
+    /// Los hechos salen de las **carreras** y no de los días marcados del
+    /// plan: una carrera que entró por Salud o por archivo cuenta igual
+    /// aunque nadie tocara la casilla de ese día. Las carreras llegan ya
+    /// fusionadas, así que una anotada a mano y luego medida no suma dos
+    /// veces.
+    ///
+    /// Devuelve una semana por cada semana que el plan cubre, en orden, e
+    /// incluye las que no prevén kilómetros: saltárselas dejaría huecos en la
+    /// gráfica y haría parecer seguidas dos semanas que no lo son.
+    public static func kilometrosPorSemana(
+        plan dias: [DiaPlanValor],
+        carreras: [Carrera],
+        calendario: Calendar = CalendarioEntrenos.es
+    ) -> [SemanaDeCarrera] {
+        guard !dias.isEmpty else { return [] }
+
+        var porSemana: [Date: Double] = [:]
+        for dia in dias {
+            let lunes = CalendarioEntrenos.inicioDeSemana(de: dia.fecha, calendario: calendario)
+            porSemana[lunes, default: 0] += dia.kilometros ?? 0
+        }
+
+        return porSemana.keys.sorted().map { lunes in
+            let resumen = ServicioCarreras.resumenSemanal(
+                carreras,
+                semanaDe: lunes,
+                calendario: calendario
+            )
+            return SemanaDeCarrera(
+                inicioSemana: lunes,
+                previstos: porSemana[lunes] ?? 0,
+                hechos: resumen.kilometros
+            )
+        }
+    }
+
     /// Los días de una semana concreta, de lunes a domingo.
     public static func semanaDe(
         _ fecha: Date,
@@ -120,6 +159,43 @@ public enum ResumenPlan {
         return dias
             .filter { $0.fecha >= inicio && $0.fecha < fin }
             .sorted { $0.fecha < $1.fecha }
+    }
+}
+
+/// Una semana del plan: los kilómetros previstos frente a los corridos.
+///
+/// Existe porque el plan y el historial no se hablaban. El plan sabe lo que
+/// toca cada semana y el historial lo que se hizo, y la pregunta que importa
+/// con una carrera en el calendario —«¿voy en camino?»— necesita las dos
+/// cifras juntas.
+public struct SemanaDeCarrera: Equatable, Sendable, Identifiable {
+    public var id: Date { inicioSemana }
+    /// Lunes de la semana, a medianoche.
+    public var inicioSemana: Date
+    public var previstos: Double
+    public var hechos: Double
+
+    public init(inicioSemana: Date, previstos: Double, hechos: Double) {
+        self.inicioSemana = inicioSemana
+        self.previstos = previstos
+        self.hechos = hechos
+    }
+
+    /// Progreso de 0 a 1. `nil` cuando la semana no prevé kilómetros, que no
+    /// es lo mismo que cero: una semana de descanso no se «incumple».
+    public var fraccion: Double? {
+        guard previstos > 0 else { return nil }
+        return min(1, hechos / previstos)
+    }
+
+    public var cumplida: Bool {
+        previstos > 0 && hechos >= previstos
+    }
+
+    /// Lo que falta, nunca negativo. Correr de más no deja kilómetros
+    /// «pendientes» en negativo en la semana siguiente.
+    public var faltan: Double {
+        max(0, previstos - hechos)
     }
 }
 

@@ -10,12 +10,34 @@ struct VistaPlan: View {
     @Query(sort: \Rutina.orden) private var rutinas: [Rutina]
 
     @State private var diaAAnotar: DiaPlanificado?
+    /// Las carreras ya fusionadas: Salud, archivo y las anotadas a mano, sin
+    /// duplicados. Es de dónde salen los kilómetros hechos.
+    @State private var carreras: [Carrera] = []
+
+    /// El alto de la gráfica sube con el tamaño de texto del sistema: con
+    /// cuerpos de accesibilidad, las etiquetas de los ejes se comían el área
+    /// de dibujo a 150 puntos fijos.
+    @ScaledMetric(relativeTo: .caption) private var altoGrafica: CGFloat = 150
 
     var body: some View {
         List {
             if let objetivo = diaObjetivo {
                 Section {
                     cuentaAtras(objetivo)
+                }
+            }
+
+            // Ocho semanas a cero no son una gráfica, son un marco con fechas
+            // dentro: hasta que haya un kilómetro previsto, mejor no pintarla.
+            if semanasDeCarrera.contains(where: { $0.previstos > 0 }) {
+                Section {
+                    GraficaKilometrosSemanales(semanas: semanasDeCarrera)
+                        .frame(height: altoGrafica)
+                        .padding(.vertical, 6)
+                } header: {
+                    Text("Kilómetros por semana")
+                } footer: {
+                    Text("La barra clara es lo que pone el plan y la de dentro lo que llevas corrido. Se pone verde al cubrir la semana. Cuentan las carreras de verdad —de Salud, de archivo o anotadas a mano—, no los días que marcaste.")
                 }
             }
 
@@ -44,6 +66,7 @@ struct VistaPlan: View {
             }
         }
         .navigationTitle("Plan")
+        .onAppear { carreras = RepositorioCarreras(contexto: contexto).todas() }
         .sheet(item: $diaAAnotar) { dia in
             VistaAnotarCarrera(dia: dia) { kilometros, minutos in
                 anotar(dia, kilometros: kilometros, minutos: minutos)
@@ -97,16 +120,30 @@ struct VistaPlan: View {
         .padding(.vertical, 4)
     }
 
+    /// La cabecera de una semana, con lo corrido frente a lo previsto.
+    ///
+    /// Antes solo ponía lo previsto —«25 km»—, que es la mitad de la
+    /// información: con una carrera en el calendario, lo que se mira es si
+    /// vas en camino, y eso necesita las dos cifras juntas.
     private func cabeceraSemana(_ semana: SemanaPlan) -> some View {
         HStack {
             Text(semana.titulo)
             Spacer()
             if semana.kilometros > 0 {
-                Text("\(Formato.numeroCorto(semana.kilometros)) km")
-                    .foregroundStyle(Paleta.carrera)
+                let hechos = kilometrosCorridos(semana)
+                Text("\(Formato.numeroCorto(hechos)) / \(Formato.numeroCorto(semana.kilometros)) km")
+                    .monospacedDigit()
+                    .foregroundStyle(hechos >= semana.kilometros ? Paleta.logrado : Paleta.carrera)
             }
         }
         .font(.caption.weight(.semibold))
+    }
+
+    /// Los kilómetros corridos en una semana, de las carreras y no de los días
+    /// marcados: una carrera que entró por Salud o por archivo cuenta aunque
+    /// nadie tocara la casilla de ese día.
+    private func kilometrosCorridos(_ semana: SemanaPlan) -> Double {
+        ServicioCarreras.resumenSemanal(carreras, semanaDe: semana.inicio).kilometros
     }
 
     // MARK: - Acciones
@@ -180,6 +217,21 @@ struct VistaPlan: View {
                     hecho: $0.hecho
                 )
             }
+        )
+    }
+
+    /// Las semanas del plan con lo previsto frente a lo corrido.
+    private var semanasDeCarrera: [SemanaDeCarrera] {
+        ResumenPlan.kilometrosPorSemana(
+            plan: dias.map {
+                DiaPlanValor(
+                    fecha: $0.fecha,
+                    tipo: $0.tipo,
+                    titulo: $0.titulo,
+                    kilometros: $0.kilometros
+                )
+            },
+            carreras: carreras
         )
     }
 
