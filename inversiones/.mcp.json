@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cartera-de-valor": {
+      "command": "node",
+      "args": ["mcp/servidor-inversiones.mjs"]
+    }
+  }
+}

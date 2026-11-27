@@ -1,0 +1,14 @@
+{
+  "descripcion": "Empresas grandes de EE. UU. que no son bancos ni aseguradoras, de todos los sectores. Es el terreno de caza por defecto de la herramienta cribar: las cuentas salen de la SEC sin coste. Añade o quita lo que quieras; las financieras se valoran por beneficio y conviene compararlas entre sí, no con estas.",
+  "tickers": [
+    "MSFT", "GOOGL", "META", "AMZN", "AAPL", "ORCL", "CRM", "INTU", "NOW", "ADBE",
+    "QCOM", "TXN", "AVGO", "AMD", "INTC", "CSCO", "IBM", "ACN", "MU", "AMAT",
+    "KLAC", "ADP", "PYPL", "BKNG", "NFLX",
+    "JNJ", "MRK", "PFE", "ABBV", "LLY", "UNH", "ELV", "CVS", "TMO", "DHR",
+    "MDT", "IDXX", "ZTS", "REGN", "VRTX", "GILD", "BMY", "AMGN",
+    "KO", "PEP", "PG", "PM", "MO", "NKE", "SBUX", "MCD", "HD", "LOW",
+    "TGT", "COST", "WMT", "CMG", "LULU", "EL",
+    "CAT", "DE", "UNP", "UPS", "FDX", "HON", "LMT", "WM",
+    "DIS", "CMCSA", "VZ", "T", "CHTR", "XOM", "CVX"
+  ]
+}

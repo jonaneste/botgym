@@ -38,3 +38,8 @@ credenciales.json
 *.p12
 *.mobileprovision
 .env
+
+# Inversiones: la cartera real y lo que se genera con ella son datos
+# personales. Solo se versiona el ejemplo.
+inversiones/cartera.json
+inversiones/panel-datos/

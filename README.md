@@ -45,6 +45,7 @@ Entrenos/
   DatosIniciales/        Semilla: ejercicios y la rutina de 5 días
 Tests/                   Tests unitarios del núcleo
 mcp/                     Servidor MCP para que Claude lea tus datos
+inversiones/             Proyecto aparte: cartera de acciones con MCP y skills
 Herramientas/            Verificación e instalación en el dispositivo
 CLAUDE.md                Decisiones del proyecto y trampas conocidas
 docs/                    Instalación y esquema JSON
