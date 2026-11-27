@@ -1,0 +1,41 @@
+{
+  "nombre": "flatexDEGIRO SE",
+  "moneda": "EUR",
+  "simboloCotizacion": "FTK.DE",
+  "financiera": true,
+  "sector": "Broker online con licencia bancaria",
+  "fuente": "Manual: informe anual 2025 y resultados 9M 2026 de flatexDEGIRO (ver notas)",
+  "fechaBalance": "2025-12-31",
+  "presentado": "2026-11-05",
+  "ttm": {
+    "ingresos": 637500000,
+    "beneficioNeto": 205200000,
+    "dividendos": 32000000
+  },
+  "ttmDetalle": {
+    "ingresos": { "fin": "2026-09-30", "metodo": "FY2025 + 9M 2026 − 9M 2025" },
+    "beneficioNeto": { "fin": "2026-09-30", "metodo": "FY2025 + 9M 2026 − 9M 2025" }
+  },
+  "balance": {
+    "patrimonio": 893800000
+  },
+  "acciones": 107000000,
+  "accionesFuente": "media básica 2025 (StockAnalysis); revisar tras recompras",
+  "anual": {
+    "fines": ["2024-12-31", "2025-12-31"],
+    "ingresos": [null, 557500000],
+    "beneficioNeto": [null, 160400000],
+    "patrimonio": [754700000, 893800000]
+  },
+  "supuestos": {
+    "crecimientoBase": 0.08
+  },
+  "notas": [
+    "Ingresos FY2025 557,5 M€ y beneficio neto 160,4 M€ (StockAnalysis; la compañía redondea a 560 y 160).",
+    "9M 2026: ingresos 490,4 M€ (+19,5 %) y beneficio neto 165,4 M€ (+37,2 %) según el resumen de Quartr de los resultados del tercer trimestre. 9M 2025 se deduce de esos crecimientos: 410,4 y 120,6 M€.",
+    "Patrimonio neto del grupo a 31-12-2025: 893,8 M€ (informe anual 2025). No hay balance de septiembre de 2026 en las fuentes consultadas.",
+    "Dividendo: 0,30 € por acción sobre el ejercicio 2025 (política del 20 % del beneficio), unos 32 M€ pagados en 2026.",
+    "crecimientoBase 8 %: hipótesis prudente elegida a mano, por debajo del +44 % de beneficio en 2025 y del objetivo 2026 (+5-15 %, ya superado según la propia empresa). No hay serie anual suficiente para calcularla.",
+    "Es un broker con banco: se valora por beneficio y valor contable, sin EV ni flujo libre. Su beneficio depende de los tipos de interés y del volumen de operaciones, ambos cíclicos."
+  ]
+}

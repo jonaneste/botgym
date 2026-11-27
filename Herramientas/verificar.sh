@@ -26,6 +26,8 @@ paso() {
 if command -v node >/dev/null 2>&1; then
     paso "Sintaxis del servidor MCP" node --check mcp/servidor-entrenos.mjs
     paso "Pruebas del servidor MCP" node mcp/prueba.mjs
+    paso "Sintaxis del MCP de inversiones" node --check inversiones/mcp/servidor-inversiones.mjs
+    paso "Pruebas del MCP de inversiones" node inversiones/mcp/prueba.mjs
 else
     printf '\n\033[33m⊘ Sin node: el servidor MCP no se comprueba\033[0m\n'
 fi

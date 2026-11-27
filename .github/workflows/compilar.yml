@@ -35,6 +35,12 @@ jobs:
       - name: Prueba del protocolo y de los agregados
         run: node mcp/prueba.mjs
 
+      # Sin red: las cuentas de la SEC que usan las pruebas van en fixtures/.
+      - name: Pruebas del MCP de inversiones
+        run: |
+          node --check inversiones/mcp/servidor-inversiones.mjs
+          node inversiones/mcp/prueba.mjs
+
       # El script que se ejecuta a mano antes de empujar. Aquí no añade
       # cobertura nueva: lo que comprueba es que el propio script siga
       # funcionando, porque si se rompe nadie se enteraría hasta necesitarlo.

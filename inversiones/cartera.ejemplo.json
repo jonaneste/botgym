@@ -1,0 +1,21 @@
+{
+  "broker": "Tu broker",
+  "moneda": "EUR",
+  "actualizado": "2026-01-15",
+  "origen": "Ejemplo. Copia este archivo como cartera.json (o a iCloud Drive/Inversiones/cartera.json) y pon tus posiciones.",
+  "reglas": {
+    "pesoMaximo": 0.25,
+    "umbralPuntuacion": 55,
+    "ordenMinimaEUR": 50,
+    "comisionPorOrdenEUR": 1,
+    "maxOperaciones": 3
+  },
+  "posiciones": [
+    { "nombre": "Microsoft", "ticker": "MSFT", "isin": "US5949181045", "participaciones": 2, "invertidoEUR": 780.00 },
+    { "nombre": "Coca-Cola", "ticker": "KO", "isin": "US1912161007", "participaciones": 10, "invertidoEUR": 610.00 },
+    { "nombre": "SAP", "ticker": "SAP.DE", "isin": "DE0007164600", "participaciones": 3, "invertidoEUR": 690.00, "sector": "Software" }
+  ],
+  "vigilancia": ["GOOGL", "V", "JNJ"],
+  "operaciones": [],
+  "historico": []
+}

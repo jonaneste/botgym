@@ -5,6 +5,9 @@ backend, sin cuentas y sin suscripciones. Todo vive en el dispositivo, y un
 `entrenos.json` opcional en iCloud Drive es lo que el servidor de `mcp/` sirve
 a Claude para dar consejos.
 
+`inversiones/` es otro proyecto que comparte repositorio, con su propio
+[CLAUDE.md](inversiones/CLAUDE.md); lo de aquí abajo no le aplica.
+
 El [README](README.md) explica la estructura. Esto es lo que hay que saber
 **antes de tocar código**, porque son decisiones que ya costaron un fallo.
 
